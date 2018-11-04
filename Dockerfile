@@ -11,8 +11,6 @@ RUN apk --no-cache update && \
 
 RUN  dos2unix build.sh && ./build.sh
 
-RUN  ./build.sh
-
 CMD ["./dist/tide-whisperer"]
 
 # Release
