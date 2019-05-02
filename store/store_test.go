@@ -7,13 +7,8 @@ import (
 	"testing"
 	"time"
 
-<<<<<<< HEAD
-	mgo "gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
-=======
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"
->>>>>>> 06f4a29... Replaced mgo driver. Updated to Go 1.11.4
 
 	"github.com/tidepool-org/go-common/clients/mongo"
 )
