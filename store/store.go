@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	data_collection       = "deviceData"
-	DATA_STORE_API_PREFIX = "api/data/store"
+	data_collection               = "deviceData"
+	DATA_STORE_API_PREFIX         = "api/data/store"
+	portal_db                     = "portal"
+	parameters_history_collection = "patient_parameters_history"
 )
 
 type (
@@ -170,6 +172,9 @@ func NewMongoStoreClient(config *mongo.Config) *MongoStoreClient {
 
 func mgoDataCollection(cpy *mgo.Session) *mgo.Collection {
 	return cpy.DB("").C(data_collection)
+}
+func mgoParametersHistoryCollection(cpy *mgo.Session) *mgo.Collection {
+	return cpy.DB(portal_db).C(parameters_history_collection)
 }
 
 // generateMongoQuery takes in a number of parameters and constructs a mongo query
@@ -451,6 +456,29 @@ func (d MongoStoreClient) GetDeviceData(p *Params) StorageIterator {
 	}
 
 	return &ClosingSessionIterator{session, iter}
+}
+
+func (d MongoStoreClient) GetDiabeloopParametersHistory(userID string) (bson.M, error) {
+	if userID == "" {
+		return nil, errors.New("user id is missing")
+	}
+
+	session := d.session.Copy()
+	defer session.Close()
+
+	query := bson.M{
+		"userid": userID,
+	}
+
+	dataSources := []bson.M{}
+	err := mgoParametersHistoryCollection(session).Find(query).Limit(1).All(&dataSources)
+	if err != nil {
+		return nil, err
+	} else if len(dataSources) == 0 {
+		return nil, nil
+	}
+
+	return dataSources[0], nil
 }
 
 func (i *ClosingSessionIterator) Next(result interface{}) bool {
