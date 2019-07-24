@@ -294,7 +294,9 @@ func main() {
 		var parametersHistoryErr error
 		if inArray("pumpSettings", queryParams.Types) || len(queryParams.Types) == 1 {
 			log.Printf("Calling GetDiabeloopParametersHistory")
-			if parametersHistory, parametersHistoryErr = storage.GetDiabeloopParametersHistory(queryParams.UserId); parametersHistoryErr != nil {
+			defaultLevelFilter := make([]int, 1)
+			defaultLevelFilter = append(defaultLevelFilter, 1)
+			if parametersHistory, parametersHistoryErr = storage.GetDiabeloopParametersHistory(queryParams.UserId, defaultLevelFilter); parametersHistoryErr != nil {
 				log.Printf("%s request %s user %s GetDiabeloopParametersHistory returned error: %s", DATA_API_PREFIX, requestID, userID, parametersHistoryErr)
 				jsonError(res, error_running_query, start)
 				return
@@ -317,8 +319,6 @@ func main() {
 			if len(results) > 0 {
 				if results["type"].(string) == "pumpSettings" && parametersHistory != nil {
 					payload := results["payload"].(map[string]interface{})
-					history := make(map[string]interface{})
-					history["parameters"] = parametersHistory["history"]
 					payload["history"] = parametersHistory["history"]
 					results["payload"] = payload
 				}
