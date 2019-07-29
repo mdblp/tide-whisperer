@@ -292,7 +292,7 @@ func main() {
 
 		var parametersHistory map[string]interface{}
 		var parametersHistoryErr error
-		if inArray("pumpSettings", queryParams.Types) || len(queryParams.Types) == 1 {
+		if inArray("pumpSettings", queryParams.Types) || (len(queryParams.Types) == 1 && queryParams.Types[0] == "") {
 			log.Printf("Calling GetDiabeloopParametersHistory")
 			defaultLevelFilter := make([]int, 1)
 			defaultLevelFilter = append(defaultLevelFilter, 1)
