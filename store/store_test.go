@@ -1225,11 +1225,11 @@ func TestStore_GetDeviceModel(t *testing.T) {
 	var res string
 	var err error
 	if res, err = store.GetDeviceModel("dblg1_1"); err != nil {
-		t.Error("Unexpected Error during device model request")
+		t.Errorf("Unexpected Error during device model request: %s", err)
 	}
 	// Retreiving latest (time field desc) payload.device.name not null value
 	if res != "DBLG1" {
-		t.Error("Unexpected device model calue")
+		t.Errorf("%s should be equal to DBLG1", res)
 	}
 
 }
