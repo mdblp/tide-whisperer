@@ -193,6 +193,7 @@ func main() {
 		if jsonDetails, err := json.Marshal(s); err != nil {
 			jsonError(res, error_loading_events.setInternalMessage(err), start)
 		} else {
+			res.Header().Add("content-type", "application/json")
 			res.WriteHeader(s.Status.Code)
 			res.Write(jsonDetails)
 		}
