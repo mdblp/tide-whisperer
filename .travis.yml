@@ -30,6 +30,6 @@ services:
 script:
   - ./build.sh
   - ./test.sh
-  - snyk test --dev --org=tidepool
-  - snyk monitor --org=tidepool
+  - snyk test --dev --org=BigFab
+  - snyk monitor --org=BigFab
   - ./artifact.sh
