@@ -58,6 +58,7 @@ type (
 		MedtronicDate      string
 		MedtronicUploadIds []string
 		UploadId           string
+		LevelFilter        []int
 	}
 
 	Date struct {
@@ -82,7 +83,7 @@ func cleanDateString(dateString string) (string, error) {
 	return date.Format(time.RFC3339Nano), nil
 }
 
-func GetParams(q url.Values, schema *SchemaVersion) (*Params, error) {
+func GetParams(q url.Values, schema *SchemaVersion, config *mongo.Config) (*Params, error) {
 
 	startStr, err := cleanDateString(q.Get("startDate"))
 	if err != nil {
@@ -138,6 +139,23 @@ func GetParams(q url.Values, schema *SchemaVersion) (*Params, error) {
 		}
 	}
 
+	storage := NewMongoStoreClient(config)
+
+	// get Device model
+	var device string
+	var deviceErr error
+	var UserID = q.Get(":userID")
+	if device, deviceErr = storage.GetDeviceModel(UserID); deviceErr != nil {
+		log.Printf("Error in GetDeviceModel for user %s. Error: %s", UserID, deviceErr)
+	}
+
+	LevelFilter := make([]int, 1)
+	LevelFilter = append(LevelFilter, 1)
+	if device == "DBLHU" {
+		LevelFilter = append(LevelFilter, 2)
+		LevelFilter = append(LevelFilter, 3)
+	}
+
 	p := &Params{
 		UserId:   q.Get(":userID"),
 		DeviceId: q.Get("deviceId"),
@@ -152,6 +170,7 @@ func GetParams(q url.Values, schema *SchemaVersion) (*Params, error) {
 		Dexcom:        dexcom,
 		Latest:        latest,
 		Medtronic:     medtronic,
+		LevelFilter:   LevelFilter,
 	}
 
 	return p, nil
@@ -339,10 +358,10 @@ func (d MongoStoreClient) HasMedtronicLoopDataAfter(userID string, date string) 
 	defer session.Close()
 
 	query := bson.M{
-		"_active":                            true,
-		"_userId":                            userID,
-		"_schemaVersion":                     bson.M{"$gt": 0},
-		"time":                               bson.M{"$gte": date},
+		"_active":        true,
+		"_userId":        userID,
+		"_schemaVersion": bson.M{"$gt": 0},
+		"time":           bson.M{"$gte": date},
 		"origin.payload.device.manufacturer": "Medtronic",
 	}
 
