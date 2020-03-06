@@ -202,6 +202,8 @@ func mgoParametersHistoryCollection(cpy *mgo.Session) *mgo.Collection {
 // on parameters
 func generateMongoQuery(p *Params) bson.M {
 
+	finalQuery := bson.M{}
+	skipParamsQuery := false
 	groupDataQuery := bson.M{
 		"_userId":        p.UserId,
 		"_active":        true,
@@ -210,10 +212,12 @@ func generateMongoQuery(p *Params) bson.M {
 	//if optional parameters are present, then add them to the query
 	if len(p.Types) > 0 && p.Types[0] != "" {
 		groupDataQuery["type"] = bson.M{"$in": p.Types}
+		skipParamsQuery = true
 	}
 
 	if len(p.SubTypes) > 0 && p.SubTypes[0] != "" {
 		groupDataQuery["subType"] = bson.M{"$in": p.SubTypes}
+		skipParamsQuery = true
 	}
 
 	if p.Date.Start != "" && p.Date.End != "" {
@@ -230,12 +234,14 @@ func generateMongoQuery(p *Params) bson.M {
 
 	if p.DeviceId != "" {
 		groupDataQuery["deviceId"] = p.DeviceId
+		skipParamsQuery = true
 	}
 
 	// If we have an explicit upload ID to filter by, we don't need or want to apply any further
 	// data source-based filtering
 	if p.UploadId != "" {
 		groupDataQuery["uploadId"] = p.UploadId
+		finalQuery = groupDataQuery
 	} else {
 		andQuery := []bson.M{}
 		if !p.Dexcom && p.DexcomDataSource != nil {
@@ -263,10 +269,34 @@ func generateMongoQuery(p *Params) bson.M {
 
 		if len(andQuery) > 0 {
 			groupDataQuery["$and"] = andQuery
+			finalQuery = groupDataQuery
+		} else if skipParamsQuery || len(p.LevelFilter) == 0 {
+			finalQuery = groupDataQuery
+		} else {
+			paramQuery := []bson.M{}
+			// create the level filter as string
+			LevelFilterAsString := []string{}
+			for value := range p.LevelFilter {
+				LevelFilterAsString = append(LevelFilterAsString, strconv.Itoa(value))
+			}
+
+			// split the group in 2 queries for deviceParameters
+			orQuery := bson.M{}
+			for key, value := range groupDataQuery {
+				orQuery[key] = value
+			}
+			groupDataQuery["subType"] = bson.M{"$ne": "deviceParameter"}
+			orQuery["type"] = "deviceEvent"
+			orQuery["subType"] = "deviceParameter"
+			orQuery["level"] = bson.M{"$in": LevelFilterAsString}
+
+			paramQuery = append(paramQuery, groupDataQuery)
+			paramQuery = append(paramQuery, orQuery)
+			finalQuery = bson.M{"$or": paramQuery}
 		}
 	}
 
-	return groupDataQuery
+	return finalQuery
 }
 
 func (d MongoStoreClient) Close() {

@@ -10,8 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sort"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -320,7 +318,6 @@ func main() {
 		res.Write([]byte("["))
 
 		var results map[string]interface{}
-		var nbFilters = len(queryParams.LevelFilter)
 		for iter.Next(&results) {
 			if queryParams.Latest {
 				// If we're using the `latest` parameter, then we ran an `$aggregate` query to get only the latest data.
@@ -335,25 +332,15 @@ func main() {
 					payload["history"] = parametersHistory["history"]
 					results["payload"] = payload
 				}
-				var skip = false
-				if results["type"].(string) == "deviceEvent" {
-					if results["subType"].(string) == "deviceParameter" {
-						if n, err := strconv.Atoi(results["level"].(string)); err == nil && sort.SearchInts(queryParams.LevelFilter, n) == nbFilters {
-							skip = true
-						}
+				if bytes, err := json.Marshal(results); err != nil {
+					log.Printf("%s request %s user %s Marshal returned error: %s", DATA_API_PREFIX, requestID, userID, err)
+				} else {
+					if writeCount > 0 {
+						res.Write([]byte(","))
 					}
-				}
-				if !skip {
-					if bytes, err := json.Marshal(results); err != nil {
-						log.Printf("%s request %s user %s Marshal returned error: %s", DATA_API_PREFIX, requestID, userID, err)
-					} else {
-						if writeCount > 0 {
-							res.Write([]byte(","))
-						}
-						res.Write([]byte("\n"))
-						res.Write(bytes)
-						writeCount += 1
-					}
+					res.Write([]byte("\n"))
+					res.Write(bytes)
+					writeCount += 1
 				}
 			}
 		}
