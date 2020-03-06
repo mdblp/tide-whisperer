@@ -275,9 +275,9 @@ func generateMongoQuery(p *Params) bson.M {
 		} else {
 			paramQuery := []bson.M{}
 			// create the level filter as string
-			LevelFilterAsString := []string{}
+			levelFilterAsString := []string{}
 			for value := range p.LevelFilter {
-				LevelFilterAsString = append(LevelFilterAsString, strconv.Itoa(value))
+				levelFilterAsString = append(levelFilterAsString, strconv.Itoa(value))
 			}
 
 			// split the group in 2 queries for deviceParameters
@@ -288,7 +288,7 @@ func generateMongoQuery(p *Params) bson.M {
 			groupDataQuery["subType"] = bson.M{"$ne": "deviceParameter"}
 			orQuery["type"] = "deviceEvent"
 			orQuery["subType"] = "deviceParameter"
-			orQuery["level"] = bson.M{"$in": LevelFilterAsString}
+			orQuery["level"] = bson.M{"$in": levelFilterAsString}
 
 			paramQuery = append(paramQuery, groupDataQuery)
 			paramQuery = append(paramQuery, orQuery)
@@ -598,11 +598,11 @@ func (d MongoStoreClient) GetDeviceModel(userID string) (string, error) {
 	payLoadDeviceNameQuery[1] = bson.M{"payload.device.name": bson.M{"$ne": nil}}
 
 	query := bson.M{
-		"_userId": userID,
-		// "type":    "upload",
-		// "_state":  "closed",
-		"_active": true,
-		"$and":    payLoadDeviceNameQuery,
+		"_userId":        userID,
+		"type":           "pumpSettings",
+		"_schemaVersion": bson.M{"$gt": 0},
+		"_active":        true,
+		"$and":           payLoadDeviceNameQuery,
 	}
 
 	session := d.session.Copy()
