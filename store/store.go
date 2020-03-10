@@ -279,20 +279,22 @@ func generateMongoQuery(p *Params) bson.M {
 			for value := range p.LevelFilter {
 				levelFilterAsString = append(levelFilterAsString, strconv.Itoa(value))
 			}
-
-			// split the group in 2 queries for deviceParameters
-			orQuery := bson.M{}
-			for key, value := range groupDataQuery {
-				orQuery[key] = value
-			}
-			groupDataQuery["subType"] = bson.M{"$ne": "deviceParameter"}
-			orQuery["type"] = "deviceEvent"
-			orQuery["subType"] = "deviceParameter"
-			orQuery["level"] = bson.M{"$in": levelFilterAsString}
-
 			paramQuery = append(paramQuery, groupDataQuery)
-			paramQuery = append(paramQuery, orQuery)
-			finalQuery = bson.M{"$or": paramQuery}
+
+			deviceParametersQuery := bson.M{}
+			deviceParametersQuery["type"] = "deviceEvent"
+			deviceParametersQuery["subType"] = "deviceParameter"
+			deviceParametersQuery["level"] = bson.M{"$in": levelFilterAsString}
+			otherDataQuery := bson.M{}
+			otherDataQuery["type"] = bson.M{"$ne": "deviceEvent"}
+			otherDataQuery["subType"] = bson.M{"$ne": "deviceParameter"}
+
+			orQuery := []bson.M{}
+			orQuery = append(orQuery, deviceParametersQuery)
+			orQuery = append(orQuery, otherDataQuery)
+
+			paramQuery = append(paramQuery, bson.M{"$or": orQuery})
+			finalQuery = bson.M{"$and": paramQuery}
 		}
 	}
 
