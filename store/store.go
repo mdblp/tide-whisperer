@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -212,12 +213,16 @@ func generateMongoQuery(p *Params) bson.M {
 	//if optional parameters are present, then add them to the query
 	if len(p.Types) > 0 && p.Types[0] != "" {
 		groupDataQuery["type"] = bson.M{"$in": p.Types}
-		skipParamsQuery = true
+		if sort.SearchStrings(p.Types, "deviceEvent") == len(p.Types) {
+			skipParamsQuery = true
+		}
 	}
 
 	if len(p.SubTypes) > 0 && p.SubTypes[0] != "" {
 		groupDataQuery["subType"] = bson.M{"$in": p.SubTypes}
-		skipParamsQuery = true
+		if sort.SearchStrings(p.SubTypes, "deviceParameter") == len(p.SubTypes) {
+			skipParamsQuery = true
+		}
 	}
 
 	if p.Date.Start != "" && p.Date.End != "" {
