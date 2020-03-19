@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -72,6 +71,15 @@ type (
 		*mgo.Iter
 	}
 )
+
+func InArray(needle string, arr []string) bool {
+	for _, n := range arr {
+		if needle == n {
+			return true
+		}
+	}
+	return false
+}
 
 func cleanDateString(dateString string) (string, error) {
 	if dateString == "" {
@@ -213,14 +221,14 @@ func generateMongoQuery(p *Params) bson.M {
 	//if optional parameters are present, then add them to the query
 	if len(p.Types) > 0 && p.Types[0] != "" {
 		groupDataQuery["type"] = bson.M{"$in": p.Types}
-		if sort.SearchStrings(p.Types, "deviceEvent") == len(p.Types) {
+		if !InArray("deviceEvent", p.Types) {
 			skipParamsQuery = true
 		}
 	}
 
 	if len(p.SubTypes) > 0 && p.SubTypes[0] != "" {
 		groupDataQuery["subType"] = bson.M{"$in": p.SubTypes}
-		if sort.SearchStrings(p.SubTypes, "deviceParameter") == len(p.SubTypes) {
+		if !InArray("deviceParameter", p.SubTypes) {
 			skipParamsQuery = true
 		}
 	}

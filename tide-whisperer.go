@@ -75,15 +75,6 @@ func (d detailedError) setInternalMessage(internal error) detailedError {
 	return d
 }
 
-func inArray(needle string, arr []string) bool {
-	for _, n := range arr {
-		if needle == n {
-			return true
-		}
-	}
-	return false
-}
-
 func main() {
 	var config Config
 
@@ -303,7 +294,7 @@ func main() {
 
 		var parametersHistory map[string]interface{}
 		var parametersHistoryErr error
-		if inArray("pumpSettings", queryParams.Types) || (len(queryParams.Types) == 1 && queryParams.Types[0] == "") {
+		if store.InArray("pumpSettings", queryParams.Types) || (len(queryParams.Types) == 1 && queryParams.Types[0] == "") {
 			log.Printf("Calling GetDiabeloopParametersHistory")
 
 			if parametersHistory, parametersHistoryErr = storage.GetDiabeloopParametersHistory(queryParams.UserId, queryParams.LevelFilter); parametersHistoryErr != nil {
