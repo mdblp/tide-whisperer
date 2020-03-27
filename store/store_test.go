@@ -181,6 +181,19 @@ func typesWithoutDeviceEventQuery() bson.M {
 	return generateMongoQuery(qParams)
 }
 
+func typesWithDeviceEventAndSubTypeQuery() bson.M {
+	qParams := &Params{
+		UserId:        "abc123",
+		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		LevelFilter:   []int{1, 2},
+		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Types:         []string{"deviceEvent", "food"},
+		SubTypes:      []string{"reservoirChange"},
+	}
+
+	return generateMongoQuery(qParams)
+}
+
 func testDataForLatestTests() map[string]bson.M {
 	testData := map[string]bson.M{
 		"upload1": bson.M{
@@ -470,6 +483,28 @@ func TestStore_generateMongoQuery_withoutDETypes(t *testing.T) {
 		"source": bson.M{
 			"$ne": "carelink",
 		},
+	}
+
+	eq := reflect.DeepEqual(query, expectedQuery)
+	if !eq {
+		t.Error(getErrString(query, expectedQuery))
+	}
+}
+
+func TestStore_generateMongoQuery_withDETypesAndSubType(t *testing.T) {
+
+	query := typesWithDeviceEventAndSubTypeQuery()
+
+	expectedQuery := bson.M{
+		"_userId":        "abc123",
+		"_active":        true,
+		"_schemaVersion": bson.M{"$gte": 0, "$lte": 2},
+		"source":         bson.M{"$ne": "carelink"},
+		"time": bson.M{
+			"$gte": "2015-10-07T15:00:00.000Z",
+			"$lte": "2015-11-07T15:00:00.000Z"},
+		"type":    bson.M{"$in": []string{"deviceEvent", "food"}},
+		"subType": bson.M{"$in": []string{"reservoirChange"}},
 	}
 
 	eq := reflect.DeepEqual(query, expectedQuery)
