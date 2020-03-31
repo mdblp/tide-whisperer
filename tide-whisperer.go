@@ -25,6 +25,7 @@ import (
 	"github.com/tidepool-org/go-common/clients/shoreline"
 	"github.com/tidepool-org/go-common/clients/status"
 
+	"github.com/tidepool-org/tide-whisperer/aggregates"
 	"github.com/tidepool-org/tide-whisperer/auth"
 	"github.com/tidepool-org/tide-whisperer/store"
 )
@@ -190,6 +191,10 @@ func main() {
 		}
 		return
 	}))
+
+	router.Add(
+		"GET", "/aggregates/tir",
+		httpgzip.NewHandler(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) { aggregates.TimeInRange(res, req, storage) })))
 
 	// The /data/userId endpoint retrieves device/health data for a user based on a set of parameters
 	// userid: the ID of the user you want to retrieve data for

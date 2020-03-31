@@ -12,6 +12,7 @@ import (
 	"github.com/globalsign/mgo/bson"
 
 	"github.com/tidepool-org/go-common/clients/mongo"
+	"github.com/tidepool-org/tide-whisperer/utils"
 )
 
 const (
@@ -32,6 +33,7 @@ type (
 		Close()
 		Ping() error
 		GetDeviceData(p *Params) StorageIterator
+		GetTimeInRangeData(userPrefs []utils.UserPref) StorageIterator
 	}
 	//Mongo Storage Client
 	MongoStoreClient struct {
@@ -403,10 +405,10 @@ func (d MongoStoreClient) HasMedtronicLoopDataAfter(userID string, date string) 
 	defer session.Close()
 
 	query := bson.M{
-		"_active":        true,
-		"_userId":        userID,
-		"_schemaVersion": bson.M{"$gt": 0},
-		"time":           bson.M{"$gte": date},
+		"_active":                            true,
+		"_userId":                            userID,
+		"_schemaVersion":                     bson.M{"$gt": 0},
+		"time":                               bson.M{"$gte": date},
 		"origin.payload.device.manufacturer": "Medtronic",
 	}
 
