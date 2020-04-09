@@ -102,10 +102,9 @@ func (a *API) Get501(res http.ResponseWriter, req *http.Request) {
 // @Summary Get the api status
 // @Description Get the api status
 // @ID tide-whisperer-api-getstatus
-// @Accept json
 // @Produce json
-// @Success 200
-// @Failure 500 {string} string "error description"
+// @Success 200 {object} status.ApiStatus
+// @Failure 500
 // @Router /status [get]
 func (a *API) GetStatus(res http.ResponseWriter, req *http.Request) {
 	start := time.Now()
@@ -142,9 +141,14 @@ func (a *API) GetStatus(res http.ResponseWriter, req *http.Request) {
 // endDate (optional) : Only objects with 'time' field less than to or equal to start date will be returned.
 //					Must be in ISO date/time format e.g. 2015-10-10T15:00:00.000Z
 // latest (optional) : Returns only the most recent results for each `type` matching the results filtered by the other query parameters
+
 // @Summary Get device/health data for a user based on a set of parameters
 // @Description Get device/health data for a user based on a set of parameters
 // @ID tide-whisperer-api-getdata
+// @Produce json
+// @Param userID path int true "user id"
+// @Security TidepoolAuth
+// @Router /{userID} [get]
 func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[string]string) {
 
 	start := time.Now()
