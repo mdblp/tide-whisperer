@@ -22,30 +22,21 @@ import (
 )
 
 type (
-	Api struct {
+	API struct {
 		store           *store.MongoStoreClient
-		apiConfig       ApiConfig
 		shorelineClient *shoreline.ShorelineClient
 		authClient      *auth.Client
 		perms           clients.Gatekeeper
 		schemaVersion   store.SchemaVersion
 	}
-	Secret struct {
-		Secret string `json:"secret"`
-		Pass   string `json:"pass"`
-	}
-	ApiConfig struct {
-		//used for services
-		Secrets       []Secret `json:"secrets"`
-		ServerSecrets map[string]string
-	}
+
 	varsHandler func(http.ResponseWriter, *http.Request, map[string]string)
 
 	// so we can wrap and marshal the detailed error
 	detailedError struct {
 		Status int `json:"status"`
 		//provided to user so that we can better track down issues
-		Id              string `json:"id"`
+		ID              string `json:"id"`
 		Code            string `json:"code"`
 		Message         string `json:"message"`
 		InternalMessage string `json:"-"` //used only for logging so we don't want to serialize it out
@@ -57,8 +48,7 @@ type (
 
 const (
 	//api logging prefix
-	DATA_API_PREFIX           = "api/data "
-	STATUS_GETSTATUS_ERR      = "Error checking service status"
+	DataAPIPrefix             = "api/data "
 	medtronicLoopBoundaryDate = "2017-09-01"
 	slowQueryDuration         = 0.1 // seconds
 )
@@ -72,11 +62,10 @@ var (
 	errorInvalidParameters = detailedError{Status: http.StatusInternalServerError, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
 )
 
-func InitApi(mongoConfig mongo.Config, shoreline *shoreline.ShorelineClient, auth *auth.Client, permsClient clients.Gatekeeper, schemaV store.SchemaVersion) *Api {
+func InitApi(mongoConfig mongo.Config, shoreline *shoreline.ShorelineClient, auth *auth.Client, permsClient clients.Gatekeeper, schemaV store.SchemaVersion) *API {
 	storage := store.NewMongoStoreClient(&mongoConfig)
-	storage.EnsureIndexes()
 
-	return &Api{
+	return &API{
 		store:           storage,
 		shorelineClient: shoreline,
 		authClient:      auth,
@@ -85,7 +74,7 @@ func InitApi(mongoConfig mongo.Config, shoreline *shoreline.ShorelineClient, aut
 	}
 }
 
-func (a *Api) SetHandlers(prefix string, rtr *mux.Router) {
+func (a *API) SetHandlers(prefix string, rtr *mux.Router) {
 	/*
 	 Gloo performs autodiscovery by trying certain paths,
 	 including /swagger, /v1, and v2.  Unfortunately, tide-whisperer
@@ -105,20 +94,20 @@ func (h varsHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	h(res, req, vars)
 }
 
-func (a *Api) Get501(res http.ResponseWriter, req *http.Request) {
+func (a *API) Get501(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(501)
 	return
 }
 
 // @Summary Get the api status
 // @Description Get the api status
-// @ID shoreline-user-api-getstatus
-// @Accept  json
-// @Produce  json
+// @ID tide-whisperer-api-getstatus
+// @Accept json
+// @Produce json
 // @Success 200
 // @Failure 500 {string} string "error description"
 // @Router /status [get]
-func (a *Api) GetStatus(res http.ResponseWriter, req *http.Request) {
+func (a *API) GetStatus(res http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 	var s status.ApiStatus
 	if err := a.store.Ping(); err != nil {
@@ -153,18 +142,25 @@ func (a *Api) GetStatus(res http.ResponseWriter, req *http.Request) {
 // endDate (optional) : Only objects with 'time' field less than to or equal to start date will be returned.
 //					Must be in ISO date/time format e.g. 2015-10-10T15:00:00.000Z
 // latest (optional) : Returns only the most recent results for each `type` matching the results filtered by the other query parameters
-func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[string]string) {
+// @Summary Get device/health data for a user based on a set of parameters
+// @Description Get device/health data for a user based on a set of parameters
+// @ID tide-whisperer-api-getdata
+func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[string]string) {
+
 	start := time.Now()
+
+	a.store.EnsureIndexes()
+	storageWithCtx := a.store.WithContext(req.Context())
 
 	queryValues := url.Values{":userID": []string{vars["userID"]}}
 	for k, v := range req.URL.Query() {
 		queryValues[k] = v
 	}
 
-	queryParams, err := a.store.GetParams(queryValues, &a.schemaVersion)
+	queryParams, err := storageWithCtx.GetParams(queryValues, &a.schemaVersion)
 
 	if err != nil {
-		log.Println(DATA_API_PREFIX, fmt.Sprintf("Error parsing query params: %s", err))
+		log.Println(DataAPIPrefix, fmt.Sprintf("Error parsing query params: %s", err))
 		jsonError(res, errorInvalidParameters, start)
 		return
 	}
@@ -188,8 +184,8 @@ func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 	requestID := newRequestID()
 	queryStart := time.Now()
 	if _, ok := req.URL.Query()["carelink"]; !ok {
-		if hasMedtronicDirectData, medtronicErr := a.store.HasMedtronicDirectData(queryParams.UserID); medtronicErr != nil {
-			log.Printf("%s request %s user %s HasMedtronicDirectData returned error: %s", DATA_API_PREFIX, requestID, queryParams.UserID, medtronicErr)
+		if hasMedtronicDirectData, medtronicErr := storageWithCtx.HasMedtronicDirectData(queryParams.UserID); medtronicErr != nil {
+			log.Printf("%s request %s user %s HasMedtronicDirectData returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, medtronicErr)
 			jsonError(res, errorRunningQuery, start)
 			return
 		} else if !hasMedtronicDirectData {
@@ -197,28 +193,28 @@ func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 		}
 		if queryDuration := time.Now().Sub(queryStart).Seconds(); queryDuration > slowQueryDuration {
 			// XXX replace with metrics
-			//log.Printf("%s request %s user %s HasMedtronicDirectData took %.3fs", DATA_API_PREFIX, requestID, userID, queryDuration)
+			//log.Printf("%s request %s user %s HasMedtronicDirectData took %.3fs", DataAPIPrefix, requestID, userID, queryDuration)
 		}
 		queryStart = time.Now()
 	}
 	if !queryParams.Dexcom {
-		dexcomDataSource, dexcomErr := a.store.GetDexcomDataSource(queryParams.UserID)
+		dexcomDataSource, dexcomErr := storageWithCtx.GetDexcomDataSource(queryParams.UserID)
 		if dexcomErr != nil {
-			log.Printf("%s request %s user %s GetDexcomDataSource returned error: %s", DATA_API_PREFIX, requestID, queryParams.UserID, dexcomErr)
+			log.Printf("%s request %s user %s GetDexcomDataSource returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, dexcomErr)
 			jsonError(res, errorRunningQuery, start)
 			return
 		}
 		queryParams.DexcomDataSource = dexcomDataSource
 
 		if queryDuration := time.Now().Sub(queryStart).Seconds(); queryDuration > slowQueryDuration {
-			log.Printf("%s request %s user %s GetDexcomDataSource took %.3fs", DATA_API_PREFIX, requestID, queryParams.UserID, queryDuration)
+			log.Printf("%s request %s user %s GetDexcomDataSource took %.3fs", DataAPIPrefix, requestID, queryParams.UserID, queryDuration)
 		}
 		queryStart = time.Now()
 	}
 	if _, ok := req.URL.Query()["medtronic"]; !ok {
-		hasMedtronicLoopData, medtronicErr := a.store.HasMedtronicLoopDataAfter(queryParams.UserID, medtronicLoopBoundaryDate)
+		hasMedtronicLoopData, medtronicErr := storageWithCtx.HasMedtronicLoopDataAfter(queryParams.UserID, medtronicLoopBoundaryDate)
 		if medtronicErr != nil {
-			log.Printf("%s request %s user %s HasMedtronicLoopDataAfter returned error: %s", DATA_API_PREFIX, requestID, queryParams.UserID, medtronicErr)
+			log.Printf("%s request %s user %s HasMedtronicLoopDataAfter returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, medtronicErr)
 			jsonError(res, errorRunningQuery, start)
 			return
 		}
@@ -226,14 +222,14 @@ func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 			queryParams.Medtronic = true
 		}
 		if queryDuration := time.Now().Sub(queryStart).Seconds(); queryDuration > slowQueryDuration {
-			log.Printf("%s request %s user %s HasMedtronicLoopDataAfter took %.3fs", DATA_API_PREFIX, requestID, queryParams.UserID, queryDuration)
+			log.Printf("%s request %s user %s HasMedtronicLoopDataAfter took %.3fs", DataAPIPrefix, requestID, queryParams.UserID, queryDuration)
 		}
 		queryStart = time.Now()
 	}
 	if !queryParams.Medtronic {
-		medtronicUploadIds, medtronicErr := a.store.GetLoopableMedtronicDirectUploadIdsAfter(queryParams.UserID, medtronicLoopBoundaryDate)
+		medtronicUploadIds, medtronicErr := storageWithCtx.GetLoopableMedtronicDirectUploadIdsAfter(queryParams.UserID, medtronicLoopBoundaryDate)
 		if medtronicErr != nil {
-			log.Printf("%s request %s user %s GetLoopableMedtronicDirectUploadIdsAfter returned error: %s", DATA_API_PREFIX, requestID, queryParams.UserID, medtronicErr)
+			log.Printf("%s request %s user %s GetLoopableMedtronicDirectUploadIdsAfter returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, medtronicErr)
 			jsonError(res, errorRunningQuery, start)
 			return
 		}
@@ -242,14 +238,14 @@ func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 
 		if queryDuration := time.Now().Sub(queryStart).Seconds(); queryDuration > slowQueryDuration {
 			// XXX replace with metrics
-			//log.Printf("%s request %s user %s GetLoopableMedtronicDirectUploadIdsAfter took %.3fs", DATA_API_PREFIX, requestID, userID, queryDuration)
+			//log.Printf("%s request %s user %s GetLoopableMedtronicDirectUploadIdsAfter took %.3fs", DataAPIPrefix, requestID, userID, queryDuration)
 		}
 		queryStart = time.Now()
 	}
 
-	iter, err := a.store.GetDeviceData(queryParams)
+	iter, err := storageWithCtx.GetDeviceData(queryParams)
 	if err != nil {
-		log.Printf("%s request %s user %s Mongo Query returned error: %s", DATA_API_PREFIX, requestID, queryParams.UserID, err)
+		log.Printf("%s request %s user %s Mongo Query returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, err)
 	}
 
 	defer iter.Close(req.Context())
@@ -260,7 +256,7 @@ func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 		log.Printf("Calling GetDiabeloopParametersHistory")
 
 		if parametersHistory, parametersHistoryErr = a.store.GetDiabeloopParametersHistory(queryParams.UserID, queryParams.LevelFilter); parametersHistoryErr != nil {
-			log.Printf("%s request %s user %s GetDiabeloopParametersHistory returned error: %s", DATA_API_PREFIX, requestID, queryParams.UserID, parametersHistoryErr)
+			log.Printf("%s request %s user %s GetDiabeloopParametersHistory returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, parametersHistoryErr)
 			jsonError(res, errorRunningQuery, start)
 			return
 		}
@@ -275,7 +271,7 @@ func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 		var results map[string]interface{}
 		err := iter.Decode(&results)
 		if err != nil {
-			log.Printf("%s request %s user %s Mongo Decode returned error: %s", DATA_API_PREFIX, requestID, queryParams.UserID, err)
+			log.Printf("%s request %s user %s Mongo Decode returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, err)
 		}
 
 		if queryParams.Latest {
@@ -292,7 +288,7 @@ func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 				results["payload"] = payload
 			}
 			if bytes, err := json.Marshal(results); err != nil {
-				log.Printf("%s request %s user %s Marshal returned error: %s", DATA_API_PREFIX, requestID, queryParams.UserID, err)
+				log.Printf("%s request %s user %s Marshal returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, err)
 			} else {
 				if writeCount > 0 {
 					res.Write([]byte(","))
@@ -311,9 +307,9 @@ func (a *Api) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 
 	if queryDuration := time.Now().Sub(queryStart).Seconds(); queryDuration > slowQueryDuration {
 		// XXX use metrics
-		//log.Printf("%s request %s user %s GetDeviceData took %.3fs", DATA_API_PREFIX, requestID, userID, queryDuration)
+		//log.Printf("%s request %s user %s GetDeviceData took %.3fs", DataAPIPrefix, requestID, userID, queryDuration)
 	}
-	log.Printf("%s request %s user %s took %.3fs returned %d records", DATA_API_PREFIX, requestID, queryParams.UserID, time.Now().Sub(start).Seconds(), writeCount)
+	log.Printf("%s request %s user %s took %.3fs returned %d records", DataAPIPrefix, requestID, queryParams.UserID, time.Now().Sub(start).Seconds(), writeCount)
 }
 
 //log error detail and write as application/json
@@ -327,8 +323,8 @@ func jsonError(res http.ResponseWriter, err detailedError, startedAt time.Time) 
 }
 
 func logError(err *detailedError, startedAt time.Time) {
-	err.Id = uuid.New().String()
-	log.Println(DATA_API_PREFIX, fmt.Sprintf("[%s][%s] failed after [%.3f]secs with error [%s][%s] ", err.Id, err.Code, time.Now().Sub(startedAt).Seconds(), err.Message, err.InternalMessage))
+	err.ID = uuid.New().String()
+	log.Println(DataAPIPrefix, fmt.Sprintf("[%s][%s] failed after [%.3f]secs with error [%s][%s] ", err.ID, err.Code, time.Now().Sub(startedAt).Seconds(), err.Message, err.InternalMessage))
 }
 
 //set the internal message that we will use for logging
@@ -337,28 +333,19 @@ func (d detailedError) setInternalMessage(internal error) detailedError {
 	return d
 }
 
-func (a *Api) userCanViewData(authenticatedUserID string, targetUserID string) bool {
+func (a *API) userCanViewData(authenticatedUserID string, targetUserID string) bool {
 	if authenticatedUserID == targetUserID {
 		return true
 	}
 
 	perms, err := a.perms.UserInGroup(authenticatedUserID, targetUserID)
 	if err != nil {
-		log.Println(DATA_API_PREFIX, "Error looking up user in group", err)
+		log.Println(DataAPIPrefix, "Error looking up user in group", err)
 		return false
 	}
 
 	log.Println(perms)
 	return !(perms["root"] == nil && perms["view"] == nil)
-}
-
-func inArray(needle string, arr []string) bool {
-	for _, n := range arr {
-		if needle == n {
-			return true
-		}
-	}
-	return false
 }
 
 func newRequestID() string {

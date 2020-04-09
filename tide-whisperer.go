@@ -36,7 +36,7 @@ type (
 func main() {
 	var config Config
 
-	log.SetPrefix(data.DATA_API_PREFIX)
+	log.SetPrefix(data.DataAPIPrefix)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	if err := common.LoadEnvironmentConfig(
