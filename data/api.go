@@ -64,7 +64,7 @@ var (
 
 func InitApi(mongoConfig mongo.Config, shoreline *shoreline.ShorelineClient, auth *auth.Client, permsClient clients.Gatekeeper, schemaV store.SchemaVersion) *API {
 	storage := store.NewMongoStoreClient(&mongoConfig)
-
+	storage.EnsureIndexes()
 	return &API{
 		store:           storage,
 		shorelineClient: shoreline,
@@ -149,7 +149,6 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 
 	start := time.Now()
 
-	a.store.EnsureIndexes()
 	storageWithCtx := a.store.WithContext(req.Context())
 
 	queryValues := url.Values{":userID": []string{vars["userID"]}}
