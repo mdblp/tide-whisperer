@@ -9,6 +9,9 @@ Data access API for tidepool
 ### Changed
 - [PT-1034] Review API structure
 
+### Engineering
+- PT-1005 Openapi documentation
+
 # 0.5.1 - 2020-03-26
 ### Fixed
 - PT-1220 ReservoirChange objects are not retrieved
