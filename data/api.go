@@ -84,6 +84,7 @@ func (a *API) SetHandlers(prefix string, rtr *mux.Router) {
 	rtr.HandleFunc("/v1", a.Get501).Methods("GET")
 	rtr.HandleFunc("/v2", a.Get501).Methods("GET")
 	rtr.HandleFunc("/status", a.GetStatus).Methods("GET")
+	rtr.HandleFunc("/indicators/tir", a.GetTimeInRange).Methods("GET")
 	rtr.Handle("/{userID}", varsHandler(a.GetData)).Methods("GET")
 }
 
@@ -163,17 +164,8 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 		return
 	}
 
-	var td *shoreline.TokenData
-	if sessionToken := req.Header.Get("x-tidepool-session-token"); sessionToken != "" {
-		td = a.shorelineClient.CheckToken(sessionToken)
-	} else if restrictedTokens, found := req.URL.Query()["restricted_token"]; found && len(restrictedTokens) == 1 {
-		restrictedToken, restrictedTokenErr := a.authClient.GetRestrictedToken(req.Context(), restrictedTokens[0])
-		if restrictedTokenErr == nil && restrictedToken != nil && restrictedToken.Authenticates(req) {
-			td = &shoreline.TokenData{UserID: restrictedToken.UserID}
-		}
-	}
-
-	if td == nil || !(td.IsServer || td.UserID == queryParams.UserID || a.userCanViewData(td.UserID, queryParams.UserID)) {
+	userIDs := []string{queryParams.UserID}
+	if !(a.isAuthorized(req, userIDs)) {
 		log.Printf("userid %v", queryParams.UserID)
 		jsonError(res, errorNoViewPermission, start)
 		return
@@ -331,19 +323,59 @@ func (d detailedError) setInternalMessage(internal error) detailedError {
 	return d
 }
 
-func (a *API) userCanViewData(authenticatedUserID string, targetUserID string) bool {
-	if authenticatedUserID == targetUserID {
-		return true
+func (a *API) getTokenData(req *http.Request) *shoreline.TokenData {
+	var td *shoreline.TokenData
+	if sessionToken := req.Header.Get("x-tidepool-session-token"); sessionToken != "" {
+		td = a.shorelineClient.CheckToken(sessionToken)
+	} else if restrictedTokens, found := req.URL.Query()["restricted_token"]; found && len(restrictedTokens) == 1 {
+		restrictedToken, restrictedTokenErr := a.authClient.GetRestrictedToken(req.Context(), restrictedTokens[0])
+		if restrictedTokenErr == nil && restrictedToken != nil && restrictedToken.Authenticates(req) {
+			td = &shoreline.TokenData{UserID: restrictedToken.UserID}
+		}
 	}
 
-	perms, err := a.perms.UserInGroup(authenticatedUserID, targetUserID)
+	return td
+}
+func (a *API) userCanViewData(authenticatedUserID string, targetUserIDs []string) bool {
+	if len(targetUserIDs) == 1 {
+		targetUserID := targetUserIDs[0]
+		if authenticatedUserID == targetUserID {
+			return true
+		}
+		perms, err := a.perms.UserInGroup(authenticatedUserID, targetUserID)
+		if err != nil {
+			log.Println(DataAPIPrefix, "Error looking up user in group", err)
+			return false
+		}
+
+		log.Println(perms)
+		return !(perms["root"] == nil && perms["view"] == nil)
+	}
+	userPerms, err := a.perms.GroupsForUser(authenticatedUserID)
 	if err != nil {
-		log.Println(DataAPIPrefix, "Error looking up user in group", err)
+		log.Println(DataAPIPrefix, "Error looking up users in group", err)
 		return false
 	}
+	log.Println(userPerms)
+	authorized := true
+	for _, uid := range targetUserIDs {
+		if _, exists := userPerms[uid]; !exists {
+			authorized = false
+			break
+		}
+	}
 
-	log.Println(perms)
-	return !(perms["root"] == nil && perms["view"] == nil)
+	return authorized
+}
+func (a *API) isAuthorized(req *http.Request, targetUserIDs []string) bool {
+	td := a.getTokenData(req)
+	if td == nil {
+		return false
+	}
+	if td.IsServer {
+		return true
+	}
+	return a.userCanViewData(td.UserID, targetUserIDs)
 }
 
 func newRequestID() string {
