@@ -130,16 +130,16 @@ func (a *API) GetStatus(res http.ResponseWriter, req *http.Request) {
 // @Description Get device/health data for a user based on a set of parameters
 // @ID tide-whisperer-api-getdata
 // @Produce json
-// @Success 200
+// @Success 200 {array} deviceData "List of user data objects"
 // @Failure 500 {object} data.detailedError
 // @Failure 403 {object} data.detailedError
-// @Param userID path int true "The ID of the user to search data for"
-// @Param type query string false "Type of data to search for - can be a list of types separated by commas"
-// @Param subType query string false "Subtype of data to search for - can be a list of subtypes separated by commas"
+// @Param userID path string true "The ID of the user to search data for"
+// @Param type query []string false "Type of data to search for - can be a list of types separated by commas"
+// @Param subType query []string false "Subtype of data to search for - can be a list of subtypes separated by commas"
 // @Param deviceId query string false "ID of the device to search data for"
 // @Param uploadId query string false "ID of the upload to search data for"
-// @Param startDate query string false "ISO Date time for search lower limit"
-// @Param endDate query string false "ISO Date time for search upper limit"
+// @Param startDate query string false "ISO Date time for search lower limit" format(date-time)
+// @Param endDate query string false "ISO Date time for search upper limit" format(date-time)
 // @Param carelink query bool false "N/A - Unused for diabeloop devices"
 // @Param dexcom query bool false "N/A - Unused for diabeloop devices"
 // @Param medtronic query bool false "N/A - Unused for diabeloop devices"
