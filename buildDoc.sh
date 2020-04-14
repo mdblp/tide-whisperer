@@ -9,7 +9,7 @@ if [ ! -x "$GOPATH/bin/swag" ]; then
 fi
 
 $GOPATH/bin/swag --version
-$GOPATH/bin/swag init --generalInfo tide-whisperer.go --output docs
+$GOPATH/bin/swag init --parseDependency --generalInfo tide-whisperer.go --output docs
 
 # When tag is present, openapi doc is renamed before being deployed to S3
 if [ -n "${TRAVIS_TAG:-}" ]; then
