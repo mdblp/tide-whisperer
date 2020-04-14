@@ -1,5 +1,5 @@
 // @title Tide-Whisperer API
-// @version 0.5.1
+// @version 0.5.2
 // @description Data access API for Diabeloop's diabetes data as used by Blip
 // @license.name BSD 2-Clause "Simplified" License
 // @host localhost

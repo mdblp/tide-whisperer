@@ -2,14 +2,10 @@
 
 Data access API for tidepool
 
-# Unreleased
-### Added 
-- PT-1232 Integrate latest changes from Tidepool develop branch
-
-### Changed
-- [PT-1034] Review API structure
-
+# 0.5.2 - 2020-04-14
 ### Engineering
+- PT-1232 Integrate latest changes from Tidepool develop branch
+- PT-1034 Review API structure
 - PT-1005 Openapi documentation
 
 # 0.5.1 - 2020-03-26
