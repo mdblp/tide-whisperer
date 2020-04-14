@@ -42,6 +42,7 @@ type (
 		GetDiabeloopParametersHistory(userID string, levels []int) (bson.M, error)
 		GetLoopableMedtronicDirectUploadIdsAfter(userID string, date string) ([]string, error)
 		GetParams(q url.Values, schema *SchemaVersion) (*Params, error)
+		GetTimeInRangeData(p *AggParams, logQuery bool) (StorageIterator, error)
 		HasMedtronicDirectData(userID string) (bool, error)
 		HasMedtronicLoopDataAfter(userID string, date string) (bool, error)
 	}
