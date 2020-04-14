@@ -27,14 +27,23 @@ const (
 type (
 	// StorageIterator - Interface for the query iterator
 	StorageIterator interface {
-		Next(result interface{}) bool
-		Close() error
+		Next(ctx context.Context) bool
+		Close(ctx context.Context) error
+		Decode(val interface{}) error
 	}
 	// Storage - Interface for our storage layer
 	Storage interface {
-		Close()
+		EnsureIndexes() error
+		WithContext(ctx context.Context) Storage
+		Close() error
 		Ping() error
-		GetDeviceData(p *Params) StorageIterator
+		GetDeviceData(p *Params) (StorageIterator, error)
+		GetDexcomDataSource(userID string) (bson.M, error)
+		GetDiabeloopParametersHistory(userID string, levels []int) (bson.M, error)
+		GetLoopableMedtronicDirectUploadIdsAfter(userID string, date string) ([]string, error)
+		GetParams(q url.Values, schema *SchemaVersion) (*Params, error)
+		HasMedtronicDirectData(userID string) (bool, error)
+		HasMedtronicLoopDataAfter(userID string, date string) (bool, error)
 	}
 	// MongoStoreClient - Mongo Storage Client
 	MongoStoreClient struct {
@@ -210,7 +219,7 @@ func NewMongoStoreClient(config *tpMongo.Config) *MongoStoreClient {
 
 // WithContext returns a shallow copy of c with its context changed
 // to ctx. The provided ctx must be non-nil.
-func (c *MongoStoreClient) WithContext(ctx context.Context) *MongoStoreClient {
+func (c *MongoStoreClient) WithContext(ctx context.Context) Storage {
 	if ctx == nil {
 		panic("nil context")
 	}
@@ -564,7 +573,7 @@ func (c *MongoStoreClient) GetLoopableMedtronicDirectUploadIdsAfter(userID strin
 }
 
 // GetDeviceData returns all of the device data for a user
-func (c *MongoStoreClient) GetDeviceData(p *Params) (*mongo.Cursor, error) {
+func (c *MongoStoreClient) GetDeviceData(p *Params) (StorageIterator, error) {
 
 	if p.Latest {
 		// Create an $aggregate query to return the latest of each `type` requested
@@ -734,4 +743,8 @@ func (c *MongoStoreClient) GetDeviceModel(userID string) (string, error) {
 
 	device := res["payload"].(map[string]interface{})["device"].(map[string]interface{})
 	return device["name"].(string), err
+}
+
+func (c *MongoStoreClient) Close() error {
+	return c.client.Disconnect(c.context)
 }

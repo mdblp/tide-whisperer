@@ -14,7 +14,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/tidepool-org/go-common/clients"
-	"github.com/tidepool-org/go-common/clients/mongo"
 	"github.com/tidepool-org/go-common/clients/shoreline"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/tide-whisperer/auth"
@@ -23,9 +22,9 @@ import (
 
 type (
 	API struct {
-		store           *store.MongoStoreClient
-		shorelineClient *shoreline.ShorelineClient
-		authClient      *auth.Client
+		store           store.Storage
+		shorelineClient shoreline.Client
+		authClient      auth.ClientInterface
 		perms           clients.Gatekeeper
 		schemaVersion   store.SchemaVersion
 	}
@@ -62,8 +61,7 @@ var (
 	errorInvalidParameters = detailedError{Status: http.StatusInternalServerError, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
 )
 
-func InitApi(mongoConfig mongo.Config, shoreline *shoreline.ShorelineClient, auth *auth.Client, permsClient clients.Gatekeeper, schemaV store.SchemaVersion) *API {
-	storage := store.NewMongoStoreClient(&mongoConfig)
+func InitApi(storage store.Storage, shoreline shoreline.Client, auth auth.ClientInterface, permsClient clients.Gatekeeper, schemaV store.SchemaVersion) *API {
 	storage.EnsureIndexes()
 	return &API{
 		store:           storage,
