@@ -134,8 +134,8 @@ func (a *API) GetStatus(res http.ResponseWriter, req *http.Request) {
 // @Failure 500 {object} data.detailedError
 // @Failure 403 {object} data.detailedError
 // @Param userID path string true "The ID of the user to search data for"
-// @Param type query []string false "Type of data to search for - can be a list of types separated by commas"
-// @Param subType query []string false "Subtype of data to search for - can be a list of subtypes separated by commas"
+// @Param type query []string false "Type of data to search for - can be a list of types separated by commas" collectionFormat(csv)
+// @Param subType query []string false "Subtype of data to search for - can be a list of subtypes separated by commas" collectionFormat(csv)
 // @Param deviceId query string false "ID of the device to search data for"
 // @Param uploadId query string false "ID of the upload to search data for"
 // @Param startDate query string false "ISO Date time for search lower limit" format(date-time)
