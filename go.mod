@@ -17,7 +17,6 @@ require (
 	github.com/gorilla/handlers v1.4.2
 	github.com/gorilla/mux v1.7.3
 	github.com/kr/pretty v0.2.0 // indirect
-	github.com/mdblp/go-common v0.3.1-0.20200415161957-30a32852ebca // indirect
 	github.com/pkg/errors v0.8.1 // indirect
 	github.com/stretchr/testify v1.3.0 // indirect
 	github.com/tidepool-org/go-common v0.0.0

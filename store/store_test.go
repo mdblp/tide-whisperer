@@ -3,8 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net/url"
 	"reflect"
 	"strings"
 	"testing"
