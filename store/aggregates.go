@@ -6,9 +6,6 @@ import (
 	// For debug only pretty printing requests
 	"encoding/json"
 	"log"
-	"net/url"
-	"strings"
-	"time"
 )
 
 type (
@@ -39,32 +36,6 @@ func defaultCbgUserPref() cbgUserPref {
 
 func dateFromString(field string) bson.M {
 	return bson.M{"$dateFromString": bson.M{"dateString": field}}
-}
-
-func GetAggParams(q url.Values, schema *SchemaVersion) (*AggParams, error) {
-	endStr, err := cleanDateString(q.Get("endDate"))
-	if err != nil {
-		return nil, err
-	}
-	var endTime time.Time
-	if endStr == "" {
-		endTime = time.Now()
-	} else {
-		endTime, _ = time.Parse(time.RFC3339, endStr)
-	}
-	endTime.UTC()
-	startStr := endTime.Add(-(time.Hour * 24)).Format(time.RFC3339)
-	endStr = endTime.Format(time.RFC3339)
-
-	userIds := strings.Split(q.Get("userIds"), ",")
-
-	p := &AggParams{
-		UserIDs:       userIds,
-		Date:          Date{startStr, endStr},
-		SchemaVersion: schema,
-	}
-
-	return p, nil
 }
 
 func generateTirAggregateQuery(p *AggParams) []bson.M {

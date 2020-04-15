@@ -6,6 +6,8 @@ import (
 	// "go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -99,6 +101,33 @@ func logIndicatorSlowQuery(logData *LoggerInfo, message string) {
 	}
 }
 
+func (a *API) parseIndicatorParams(q url.Values) (*store.AggParams, error) {
+	endStr, err := cleanDateString(q.Get("endDate"))
+	if err != nil {
+		return nil, err
+	}
+	var endTime time.Time
+	if endStr == "" {
+		endTime = time.Now()
+	} else {
+		endTime, _ = time.Parse(time.RFC3339, endStr)
+	}
+	endTime.UTC()
+	startStr := endTime.Add(-(time.Hour * 24)).Format(time.RFC3339)
+	endStr = endTime.Format(time.RFC3339)
+
+	userIds := strings.Split(q.Get("userIds"), ",")
+
+	p := &store.AggParams{
+		UserIDs:       userIds,
+		Date:          store.Date{startStr, endStr},
+		SchemaVersion: &a.schemaVersion,
+	}
+
+	return p, nil
+
+}
+
 // GetTimeInRange API function for time in range indicators
 // @Summary Get time in range indicators for the given user ids
 // @Description Get the api status
@@ -117,7 +146,7 @@ func (a *API) GetTimeInRange(res http.ResponseWriter, req *http.Request) {
 		requestID:    newRequestID(),
 		apiCallStart: time.Now(),
 	}
-	params, err := store.GetAggParams(req.URL.Query(), &a.schemaVersion)
+	params, err := a.parseIndicatorParams(req.URL.Query())
 	if err != nil {
 		logIndicatorError(logInfo, "store.GetAggParams", err)
 		jsonError(res, errorInvalidParameters, logInfo.apiCallStart)

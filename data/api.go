@@ -18,6 +18,9 @@ import (
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/tide-whisperer/auth"
 	"github.com/tidepool-org/tide-whisperer/store"
+
+	"strconv"
+	"strings"
 )
 
 type (
@@ -156,7 +159,7 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 		queryValues[k] = v
 	}
 
-	queryParams, err := storageWithCtx.GetParams(queryValues, &a.schemaVersion)
+	queryParams, err := a.parseDataParams(queryValues) //storageWithCtx.GetParams(queryValues, &a.schemaVersion)
 
 	if err != nil {
 		log.Println(DataAPIPrefix, fmt.Sprintf("Error parsing query params: %s", err))
@@ -302,6 +305,73 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 	log.Printf("%s request %s user %s took %.3fs returned %d records", DataAPIPrefix, requestID, queryParams.UserID, time.Now().Sub(start).Seconds(), writeCount)
 }
 
+func cleanDateString(dateString string) (string, error) {
+	if dateString == "" {
+		return "", nil
+	}
+	date, err := time.Parse(time.RFC3339Nano, dateString)
+	if err != nil {
+		return "", err
+	}
+	return date.Format(time.RFC3339Nano), nil
+}
+func (a *API) parseDataParams(q url.Values) (*store.Params, error) {
+	var strPrms = make(map[string]string)
+	for _, dateField := range []string{"startDate", "endDate"} {
+		dateStr, err := cleanDateString(q.Get(dateField))
+		if err != nil {
+			return nil, err
+		}
+		strPrms[dateField] = dateStr
+	}
+	var boolPrms = make(map[string]bool)
+	for _, boolField := range []string{"carelink", "dexcom", "latest", "medtronic"} {
+		boolPrms[boolField] = false
+		if values, ok := q[boolField]; ok {
+			if len(values) < 1 {
+				return nil, fmt.Errorf("%s parameter not valid", boolField)
+			}
+			prmBool, err := strconv.ParseBool(values[len(values)-1])
+			if err != nil {
+				return nil, fmt.Errorf("%s parameter not valid", boolField)
+			}
+			boolPrms[boolField] = prmBool
+		}
+	}
+	// get Device model
+	var device string
+	var deviceErr error
+	var UserID = q.Get(":userID")
+	if device, deviceErr = a.store.GetDeviceModel(UserID); deviceErr != nil {
+		log.Printf("Error in GetDeviceModel for user %s. Error: %s", UserID, deviceErr)
+	}
+
+	LevelFilter := make([]int, 1)
+	LevelFilter = append(LevelFilter, 1)
+	if device == "DBLHU" {
+		LevelFilter = append(LevelFilter, 2)
+		LevelFilter = append(LevelFilter, 3)
+	}
+
+	p := &store.Params{
+		UserID:   q.Get(":userID"),
+		DeviceID: q.Get("deviceId"),
+		UploadID: q.Get("uploadId"),
+		//the query params for type and subtype can contain multiple values seperated
+		//by a comma e.g. "type=smbg,cbg" so split them out into an array of values
+		Types:         strings.Split(q.Get("type"), ","),
+		SubTypes:      strings.Split(q.Get("subType"), ","),
+		Date:          store.Date{strPrms["startDate"], strPrms["endDate"]},
+		SchemaVersion: &a.schemaVersion,
+		Carelink:      boolPrms["carelink"],
+		Dexcom:        boolPrms["dexcom"],
+		Latest:        boolPrms["latest"],
+		Medtronic:     boolPrms["medtronic"],
+		LevelFilter:   LevelFilter,
+	}
+	return p, nil
+}
+
 //log error detail and write as application/json
 func jsonError(res http.ResponseWriter, err detailedError, startedAt time.Time) {
 	logError(&err, startedAt)
@@ -339,6 +409,7 @@ func (a *API) getTokenData(req *http.Request) *shoreline.TokenData {
 func (a *API) userCanViewData(authenticatedUserID string, targetUserIDs []string) bool {
 	if len(targetUserIDs) == 1 {
 		targetUserID := targetUserIDs[0]
+		log.Printf("authenticatedUserID::%v / targetUserID::%v", authenticatedUserID, targetUserID)
 		if authenticatedUserID == targetUserID {
 			return true
 		}

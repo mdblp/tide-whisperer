@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -41,7 +39,7 @@ type (
 		GetDexcomDataSource(userID string) (bson.M, error)
 		GetDiabeloopParametersHistory(userID string, levels []int) (bson.M, error)
 		GetLoopableMedtronicDirectUploadIdsAfter(userID string, date string) ([]string, error)
-		GetParams(q url.Values, schema *SchemaVersion) (*Params, error)
+		GetDeviceModel(userID string) (string, error)
 		GetTimeInRangeData(p *AggParams, logQuery bool) (StorageIterator, error)
 		HasMedtronicDirectData(userID string) (bool, error)
 		HasMedtronicLoopDataAfter(userID string, date string) (bool, error)
@@ -92,110 +90,6 @@ func InArray(needle string, arr []string) bool {
 		}
 	}
 	return false
-}
-
-func cleanDateString(dateString string) (string, error) {
-	if dateString == "" {
-		return "", nil
-	}
-	date, err := time.Parse(time.RFC3339Nano, dateString)
-	if err != nil {
-		return "", err
-	}
-	return date.Format(time.RFC3339Nano), nil
-}
-
-// GetParams parses a URL to set parameters
-func (c *MongoStoreClient) GetParams(q url.Values, schema *SchemaVersion) (*Params, error) {
-
-	startStr, err := cleanDateString(q.Get("startDate"))
-	if err != nil {
-		return nil, err
-	}
-
-	endStr, err := cleanDateString(q.Get("endDate"))
-	if err != nil {
-		return nil, err
-	}
-
-	carelink := false
-	if values, ok := q["carelink"]; ok {
-		if len(values) < 1 {
-			return nil, errors.New("carelink parameter not valid")
-		}
-		carelink, err = strconv.ParseBool(values[len(values)-1])
-		if err != nil {
-			return nil, errors.New("carelink parameter not valid")
-		}
-	}
-
-	dexcom := false
-	if values, ok := q["dexcom"]; ok {
-		if len(values) < 1 {
-			return nil, errors.New("dexcom parameter not valid")
-		}
-		dexcom, err = strconv.ParseBool(values[len(values)-1])
-		if err != nil {
-			return nil, errors.New("dexcom parameter not valid")
-		}
-	}
-
-	latest := false
-	if values, ok := q["latest"]; ok {
-		if len(values) < 1 {
-			return nil, errors.New("latest parameter not valid")
-		}
-		latest, err = strconv.ParseBool(values[len(values)-1])
-		if err != nil {
-			return nil, errors.New("latest parameter not valid")
-		}
-	}
-
-	medtronic := false
-	if values, ok := q["medtronic"]; ok {
-		if len(values) < 1 {
-			return nil, errors.New("medtronic parameter not valid")
-		}
-		medtronic, err = strconv.ParseBool(values[len(values)-1])
-		if err != nil {
-			return nil, errors.New("medtronic parameter not valid")
-		}
-	}
-
-	// get Device model
-	var device string
-	var deviceErr error
-	var UserID = q.Get(":userID")
-	if device, deviceErr = c.GetDeviceModel(UserID); deviceErr != nil {
-		log.Printf("Error in GetDeviceModel for user %s. Error: %s", UserID, deviceErr)
-	}
-
-	LevelFilter := make([]int, 1)
-	LevelFilter = append(LevelFilter, 1)
-	if device == "DBLHU" {
-		LevelFilter = append(LevelFilter, 2)
-		LevelFilter = append(LevelFilter, 3)
-	}
-
-	p := &Params{
-		UserID:   q.Get(":userID"),
-		DeviceID: q.Get("deviceId"),
-		UploadID: q.Get("uploadId"),
-		//the query params for type and subtype can contain multiple values seperated
-		//by a comma e.g. "type=smbg,cbg" so split them out into an array of values
-		Types:         strings.Split(q.Get("type"), ","),
-		SubTypes:      strings.Split(q.Get("subType"), ","),
-		Date:          Date{startStr, endStr},
-		SchemaVersion: schema,
-		Carelink:      carelink,
-		Dexcom:        dexcom,
-		Latest:        latest,
-		Medtronic:     medtronic,
-		LevelFilter:   LevelFilter,
-	}
-
-	return p, nil
-
 }
 
 // NewMongoStoreClient creates a new MongoStoreClient
