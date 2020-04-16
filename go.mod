@@ -2,10 +2,7 @@ module github.com/tidepool-org/tide-whisperer
 
 go 1.12
 
-// Temporary fix points to the branch feature/gatekeeperclient-missingroutes
-// See this go-common PR before validating:
-// https://github.com/mdblp/go-common/pull/10/files
-replace github.com/tidepool-org/go-common => github.com/mdblp/go-common v0.3.1-0.20200415161957-30a32852ebca
+replace github.com/tidepool-org/go-common => github.com/mdblp/go-common v0.3.1-0.20200416150959-69aa19e1fce6
 
 require (
 	github.com/DataDog/zstd v1.4.4 // indirect
