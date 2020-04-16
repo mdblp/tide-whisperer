@@ -3,7 +3,6 @@ package data
 import (
 	"encoding/json"
 	"github.com/tidepool-org/tide-whisperer/store"
-	// "go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
 	"net/url"
@@ -135,11 +134,11 @@ func (a *API) parseIndicatorParams(q url.Values) (*store.AggParams, error) {
 // @Accept json
 // @Produce json
 // @Param userIds query []string true "List of user ids to fetch" collectionFormat(csv)
-// @Param endDate query string false "End date to get indicators" format(dateTime)
+// @Param endDate query string false "End date to get indicators" format(date-time)
 // @Security TidepoolAuth
 // @Success 200 {array} TirResult
-// @Failure 403 {string} string "error description"
-// @Failure 500 {string} string "error description"
+// @Failure 403 {object} data.detailedError
+// @Failure 500 {object} data.detailedError
 // @Router /indicators/tir [get]
 func (a *API) GetTimeInRange(res http.ResponseWriter, req *http.Request) {
 	logInfo := &LoggerInfo{
@@ -165,7 +164,7 @@ func (a *API) GetTimeInRange(res http.ResponseWriter, req *http.Request) {
 	iter, err := storageWithCtx.GetTimeInRangeData(params, false)
 	if err != nil {
 		logIndicatorError(logInfo, "Mongo Query", err)
-		jsonError(res, errorNoViewPermission, logInfo.apiCallStart)
+		jsonError(res, errorRunningQuery, logInfo.apiCallStart)
 	}
 	logIndicatorSlowQuery(logInfo, "GetTimeInRangeData")
 

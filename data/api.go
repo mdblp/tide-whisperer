@@ -159,7 +159,7 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 		queryValues[k] = v
 	}
 
-	queryParams, err := a.parseDataParams(queryValues) //storageWithCtx.GetParams(queryValues, &a.schemaVersion)
+	queryParams, err := a.parseDataParams(queryValues)
 
 	if err != nil {
 		log.Println(DataAPIPrefix, fmt.Sprintf("Error parsing query params: %s", err))
