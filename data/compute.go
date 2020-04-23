@@ -62,6 +62,10 @@ type (
 	}
 )
 
+const (
+	slowAggregateQueryDuration = 0.5 // seconds
+)
+
 func writeMongoJSONResponse(res http.ResponseWriter, req *http.Request, cursor store.StorageIterator, logData *LoggerInfo) {
 	res.Header().Add("Content-Type", "application/json")
 	res.Write([]byte("["))
@@ -95,7 +99,7 @@ func logIndicatorError(logData *LoggerInfo, message string, err error) {
 	log.Printf("%s request %s users %s %s returned error: %s", DataAPIPrefix, logData.requestID, logData.UserIDs, message, err)
 }
 func logIndicatorSlowQuery(logData *LoggerInfo, message string) {
-	if queryDuration := time.Now().Sub(logData.queryStart).Seconds(); queryDuration > slowQueryDuration {
+	if queryDuration := time.Now().Sub(logData.queryStart).Seconds(); queryDuration > slowAggregateQueryDuration {
 		log.Printf("%s SlowQuery: request %s users %s %s took %.3fs", DataAPIPrefix, logData.requestID, logData.UserIDs, message, queryDuration)
 	}
 }
