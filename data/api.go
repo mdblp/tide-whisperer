@@ -418,8 +418,6 @@ func (a *API) userCanViewData(authenticatedUserID string, targetUserIDs []string
 			log.Println(DataAPIPrefix, "Error looking up user in group", err)
 			return false
 		}
-
-		log.Println(perms)
 		return !(perms["root"] == nil && perms["view"] == nil)
 	}
 	userPerms, err := a.perms.GroupsForUser(authenticatedUserID)
@@ -427,7 +425,6 @@ func (a *API) userCanViewData(authenticatedUserID string, targetUserIDs []string
 		log.Println(DataAPIPrefix, "Error looking up users in group", err)
 		return false
 	}
-	log.Println(userPerms)
 	authorized := true
 	for _, uid := range targetUserIDs {
 		if _, exists := userPerms[uid]; !exists {
