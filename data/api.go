@@ -200,7 +200,7 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 		queryParams.DexcomDataSource = dexcomDataSource
 
 		if queryDuration := time.Now().Sub(queryStart).Seconds(); queryDuration > slowQueryDuration {
-			log.Printf("%s request %s user %s GetDexcomDataSource took %.3fs", DataAPIPrefix, requestID, queryParams.UserID, queryDuration)
+			log.Printf("%s SlowQuery: request %s user %s GetDexcomDataSource took %.3fs", DataAPIPrefix, requestID, queryParams.UserID, queryDuration)
 		}
 		queryStart = time.Now()
 	}
@@ -215,7 +215,7 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 			queryParams.Medtronic = true
 		}
 		if queryDuration := time.Now().Sub(queryStart).Seconds(); queryDuration > slowQueryDuration {
-			log.Printf("%s request %s user %s HasMedtronicLoopDataAfter took %.3fs", DataAPIPrefix, requestID, queryParams.UserID, queryDuration)
+			log.Printf("%s SlowQuery: request %s user %s HasMedtronicLoopDataAfter took %.3fs", DataAPIPrefix, requestID, queryParams.UserID, queryDuration)
 		}
 		queryStart = time.Now()
 	}

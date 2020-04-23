@@ -86,7 +86,6 @@ func storeDataForTirTests() []interface{} {
 	return storeData
 }
 func TestStore_GetTimeInRangeData(t *testing.T) {
-	// testData := testDataForTirTests()
 	storeData := storeDataForTirTests()
 
 	store := before(t, storeData...)
@@ -99,7 +98,6 @@ func TestStore_GetTimeInRangeData(t *testing.T) {
 	}
 
 	resultCount := 0
-	// processedResultCount := 0
 	for iter.Next(store.context) {
 		var result map[string]interface{}
 		err := iter.Decode(&result)

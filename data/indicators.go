@@ -96,7 +96,7 @@ func logIndicatorError(logData *LoggerInfo, message string, err error) {
 }
 func logIndicatorSlowQuery(logData *LoggerInfo, message string) {
 	if queryDuration := time.Now().Sub(logData.queryStart).Seconds(); queryDuration > slowQueryDuration {
-		log.Printf("%s request %s users %s %s took %.3fs", DataAPIPrefix, logData.requestID, logData.UserIDs, message, queryDuration)
+		log.Printf("%s SlowQuery: request %s users %s %s took %.3fs", DataAPIPrefix, logData.requestID, logData.UserIDs, message, queryDuration)
 	}
 }
 

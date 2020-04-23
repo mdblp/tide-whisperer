@@ -26,20 +26,7 @@ func getDataCheckStoreParams(expectedParams store.Params, t *testing.T) {
 
 // Utility function to prepare request on GetData route
 func getDataPrepareRequest(token string, urlParams map[string]string) (*http.Request, *httptest.ResponseRecorder) {
-	tidewhisperer.SetHandlers("", rtr)
-	request, _ := http.NewRequest("GET", "/patient", nil)
-	if token != "" {
-		request.Header.Set("x-tidepool-session-token", token)
-	}
-	if len(urlParams) > 0 {
-		q := request.URL.Query()
-		for key, element := range urlParams {
-			q.Add(key, element)
-		}
-		request.URL.RawQuery = q.Encode()
-	}
-	response := httptest.NewRecorder()
-	return request, response
+	return prepareGetTestRequest("/patient", token, urlParams)
 }
 
 // Utility function to get default params passed to store.GetDeviceData

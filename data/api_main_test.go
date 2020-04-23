@@ -95,6 +95,22 @@ func parseArrayResponse(response *httptest.ResponseRecorder) []map[string]interf
 	json.Unmarshal([]byte(string(body)), &dataBody)
 	return dataBody
 }
+func prepareGetTestRequest(route string, token string, urlParams map[string]string) (*http.Request, *httptest.ResponseRecorder) {
+	tidewhisperer.SetHandlers("", rtr)
+	request, _ := http.NewRequest("GET", route, nil)
+	if token != "" {
+		request.Header.Set("x-tidepool-session-token", token)
+	}
+	if len(urlParams) > 0 {
+		q := request.URL.Query()
+		for key, element := range urlParams {
+			q.Add(key, element)
+		}
+		request.URL.RawQuery = q.Encode()
+	}
+	response := httptest.NewRecorder()
+	return request, response
+}
 
 // Utility function to prepare request on GetStatus route
 func getStatusPrepareRequest() (*http.Request, *httptest.ResponseRecorder) {

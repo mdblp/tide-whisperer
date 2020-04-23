@@ -13,20 +13,7 @@ import (
 // Testing GetTimeInRange route
 // Utility function to prepare request on GetTimeInRange route
 func getTimeInRangePrepareRequest(token string, urlParams map[string]string) (*http.Request, *httptest.ResponseRecorder) {
-	tidewhisperer.SetHandlers("", rtr)
-	request, _ := http.NewRequest("GET", "/indicators/tir", nil)
-	if token != "" {
-		request.Header.Set("x-tidepool-session-token", token)
-	}
-	if len(urlParams) > 0 {
-		q := request.URL.Query()
-		for key, element := range urlParams {
-			q.Add(key, element)
-		}
-		request.URL.RawQuery = q.Encode()
-	}
-	response := httptest.NewRecorder()
-	return request, response
+	return prepareGetTestRequest("/indicators/tir", token, urlParams)
 }
 
 // Utility function to check which params are passed to store.GetTimeInRangeData
