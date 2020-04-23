@@ -13,7 +13,7 @@ import (
 // Testing GetTimeInRange route
 // Utility function to prepare request on GetTimeInRange route
 func getTimeInRangePrepareRequest(token string, urlParams map[string]string) (*http.Request, *httptest.ResponseRecorder) {
-	return prepareGetTestRequest("/indicators/tir", token, urlParams)
+	return prepareGetTestRequest("/compute/tir", token, urlParams)
 }
 
 // Utility function to check which params are passed to store.GetTimeInRangeData

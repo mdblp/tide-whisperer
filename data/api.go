@@ -87,7 +87,7 @@ func (a *API) SetHandlers(prefix string, rtr *mux.Router) {
 	rtr.HandleFunc("/v1", a.Get501).Methods("GET")
 	rtr.HandleFunc("/v2", a.Get501).Methods("GET")
 	rtr.HandleFunc("/status", a.GetStatus).Methods("GET")
-	rtr.HandleFunc("/indicators/tir", a.GetTimeInRange).Methods("GET")
+	rtr.HandleFunc("/compute/tir", a.GetTimeInRange).Methods("GET")
 	rtr.Handle("/{userID}", varsHandler(a.GetData)).Methods("GET")
 }
 
