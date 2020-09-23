@@ -2,7 +2,7 @@ module github.com/tidepool-org/tide-whisperer
 
 go 1.12
 
-replace github.com/tidepool-org/go-common => github.com/mdblp/go-common v0.6.0-rc2
+replace github.com/tidepool-org/go-common => github.com/mdblp/go-common v0.6.0
 
 require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751

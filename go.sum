@@ -105,8 +105,8 @@ github.com/markbates/safe v1.0.1/go.mod h1:nAqgmRi7cY2nqMc92/bSEeQA+R4OheNU2T1kN
 github.com/mattn/go-isatty v0.0.4/go.mod h1:M+lRXTBqGeGNdLjl/ufCoiOlB5xdOkqRJdNxMWT7Zi4=
 github.com/mattn/go-isatty v0.0.7/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
 github.com/mattn/go-isatty v0.0.8/go.mod h1:Iq45c/XA43vh69/j3iqttzPXn0bhXyGjM0Hdxcsrc5s=
-github.com/mdblp/go-common v0.6.0-rc2 h1:qrGLVmbRiYniICFjtp83u8AA1MKZfCLIkrU6SRVJm+w=
-github.com/mdblp/go-common v0.6.0-rc2/go.mod h1:Rzxq2ZCp+WpeRu/sbVyNgSQjHqa3Nu1MbBXFnGsmTwY=
+github.com/mdblp/go-common v0.6.0 h1:GxHB7xG+dAY8hKwW/+tfED4MoXLYV+U7gL5zvuVhPXw=
+github.com/mdblp/go-common v0.6.0/go.mod h1:Rzxq2ZCp+WpeRu/sbVyNgSQjHqa3Nu1MbBXFnGsmTwY=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
 github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe/go.mod h1:wL8QJuTMNUDYhXwkmfOly8iTdp5TEcJFWZD2D7SIkUc=
