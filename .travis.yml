@@ -6,7 +6,7 @@ sudo: false
 language: go
 
 go:
-  - 1.12.7
+  - 1.14.10
 
 go_import_path: github.com/tidepool-org/tide-whisperer
 
@@ -18,7 +18,7 @@ env:
 
 before_install:
   # MongoDb 4.2 docker container
-  - docker container run -d -p 27017:27017 mongo:4.2 
+  - docker container run -d -p 27017:27017 mongo:4.2
   # Not used (yet ?)
   # - npm install -g snyk;
   
