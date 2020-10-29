@@ -6,7 +6,7 @@ sudo: false
 language: go
 
 go:
-  - 1.12.7
+  - 1.15.x
 
 go_import_path: github.com/tidepool-org/tide-whisperer
 
