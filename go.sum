@@ -141,6 +141,8 @@ github.com/mdblp/go-common v0.6.0 h1:GxHB7xG+dAY8hKwW/+tfED4MoXLYV+U7gL5zvuVhPXw
 github.com/mdblp/go-common v0.6.0/go.mod h1:Rzxq2ZCp+WpeRu/sbVyNgSQjHqa3Nu1MbBXFnGsmTwY=
 github.com/mdblp/go-common v0.6.2-alpha h1:YnXx7LWqkPP1wS9b9/80ehOfupmmH2pc7pcVs+H1b+0=
 github.com/mdblp/go-common v0.6.2-alpha/go.mod h1:cFFwPnC4pEjrr1YUwjyTfL8ogUgwuvjKe8+eS0bm9oA=
+github.com/mdblp/go-common v0.6.2 h1:O2zWYFH8S6fqkwEAkxP9lXr/OkZ4x2N8PJBLtICoZ7I=
+github.com/mdblp/go-common v0.6.2/go.mod h1:cFFwPnC4pEjrr1YUwjyTfL8ogUgwuvjKe8+eS0bm9oA=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=

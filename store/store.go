@@ -166,18 +166,6 @@ func NewStore(config *goComMgo.Config, logger *log.Logger) (*Client, error) {
 	return &client, err
 }
 
-// WithContext returns a shallow copy of c with its context changed
-// to ctx. The provided ctx must be non-nil.
-// func (c *Client) WithContext(ctx context.Context) Storage {
-// 	if ctx == nil {
-// 		panic("nil context")
-// 	}
-// 	c2 := new(Client)
-// 	*c2 = *c
-// 	c2.Context = ctx
-// 	return c2
-// }
-
 func dataCollection(c *Client) *mongo.Collection {
 	return c.Collection(dataCollectionName)
 }
