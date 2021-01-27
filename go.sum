@@ -10,9 +10,9 @@ github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 h1:JYp7IbQjafo
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/aws/aws-sdk-go v1.29.15 h1:0ms/213murpsujhsnxnNKNeVouW60aJqSd992Ks3mxs=
 github.com/aws/aws-sdk-go v1.29.15/go.mod h1:1KvfttTE3SPKMpo8g2c6jL3ZKfXtFvKscTgahTma5Xg=
-github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d h1:U+s90UTSYgptZMwQh2aRr3LuazLJIa+Pg3Kc1ylSYVY=
 github.com/aws/aws-sdk-go v1.34.28 h1:sscPpn/Ns3i0F4HPEWAVcwdIRaZZCuL7llJ2/60yPIk=
 github.com/aws/aws-sdk-go v1.34.28/go.mod h1:H7NKnBqNVzoTJpGfLrQkkD+ytBA93eiDYi/+8rV9s48=
+github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d h1:U+s90UTSYgptZMwQh2aRr3LuazLJIa+Pg3Kc1ylSYVY=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
@@ -143,6 +143,8 @@ github.com/mdblp/go-common v0.6.2-alpha h1:YnXx7LWqkPP1wS9b9/80ehOfupmmH2pc7pcVs
 github.com/mdblp/go-common v0.6.2-alpha/go.mod h1:cFFwPnC4pEjrr1YUwjyTfL8ogUgwuvjKe8+eS0bm9oA=
 github.com/mdblp/go-common v0.6.2 h1:O2zWYFH8S6fqkwEAkxP9lXr/OkZ4x2N8PJBLtICoZ7I=
 github.com/mdblp/go-common v0.6.2/go.mod h1:cFFwPnC4pEjrr1YUwjyTfL8ogUgwuvjKe8+eS0bm9oA=
+github.com/mdblp/go-common v0.6.3-0.20210127171844-6df7191e684c h1:Libm/HOU2SGEi8hL4fAHQ0x/evsWMmCRC8e/H6dA5gM=
+github.com/mdblp/go-common v0.6.3-0.20210127171844-6df7191e684c/go.mod h1:cFFwPnC4pEjrr1YUwjyTfL8ogUgwuvjKe8+eS0bm9oA=
 github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3RllmbCylyMrvgv0=
