@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/tidepool-org/go-common/clients"
+	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/shoreline"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/go-common/clients/version"
@@ -26,7 +27,7 @@ var (
 	mockShoreline             = shoreline.NewMock("token")
 	mockAuth                  = auth.NewMock()
 	perms                     = clients.Permissions{"view": clients.Allowed, "root": clients.Allowed}
-	mockPerms                 = clients.NewGatekeeperMock(perms, nil)
+	mockPerms                 = opa.NewMock()
 	tidewhisperer             = InitApi(storage, mockShoreline, mockAuth, mockPerms, schemaVersions)
 	defaultGetDataURLVars     = map[string]string{"userID": "patient"}
 	defaultGetDataStoreParams = getDataStoreDefaultParams()
@@ -39,8 +40,11 @@ func resetMocks() {
 	mockShoreline.Unauthorized = false
 	mockShoreline.IsServer = false
 
-	mockPerms.SetExpected(perms, nil)
-
+	// mockPerms.SetExpected(perms, nil)
+	auth := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-get")
+	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
+	auth2 := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-compute")
+	mockPerms.SetMockOpaAuth("/compute/tir", &auth2, nil)
 	storage.DeviceData = make([]string, 1)
 	storage.DeviceData[0] = `{"type":"A","value":"B"}`
 
