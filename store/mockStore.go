@@ -124,3 +124,23 @@ func (c *MockStoreClient) HasMedtronicDirectData(ctx context.Context, userID str
 func (c *MockStoreClient) HasMedtronicLoopDataAfter(ctx context.Context, userID string, date string) (bool, error) {
 	return false, nil
 }
+
+// GetDataRangeV1 mock func, return nil,nil
+func (c *MockStoreClient) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*Date, error) {
+	return nil, nil
+}
+
+// GetDataV1 v1 api mock call to fetch diabetes data
+func (c *MockStoreClient) GetDataV1(ctx context.Context, traceID string, userID string, dates *Date) (goComMgo.StorageIterator, error) {
+	return nil, nil
+}
+
+// GetLatestPumpSettingsV1 return the latest type == "pumpSettings"
+func (c *MockStoreClient) GetLatestPumpSettingsV1(ctx context.Context, traceID string, userID string) (goComMgo.StorageIterator, error) {
+	return nil, nil
+}
+
+// GetDataFromIDV1 fetch data from theirs id
+func (c *MockStoreClient) GetDataFromIDV1(ctx context.Context, traceID string, ids []string) (goComMgo.StorageIterator, error) {
+	return nil, nil
+}
