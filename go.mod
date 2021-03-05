@@ -3,7 +3,7 @@ module github.com/tidepool-org/tide-whisperer
 go 1.15
 
 // Commit id relative to latest commit in feature/opa-client branch from go-common
-replace github.com/tidepool-org/go-common => github.com/mdblp/go-common v0.6.3-0.20210201112628-c29abcb38352
+replace github.com/tidepool-org/go-common => github.com/mdblp/go-common v0.6.3-0.20210304135552-f3ba34f0e724
 
 require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751

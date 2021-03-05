@@ -1,13 +1,13 @@
 package data
 
 import (
-	// "github.com/tidepool-org/go-common/clients"
-	"github.com/tidepool-org/tide-whisperer/store"
-	"go.mongodb.org/mongo-driver/bson"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"github.com/tidepool-org/tide-whisperer/store"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Testing GetData route
@@ -83,7 +83,6 @@ func TestGetData_GoodTokenGuestUserNotInvited(t *testing.T) {
 	mockShoreline.UserID = "guestUninvited"
 	auth := mockPerms.GetMockedAuth(false, map[string]interface{}{}, "tidewhisperer-get")
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
-	// mockPerms.SetExpected(clients.Permissions{"unauthorized": clients.Permission{}}, nil)
 
 	urlParams := make(map[string]string)
 	request, response := getDataPrepareRequest("mytoken", urlParams)
@@ -112,7 +111,6 @@ func TestGetData_ServerToken(t *testing.T) {
 	mockShoreline.IsServer = true
 	auth := mockPerms.GetMockedAuth(false, map[string]interface{}{}, "tidewhisperer-get")
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
-	// mockPerms.SetExpected(clients.Permissions{"unauthorized": clients.Permission{}}, nil)
 
 	urlParams := make(map[string]string)
 	request, response := getDataPrepareRequest("mytoken", urlParams)

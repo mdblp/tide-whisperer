@@ -2,6 +2,12 @@ package data
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"testing"
+
 	"github.com/gorilla/mux"
 	"github.com/tidepool-org/go-common/clients"
 	"github.com/tidepool-org/go-common/clients/opa"
@@ -10,11 +16,6 @@ import (
 	"github.com/tidepool-org/go-common/clients/version"
 	"github.com/tidepool-org/tide-whisperer/auth"
 	"github.com/tidepool-org/tide-whisperer/store"
-	"io/ioutil"
-	"net/http"
-	"net/http/httptest"
-	"reflect"
-	"testing"
 )
 
 var (
@@ -40,7 +41,6 @@ func resetMocks() {
 	mockShoreline.Unauthorized = false
 	mockShoreline.IsServer = false
 
-	// mockPerms.SetExpected(perms, nil)
 	auth := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-get")
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
 	auth2 := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-compute")
