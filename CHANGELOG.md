@@ -2,7 +2,7 @@
 
 Data access API for tidepool
 
-## Unreleased
+## 0.8.0 - 2020-03-08
 ### Changed
 - YLP-471 Implement authorization rules for tide-whisperer
 
