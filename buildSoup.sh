@@ -1,7 +1,7 @@
 #!/bin/sh -eu
 # Generate Soups
 
-DEPLOY_DOC=${DEPLOY_DOC:-docs/soup}
+DEPLOY_DOC=${DEPLOY_DOC:-docs}
 TRAVIS_REPO_SLUG=${TRAVIS_REPO_SLUG:-owner/repo}
 APP="${TRAVIS_REPO_SLUG#*/}"
 GO111MODULE=on

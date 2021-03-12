@@ -16,11 +16,11 @@ $GOPATH/bin/swag init --parseDependency --generalInfo tide-whisperer.go --output
 if [ -n "${TRAVIS_TAG:-}" ]; then
     APP="tide-whisperer"
     APP_TAG="${APP}-${TRAVIS_TAG/dblp./}"
-    mkdir docs/openapi
-    mv docs/swagger.json docs/openapi/${APP_TAG}-swagger.json
+    mkdir docs
+    mv docs/swagger.json docs/${APP_TAG}-swagger.json
     # If this is not a release candidate but a "true" release, we consider this doc is the latest
     # we create a copy named "latest" to be consumed by documentation website using SwaggerUI
     if echo ${TRAVIS_TAG} | grep -Eq '[0-9]+\.[0-9]+\.[0-9]+'; then
-      cp docs/openapi/${APP_TAG}-swagger.json docs/openapi/${APP}-latest-swagger.json
+      cp docs/${APP_TAG}-swagger.json docs/${APP}-latest-swagger.json
     fi
 fi
