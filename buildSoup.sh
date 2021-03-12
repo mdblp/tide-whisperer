@@ -17,5 +17,5 @@ VERSION=${TRAVIS_TAG/dblp./}
 echo "# SOUPs List for ${APP}@${VERSION}" > soup.md 
 
 go list -f '## {{printf "%s \n\t* description: \n\t* version: %s\n\t* webSite: https://%s\n\t* sources:" .Path .Version .Path}}' -m all >> soup.md && \
-	mkdir -p ./${DEPLOY_DOC}/${APP} && \
-	mv soup.md ./${DEPLOY_DOC}/${APP}/${APP}-${VERSION}-soup.md
+	mkdir -p ./${DEPLOY_DOC} && \
+	mv soup.md ./${DEPLOY_DOC}/${APP}-${VERSION}-soup.md
