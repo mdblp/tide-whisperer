@@ -1,4 +1,4 @@
-@Library('mdblp-library') _
+@Library('mdblp-library@feature/go-docs') _
 def builderImage
 pipeline {
     agent any
@@ -13,12 +13,6 @@ pipeline {
                     }
                     builderImage = docker.build('go-build-image','-f ./Dockerfile.build .')
                     env.RUN_ID = UUID.randomUUID().toString()
-                    docker.image('docker.ci.diabeloop.eu/ci-toolbox').inside() {
-                        env.version = sh (
-                            script: 'release-helper get-version',
-                            returnStdout: true
-                        ).trim().toUpperCase()
-                    }
                 }
             }
         }
@@ -54,17 +48,7 @@ pipeline {
         }
         stage('Documentation') {
             steps {
-                script {
-                    builderImage.inside("") {
-                        sh """
-                            export TRAVIS_TAG=${version}
-                            ./buildDoc.sh
-                            ./buildSoup.sh
-                        """              
-                        stash name: "doc", includes: "docs/*"
-                    }
-                }
-                
+                genDocumentation()
             }
         }
         stage('Publish') {
