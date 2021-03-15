@@ -17,12 +17,13 @@ pipeline {
             }
         }
         stage('Build ') {
-            steps {
-                script {
-                    builderImage.inside("") {
-                        sh "$WORKSPACE/build.sh"
-                    }
+            agent {
+                docker {
+                    image 'docker.ci.diabeloop.eu/go-build:1.15'
                 }
+            }
+            steps {
+                sh "$WORKSPACE/build.sh"
             }
         }
         stage('Test ') {
@@ -30,7 +31,7 @@ pipeline {
                 echo 'start mongo to serve as a testing db'
                 sh 'docker network create twtest${RUN_ID} && docker run --rm -d --net=twtest${RUN_ID} --name=mongo4twtest${RUN_ID} mongo:4.2'
                 script {
-                    builderImage.inside("--net=twtest${RUN_ID}") {
+                    docker.image('docker.ci.diabeloop.eu/go-build:1.15').inside("--net=twtest${RUN_ID}") {
                         sh "TIDEPOOL_STORE_ADDRESSES=mongo4twtest${RUN_ID}:27017 TIDEPOOL_STORE_DATABASE=data_test $WORKSPACE/test.sh"
                     }
                 }
