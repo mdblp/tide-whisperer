@@ -11,7 +11,6 @@ pipeline {
                         // git commit id must be a 40 characters length string (lower case or digits)
                         env.GIT_COMMIT = "f".multiply(40)
                     }
-                    builderImage = docker.build('go-build-image','-f ./Dockerfile.build .')
                     env.RUN_ID = UUID.randomUUID().toString()
                 }
             }
