@@ -1,4 +1,4 @@
-@Library('mdblp-library@feature/go-docs') _
+@Library('mdblp-library') _
 def builderImage
 pipeline {
     agent any
