@@ -2,3 +2,5 @@ docs
 .vscode
 .travis.yml
 Dockerfile*
+test-result.txt
+test-report.xml

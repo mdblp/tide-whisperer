@@ -437,7 +437,6 @@ func (a *API) isAuthorized(req *http.Request, targetUserIDs []string) bool {
 		return false
 	}
 	return auth.Result.Authorized
-
 }
 
 func newRequestID() string {

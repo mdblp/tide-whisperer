@@ -126,12 +126,12 @@ func (a *API) middlewareV1(fn HandlerLoggerFunc, params ...string) http.HandlerF
 
 		// The handler have parameters, get them
 		if len(params) > 0 {
-			vars := mux.Vars(r) // Decode route parameter
+			res.VARS = mux.Vars(r) // Decode route parameter
 
 			if contains(params, "userID") {
 				// userID is a commonly used parameter
 				// See if we can view the data
-				userID := vars["userID"]
+				userID := res.VARS["userID"]
 
 				if userID == "" {
 					res.WriteError(&errorInvalidParameters)
@@ -139,7 +139,6 @@ func (a *API) middlewareV1(fn HandlerLoggerFunc, params ...string) http.HandlerF
 					res.WriteError(&errorNoViewPermission)
 				}
 			}
-			res.VARS = vars
 		}
 
 		// Mainteners: No read from the request below this point!
@@ -150,8 +149,8 @@ func (a *API) middlewareV1(fn HandlerLoggerFunc, params ...string) http.HandlerF
 		}
 
 		// We will send a JSON, so advertise it for all of our requests
-		w.WriteHeader(res.statusCode)
 		w.Header().Add("Content-Type", "application/json")
+		w.WriteHeader(res.statusCode)
 		w.Write([]byte(res.writeBuffer.String()))
 
 		// Log errors management

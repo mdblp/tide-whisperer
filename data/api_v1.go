@@ -185,7 +185,6 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 	}
 
 	writeParams := &writeFromIter{
-		// ctx:       ctx,
 		res:       res,
 		uploadIDs: make([]string, 0, 16),
 	}
@@ -311,10 +310,6 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 			uploadID, haveUploadID := datum["uploadId"].(string)
 			if !haveUploadID {
 				// No upload ID, abnormal situation
-				continue
-			}
-			if datumType == "basal" && datum["deliveryType"].(string) == "temp" {
-				// Ignore temp basal
 				continue
 			}
 			// Record the uploadID

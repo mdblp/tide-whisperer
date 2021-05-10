@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
 	"go.mongodb.org/mongo-driver/bson"
@@ -28,6 +29,7 @@ func (i *MockStoreIterator) Decode(val interface{}) error {
 	return nil
 }
 
+// MockStoreClient use for unit tests
 type MockStoreClient struct {
 	PingError   bool
 	DeviceModel string
@@ -41,6 +43,10 @@ type MockStoreClient struct {
 	TimeInRangeData          []string
 	GetTimeInRangeDataCall   AggParams
 	GetTimeInRangeDataCalled bool
+
+	DataRangeV1 []string
+	DataV1      []string
+	DataIDV1    []string
 }
 
 func NewMockStoreClient() *MockStoreClient {
@@ -127,20 +133,40 @@ func (c *MockStoreClient) HasMedtronicLoopDataAfter(ctx context.Context, userID 
 
 // GetDataRangeV1 mock func, return nil,nil
 func (c *MockStoreClient) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*Date, error) {
-	return nil, nil
+	if c.DataRangeV1 != nil && len(c.DataRangeV1) == 2 {
+		return &Date{
+			Start: c.DataRangeV1[0],
+			End:   c.DataRangeV1[1],
+		}, nil
+	}
+	return nil, fmt.Errorf("{%s} - [%s] - No data", traceID, userID)
 }
 
 // GetDataV1 v1 api mock call to fetch diabetes data
 func (c *MockStoreClient) GetDataV1(ctx context.Context, traceID string, userID string, dates *Date) (goComMgo.StorageIterator, error) {
-	return nil, nil
+	if c.DataV1 != nil {
+		return &MockStoreIterator{
+			numIter: -1,
+			maxIter: len(c.DataV1),
+			data:    c.DataV1,
+		}, nil
+	}
+	return nil, fmt.Errorf("{%s} - [%s] - No data", traceID, userID)
 }
 
 // GetLatestPumpSettingsV1 return the latest type == "pumpSettings"
 func (c *MockStoreClient) GetLatestPumpSettingsV1(ctx context.Context, traceID string, userID string) (goComMgo.StorageIterator, error) {
-	return nil, nil
+	return nil, fmt.Errorf("{%s} - [%s] - No data", traceID, userID)
 }
 
 // GetDataFromIDV1 fetch data from theirs id
 func (c *MockStoreClient) GetDataFromIDV1(ctx context.Context, traceID string, ids []string) (goComMgo.StorageIterator, error) {
-	return nil, nil
+	if c.DataIDV1 != nil {
+		return &MockStoreIterator{
+			numIter: -1,
+			maxIter: len(c.DataIDV1),
+			data:    c.DataIDV1,
+		}, nil
+	}
+	return nil, fmt.Errorf("{%s} -No data", traceID)
 }

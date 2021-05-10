@@ -20,6 +20,7 @@ const (
 	dataStoreAPIPrefix          = "api/data/store "
 	portalDb                    = "portal"
 	parametersHistoryCollection = "patient_parameters_history"
+	tideWhispererIndexName      = "UserIdTypeTimeWeighted"
 )
 
 var unwantedFields = bson.M{
@@ -63,7 +64,7 @@ var tideWhispererIndexes = map[string][]mongo.IndexModel{
 		{
 			Keys: bson.D{{Key: "_userId", Value: 1}, {Key: "type", Value: 1}, {Key: "time", Value: -1}},
 			Options: options.Index().
-				SetName("UserIdTypeTimeWeighted").
+				SetName(tideWhispererIndexName).
 				SetWeights(bson.M{"_userId": 10, "type": 5, "time": 1}),
 		},
 	},
@@ -614,7 +615,7 @@ func (c *Client) GetDataRangeV1(ctx context.Context, traceID string, userID stri
 	}
 
 	opts := options.Aggregate()
-	opts.SetHint("UserIdTypeTimeWeighted")
+	opts.SetHint(tideWhispererIndexName)
 	opts.SetComment(traceID)
 	cursor, err := dataCollection(c).Aggregate(ctx, stages, opts)
 	if err != nil {
@@ -658,8 +659,9 @@ func (c *Client) GetDataV1(ctx context.Context, traceID string, userID string, d
 
 	opts := options.Find()
 	opts.SetProjection(unwantedFields)
-	opts.SetHint("UserIdTypeTimeWeighted")
+	opts.SetHint(tideWhispererIndexName)
 	opts.SetComment(traceID)
+
 	return dataCollection(c).Find(ctx, query, opts)
 }
 
@@ -674,7 +676,7 @@ func (c *Client) GetLatestPumpSettingsV1(ctx context.Context, traceID string, us
 	opts.SetProjection(unwantedPumpSettingsFields)
 	opts.SetSort(bson.M{"time": -1})
 	opts.SetLimit(1)
-	opts.SetHint("UserIdTypeTimeWeighted")
+	opts.SetHint(tideWhispererIndexName)
 	opts.SetComment(traceID)
 	return dataCollection(c).Find(ctx, query, opts)
 }
