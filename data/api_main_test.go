@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	"github.com/tidepool-org/go-common/clients"
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/shoreline"
 	"github.com/tidepool-org/go-common/clients/status"
@@ -30,7 +29,6 @@ var (
 	storage                   = store.NewMockStoreClient()
 	mockShoreline             = shoreline.NewMock("token")
 	mockAuth                  = auth.NewMock()
-	perms                     = clients.Permissions{"view": clients.Allowed, "root": clients.Allowed}
 	mockPerms                 = opa.NewMock()
 	tidewhisperer             = InitAPI(storage, mockShoreline, mockAuth, mockPerms, schemaVersions, logger)
 	defaultGetDataURLVars     = map[string]string{"userID": "patient"}
