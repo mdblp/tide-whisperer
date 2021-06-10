@@ -581,65 +581,40 @@ func (c *Client) GetDataRangeV1(ctx context.Context, traceID string, userID stri
 		return nil, errors.New("user id is missing")
 	}
 
-	stageMatch := bson.E{
-		Key: "$match",
-		Value: bson.D{
-			bson.E{
-				Key:   "_userId",
-				Value: userID,
-			},
-			// Use only diabetes data, excluding upload & pumpSettings
-			bson.E{
-				Key:   "type",
-				Value: bson.M{"$not": bson.M{"$in": []string{"upload", "pumpSettings"}}},
-			},
-		},
-	}
-	stageSort := bson.E{
-		Key:   "$sort",
-		Value: bson.M{"time": 1},
-	}
-	stageGroup := bson.E{
-		Key: "$group",
-		Value: bson.M{
-			"_id":       nil,
-			"firstDate": bson.M{"$first": "$time"},
-			"lastDate":  bson.M{"$last": "$time"},
-			// "count":     bson.M{"$sum": 1},
-		},
-	}
-	stages := mongo.Pipeline{
-		bson.D{stageMatch},
-		bson.D{stageSort},
-		bson.D{stageGroup},
-	}
-
-	opts := options.Aggregate()
-	opts.SetHint(tideWhispererIndexName)
-	opts.SetComment(traceID)
-	cursor, err := dataCollection(c).Aggregate(ctx, stages, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	var results []bson.M
-	err = cursor.All(ctx, &results)
-	if err != nil {
-		return nil, err
-	}
-
-	ddr := &Date{
+	dateRange := &Date{
 		Start: "",
 		End:   "",
 	}
-	if len(results) > 0 {
-		result := results[0]
-		ddr.Start = result["firstDate"].(string)
-		ddr.End = result["lastDate"].(string)
-		// ddr.Count = result["count"].(int32)
+	var res map[string]interface{}
+
+	query := bson.M{
+		"_userId": userID,
+		// Use only diabetes data, excluding upload & pumpSettings
+		"type": bson.M{"$not": bson.M{"$in": []string{"upload", "pumpSettings"}}},
 	}
 
-	return ddr, nil
+	opts := options.FindOne()
+	opts.SetHint(tideWhispererIndexName)
+	opts.SetProjection(bson.M{"time": 1})
+	opts.SetComment(traceID)
+
+	// Finding Last time (i.e. findOne with sort time DESC)
+	opts.SetSort(bson.D{primitive.E{Key: "time", Value: -1}})
+	err := dataCollection(c).FindOne(ctx, query, opts).Decode(&res)
+	if err != nil {
+		return nil, err
+	}
+	dateRange.End = res["time"].(string)
+
+	// Finding First time (i.e. findOne with sort time ASC)
+	opts.SetSort(bson.D{primitive.E{Key: "time", Value: 1}})
+	err = dataCollection(c).FindOne(ctx, query, opts).Decode(&res)
+	if err != nil {
+		return nil, err
+	}
+	dateRange.Start = res["time"].(string)
+
+	return dateRange, nil
 }
 
 // GetDataV1 v1 api call to fetch diabetes data, excludes "upload" and "pumpSettings"
