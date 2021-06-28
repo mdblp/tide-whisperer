@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -34,6 +35,8 @@ type (
 		decode errorCounter
 		// datum JSON marshall errors
 		jsonError errorCounter
+		// Parameters level to keep in api response
+		paramLevelFilter []int
 	}
 )
 
@@ -189,6 +192,10 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 		uploadIDs: make([]string, 0, 16),
 	}
 
+	parameterLevelFilter := make([]int, 1)
+	parameterLevelFilter = append(parameterLevelFilter, 1)
+	writeParams.paramLevelFilter = parameterLevelFilter
+
 	if withPumpSettings {
 		// Initial query to fetch for this user, the client wants the
 		// latest pumpSettings
@@ -203,11 +210,8 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 			return res.WriteError(logError)
 		}
 		defer iterPumpSettings.Close(ctx)
-
 		// Fetch parameters history from portal:
-		levelFilter := make([]int, 1)
-		levelFilter = append(levelFilter, 1)
-		writeParams.parametersHistory, err = a.store.GetDiabeloopParametersHistory(ctx, userID, levelFilter)
+		writeParams.parametersHistory, err = a.store.GetDiabeloopParametersHistory(ctx, userID, writeParams.paramLevelFilter)
 		if err != nil {
 			// Just log the problem, don't crash the query
 			writeParams.parametersHistory = nil
@@ -311,6 +315,18 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 			if !haveUploadID {
 				// No upload ID, abnormal situation
 				continue
+			}
+			if datumType == "deviceEvent" {
+				datumSubType, haveSubType := datum["subType"].(string)
+				if haveSubType && datumSubType == "deviceParameter" {
+					datumLevel, haveLevel := datum["level"].(string)
+					if haveLevel {
+						intLevel, err := strconv.Atoi(datumLevel)
+						if err == nil && !containsInt(p.paramLevelFilter, intLevel) {
+							continue
+						}
+					}
+				}
 			}
 			// Record the uploadID
 			if !(datumType == "upload" && uploadID == datumID) {
