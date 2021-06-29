@@ -110,9 +110,9 @@ func TestAPI_GetDataV1_Parameters(t *testing.T) {
 	}
 
 	storage.DataV1 = []string{
-		"{\"id\":\"01\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"0\"}",
-		"{\"id\":\"02\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:01.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"1\"}",
-		"{\"id\":\"03\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:02.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"2\"}",
+		"{\"id\":\"01\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:01.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"1\"}",
+		"{\"id\":\"02\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:02.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"2\"}",
+		"{\"id\":\"03\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:03.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"3\"}",```
 	}
 	storage.DataIDV1 = []string{
 		"{\"id\":\"00\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"upload\"}",
@@ -143,8 +143,8 @@ func TestAPI_GetDataV1_Parameters(t *testing.T) {
 	bodyStr := string(body[:n])
 
 	expectedBody := `[
-{"id":"01","level":"0","subType":"deviceParameter","time":"2021-01-10T00:00:00.000Z","type":"deviceEvent","uploadId":"00"},
-{"id":"02","level":"1","subType":"deviceParameter","time":"2021-01-10T00:00:01.000Z","type":"deviceEvent","uploadId":"00"},
+{"id":"01","level":"1","subType":"deviceParameter","time":"2021-01-10T00:00:01.000Z","type":"deviceEvent","uploadId":"00"},
+{"id":"02","level":"2","subType":"deviceParameter","time":"2021-01-10T00:00:02.000Z","type":"deviceEvent","uploadId":"00"},
 {"id":"00","time":"2021-01-10T00:00:00.000Z","type":"upload","uploadId":"00"}]
 `
 

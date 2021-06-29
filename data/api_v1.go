@@ -192,8 +192,7 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 		uploadIDs: make([]string, 0, 16),
 	}
 
-	parameterLevelFilter := make([]int, 1)
-	parameterLevelFilter = append(parameterLevelFilter, 1)
+	parameterLevelFilter := [2]int{1, 2}
 	writeParams.paramLevelFilter = parameterLevelFilter
 
 	if withPumpSettings {
