@@ -35,10 +35,10 @@ type (
 		decode errorCounter
 		// datum JSON marshall errors
 		jsonError errorCounter
-		// Parameters level to keep in api response
 	}
 )
 
+// Parameters level to keep in api response
 var parameterLevelFilter = [...]int{1, 2}
 
 func (a *API) setHandlesV1(prefix string, rtr *mux.Router) {
