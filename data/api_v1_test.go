@@ -112,7 +112,7 @@ func TestAPI_GetDataV1_Parameters(t *testing.T) {
 	storage.DataV1 = []string{
 		"{\"id\":\"01\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:01.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"1\"}",
 		"{\"id\":\"02\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:02.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"2\"}",
-		"{\"id\":\"03\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:03.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"3\"}",```
+		"{\"id\":\"03\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:03.000Z\",\"type\":\"deviceEvent\",\"subType\":\"deviceParameter\",\"level\":\"3\"}",
 	}
 	storage.DataIDV1 = []string{
 		"{\"id\":\"00\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"upload\"}",

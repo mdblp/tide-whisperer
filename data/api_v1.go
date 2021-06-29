@@ -36,9 +36,10 @@ type (
 		// datum JSON marshall errors
 		jsonError errorCounter
 		// Parameters level to keep in api response
-		paramLevelFilter []int
 	}
 )
+
+var parameterLevelFilter = [...]int{1, 2}
 
 func (a *API) setHandlesV1(prefix string, rtr *mux.Router) {
 	// rtr.HandleFunc(prefix+"/status", a.requestLogger(a.getStatus)).Methods("GET")
@@ -192,9 +193,6 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 		uploadIDs: make([]string, 0, 16),
 	}
 
-	parameterLevelFilter := [2]int{1, 2}
-	writeParams.paramLevelFilter = parameterLevelFilter
-
 	if withPumpSettings {
 		// Initial query to fetch for this user, the client wants the
 		// latest pumpSettings
@@ -210,7 +208,7 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 		}
 		defer iterPumpSettings.Close(ctx)
 		// Fetch parameters history from portal:
-		writeParams.parametersHistory, err = a.store.GetDiabeloopParametersHistory(ctx, userID, writeParams.paramLevelFilter)
+		writeParams.parametersHistory, err = a.store.GetDiabeloopParametersHistory(ctx, userID, parameterLevelFilter[:])
 		if err != nil {
 			// Just log the problem, don't crash the query
 			writeParams.parametersHistory = nil
@@ -318,10 +316,10 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 			if datumType == "deviceEvent" {
 				datumSubType, haveSubType := datum["subType"].(string)
 				if haveSubType && datumSubType == "deviceParameter" {
-					datumLevel, haveLevel := datum["level"].(string)
+					datumLevel, haveLevel := datum["level"]
 					if haveLevel {
-						intLevel, err := strconv.Atoi(datumLevel)
-						if err == nil && !containsInt(p.paramLevelFilter, intLevel) {
+						intLevel, err := strconv.Atoi(fmt.Sprintf("%v", datumLevel))
+						if err == nil && !containsInt(parameterLevelFilter[:], intLevel) {
 							continue
 						}
 					}
