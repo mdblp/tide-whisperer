@@ -216,7 +216,7 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 		queryStart = time.Now()
 		writeParams.parametersHistory, err = a.store.GetDiabeloopParametersHistory(ctx, userID, parameterLevelFilter[:])
 		queryDuration = time.Since(queryStart).Seconds()
-		a.logger.Printf("{%s} a.store.GetDiabeloopParametersHistory for %v (level %v took  %.3fs", res.TraceID, userID, levelFilter, queryDuration)
+		a.logger.Printf("{%s} a.store.GetDiabeloopParametersHistory for %v (level %v took  %.3fs", res.TraceID, userID, parameterLevelFilter[:], queryDuration)
 		if err != nil {
 			// Just log the problem, don't crash the query
 			writeParams.parametersHistory = nil
