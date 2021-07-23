@@ -1,10 +1,14 @@
 package data
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -62,10 +66,30 @@ type (
 		rate        cbgRates
 		totalTime   cbgTotalTimes
 	}
+	// summaryGlyLimits is the return struct of getDataSummaryGlyLimits()
+	summaryGlyLimits struct {
+		hypo  float64
+		hyper float64
+	}
+	// summaryTresholds is the return struct of getDataSummaryThresholds()
+	summaryTresholds struct {
+		totalNumBgValues      int
+		percentTimeInRange    int
+		percentTimeBelowRange int
+	}
 )
 
 const (
 	slowAggregateQueryDuration = 0.5 // seconds
+
+	// To convert mg/dL to mmol/L and vice-versa
+	mgdlPerMmoll float64 = 18.01559
+	// Hypo limit (~70 mg/dL)
+	patientGlyHypoLimitMmoll float64 = 3.9
+	// Hyper limit (~180 mg/dL)
+	patientGlyHyperLimitMmoll float64 = 10.0
+	unitMgdL                          = "mg/dL"
+	unitMmolL                         = "mmol/L"
 )
 
 func writeMongoJSONResponse(res http.ResponseWriter, req *http.Request, cursor mongo.StorageIterator, logData *LoggerInfo) {
@@ -176,4 +200,132 @@ func (a *API) GetTimeInRange(res http.ResponseWriter, req *http.Request) {
 
 	defer iter.Close(req.Context())
 	writeMongoJSONResponse(res, req, iter, logInfo)
+}
+
+func getLimitValueAsMmolL(p deviceParameter) (float64, error) {
+	limitValue, err := strconv.ParseFloat(p.Value, 64)
+	if err != nil {
+		return 0, err
+	}
+	if p.Unit == unitMgdL {
+		return limitValue / mgdlPerMmoll, nil
+	} else if p.Unit != unitMmolL {
+		return 0, errors.New("Invalid parameter unit")
+	}
+	return limitValue, nil
+}
+
+// Get the first / last data time for the specified user
+func (a *API) getDataSummaryRangeV1(ctx context.Context, traceID string, userID string, numDays int64) (*store.Date, string, error) {
+	timeIt(ctx, "dr") // data-range
+	defer timeEnd(ctx, "dr")
+
+	dates, err := a.store.GetDataRangeV1(ctx, traceID, userID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// If no data, we can stop here
+	if dates == nil || dates.Start == "" || dates.End == "" {
+		return nil, "", errors.New(errorNotfound.Code)
+	}
+
+	endRange, err := time.Parse(time.RFC3339Nano, dates.End)
+	if err != nil {
+		return nil, "", err
+	}
+	subDaysDuration := time.Duration(-24 * int64(time.Hour) * numDays)
+	startTime := endRange.Add(subDaysDuration)
+
+	return dates, startTime.Format(time.RFC3339), nil
+}
+
+// Get the current device parameters (to get hypo/hyper values)
+func (a *API) getDataSummaryGlyLimits(ctx context.Context, traceID, userID string) (*summaryGlyLimits, error) {
+	var err error
+	var glyLimits *summaryGlyLimits = &summaryGlyLimits{
+		hypo:  patientGlyHypoLimitMmoll,
+		hyper: patientGlyHyperLimitMmoll,
+	}
+	var iterPumpSettings mongo.StorageIterator
+
+	timeIt(ctx, "ps")
+	iterPumpSettings, err = a.store.GetLatestPumpSettingsV1(ctx, traceID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer iterPumpSettings.Close(ctx)
+
+	if iterPumpSettings.Next(ctx) {
+		var pumpSettings PumpSettings
+		err = iterPumpSettings.Decode(&pumpSettings)
+		if err == nil {
+			haveHypo := false
+			haveHyper := false
+			for _, parameter := range pumpSettings.Payload.Parameters {
+				if !haveHypo && parameter.Name == "PATIENT_GLY_HYPO_LIMIT" {
+					haveHypo = true
+					glyLimits.hypo, err = getLimitValueAsMmolL(parameter)
+				} else if !haveHyper && parameter.Name == "PATIENT_GLY_HYPER_LIMIT" {
+					haveHyper = true
+					glyLimits.hyper, err = getLimitValueAsMmolL(parameter)
+				}
+				if err != nil {
+					a.logger.Printf("{%s} - getDataSummaryV1 for %s: Parse device parameter value error: %s (%v)", traceID, userID, err.Error(), parameter)
+					break
+				}
+				if haveHypo && haveHyper {
+					break
+				}
+			}
+		} else {
+			a.logger.Printf("{%s} - getDataSummaryV1 for %s: Decode pump settings error: %s", traceID, userID, err.Error())
+		}
+	} // else: No pump settings (Use the default values)!
+	timeEnd(ctx, "ps")
+
+	return glyLimits, nil
+}
+
+// Get the TIR & TBR percent, and the number of BG results used
+func (a *API) getDataSummaryThresholds(ctx context.Context, traceID string, userID string, startTime string, glyLimits *summaryGlyLimits) (*summaryTresholds, error) {
+	var totalNumBgValues int = 0
+	var totalNumInRange int = 0
+	var totalNumBelowRange int = 0
+	var tresholds *summaryTresholds = &summaryTresholds{}
+
+	timeIt(ctx, "fbg")
+	iterBG, err := a.store.GetCbgAndSmbgForSummaryV1(ctx, traceID, userID, startTime)
+	if err != nil {
+		return nil, err
+	}
+	defer iterBG.Close(ctx)
+	timeEnd(ctx, "fbg")
+
+	timeIt(ctx, "pbg")
+	for iterBG.Next(ctx) {
+		bgValue := simplifiedBgDatum{}
+		err = iterBG.Decode(&bgValue)
+		if err != nil {
+			return nil, err
+		}
+		totalNumBgValues++
+		if bgValue.Unit == unitMgdL {
+			bgValue.Value = bgValue.Value / mgdlPerMmoll
+		}
+		if bgValue.Value < glyLimits.hypo {
+			totalNumBelowRange++
+		} else if bgValue.Value < glyLimits.hyper {
+			totalNumInRange++
+		}
+	}
+	timeEnd(ctx, "pbg")
+
+	if totalNumBgValues > 0 {
+		tresholds.totalNumBgValues = totalNumBgValues
+		tresholds.percentTimeBelowRange = int(math.Round(100.0 * float64(totalNumBelowRange) / float64(totalNumBgValues)))
+		tresholds.percentTimeInRange = int(math.Round(100.0 * float64(totalNumInRange) / float64(totalNumBgValues)))
+	}
+
+	return tresholds, nil
 }

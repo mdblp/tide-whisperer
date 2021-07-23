@@ -1,20 +1,24 @@
 package data
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
 
+type timeItKey int
 type timerAddValue struct {
 	start time.Time
 	µs    int64
 	num   int
 }
-
-var timerValues map[string]time.Time = make(map[string]time.Time)
-var timerAddValues map[string]*timerAddValue = make(map[string]*timerAddValue)
+type timeItType struct {
+	timers    map[string]time.Time
+	timersAdd map[string]*timerAddValue
+	results   string
+}
 
 // Utility functions:
 
@@ -44,29 +48,65 @@ func containsInt(a []int, x int) bool {
 	return false
 }
 
-func timeIt(name string) {
+func timeItContext(ctx context.Context) context.Context {
+	value := &timeItType{
+		timers:    make(map[string]time.Time),
+		timersAdd: make(map[string]*timerAddValue),
+	}
+	return context.WithValue(ctx, timeItKey(0), value)
+}
+
+func timeIt(ctx context.Context, name string) {
+	ctxValue := ctx.Value(timeItKey(0)).(*timeItType)
+	if ctxValue == nil {
+		fmt.Printf("timeIt: Invalid context")
+		return
+	}
+	timerValues := ctxValue.timers
 	if _, present := timerValues[name]; present {
-		fmt.Printf("Timer %s already started\n", name)
+		fmt.Printf("timeIt: Timer %s already started\n", name)
 		return
 	}
 	timerValues[name] = time.Now()
 }
 
-func timeEnd(name string) int64 {
+func timeEnd(ctx context.Context, name string) int64 {
+	ctxValue := ctx.Value(timeItKey(0)).(*timeItType)
+	if ctxValue == nil {
+		return 0
+	}
+	timerValues := ctxValue.timers
 	start, present := timerValues[name]
 	if !present {
-		fmt.Printf("Timer %s has not started\n", name)
+		fmt.Printf("timeEnd: Timer %s has not started\n", name)
 		return 0
 	}
 	end := time.Now()
 	delete(timerValues, name)
 	dur := end.Sub(start).Milliseconds()
-	fmt.Printf("%s: %d ms\n", name, dur)
+	if len(ctxValue.results) == 0 {
+		ctxValue.results = fmt.Sprintf("%s:%dms", name, dur)
+	} else {
+		ctxValue.results = fmt.Sprintf("%s %s:%dms", ctxValue.results, name, dur)
+	}
 	return dur
 }
 
-func timeAddIt(name string, start bool) {
-	tAdd, present := timerAddValues[name]
+func timeResults(ctx context.Context) string {
+	ctxValue := ctx.Value(timeItKey(0)).(*timeItType)
+	if ctxValue == nil {
+		return ""
+	}
+	return ctxValue.results
+}
+
+func timeAddIt(ctx context.Context, name string, start bool) {
+	ctxValue := ctx.Value(timeItKey(0)).(*timeItType)
+	if ctxValue == nil {
+		fmt.Printf("timeAddIt: Invalid context")
+		return
+	}
+	tAdd, present := ctxValue.timersAdd[name]
 
 	if present {
 		if start {
@@ -78,7 +118,7 @@ func timeAddIt(name string, start bool) {
 			tAdd.start = end
 		}
 	} else {
-		timerAddValues[name] = &timerAddValue{
+		ctxValue.timersAdd[name] = &timerAddValue{
 			start: time.Now(),
 			µs:    0,
 			num:   1,
@@ -86,14 +126,22 @@ func timeAddIt(name string, start bool) {
 	}
 }
 
-func timeAddEnd(name string) (int64, int) {
-	tAdd, present := timerAddValues[name]
+func timeAddEnd(ctx context.Context, name string) (int64, int) {
+	ctxValue := ctx.Value(timeItKey(0)).(*timeItType)
+	if ctxValue == nil {
+		return 0, 0
+	}
+	tAdd, present := ctxValue.timersAdd[name]
 	if !present {
-		fmt.Printf("Timer %s has not started\n", name)
+		fmt.Printf("timeAddEnd: Timer %s has not started\n", name)
 		return 0, 0
 	}
 
-	delete(timerAddValues, name)
-	fmt.Printf("%s: %d µs, %d runs, ~%f µs/run\n", name, tAdd.µs, tAdd.num, float64(tAdd.µs)/float64(tAdd.num))
+	delete(ctxValue.timersAdd, name)
+	if len(ctxValue.results) == 0 {
+		ctxValue.results = fmt.Sprintf("%s:'%d µs, %d runs'", name, tAdd.µs, tAdd.num)
+	} else {
+		ctxValue.results = fmt.Sprintf("%s %s:'%d µs, %d runs'", ctxValue.results, name, tAdd.µs, tAdd.num)
+	}
 	return tAdd.µs, tAdd.num
 }
