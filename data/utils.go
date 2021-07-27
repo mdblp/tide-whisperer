@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,9 +11,9 @@ import (
 
 type timeItKey int
 type timerAddValue struct {
-	start time.Time
-	µs    int64
-	num   int
+	start        time.Time
+	microSeconds int64
+	num          int
 }
 type timeItType struct {
 	timers    map[string]time.Time
@@ -20,7 +21,32 @@ type timeItType struct {
 	results   string
 }
 
+const (
+	// To convert mg/dL to mmol/L and vice-versa
+	mgdlPerMmoll float64 = 18.01559
+	unitMgdL             = "mg/dL"
+	unitMmolL            = "mmol/L"
+)
+
 // Utility functions:
+
+// convertBG is a common util function to convert bg values
+// to/from "mg/dL" and "mmol/L"
+//
+// - param: value The value to convert
+//
+// - param: unit The unit of the passed value
+//
+// - return: The converted value in the opposite unit
+func convertBG(value float64, unit string) (float64, error) {
+	if unit == unitMgdL {
+		return value / mgdlPerMmoll, nil
+	}
+	if unit == unitMmolL {
+		return value * mgdlPerMmoll, nil
+	}
+	return 0, errors.New("Invalid parameter unit")
+}
 
 // IsValidUUID check if the uuid is valid
 func isValidUUID(u string) bool {
@@ -114,14 +140,14 @@ func timeAddIt(ctx context.Context, name string, start bool) {
 		} else {
 			end := time.Now()
 			tAdd.num++
-			tAdd.µs += end.Sub(tAdd.start).Microseconds()
+			tAdd.microSeconds += end.Sub(tAdd.start).Microseconds()
 			tAdd.start = end
 		}
 	} else {
 		ctxValue.timersAdd[name] = &timerAddValue{
-			start: time.Now(),
-			µs:    0,
-			num:   1,
+			start:        time.Now(),
+			microSeconds: 0,
+			num:          1,
 		}
 	}
 }
@@ -139,9 +165,9 @@ func timeAddEnd(ctx context.Context, name string) (int64, int) {
 
 	delete(ctxValue.timersAdd, name)
 	if len(ctxValue.results) == 0 {
-		ctxValue.results = fmt.Sprintf("%s:'%d µs, %d runs'", name, tAdd.µs, tAdd.num)
+		ctxValue.results = fmt.Sprintf("%s:'%d µs, %d runs'", name, tAdd.microSeconds, tAdd.num)
 	} else {
-		ctxValue.results = fmt.Sprintf("%s %s:'%d µs, %d runs'", ctxValue.results, name, tAdd.µs, tAdd.num)
+		ctxValue.results = fmt.Sprintf("%s %s:'%d µs, %d runs'", ctxValue.results, name, tAdd.microSeconds, tAdd.num)
 	}
-	return tAdd.µs, tAdd.num
+	return tAdd.microSeconds, tAdd.num
 }

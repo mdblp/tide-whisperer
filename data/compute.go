@@ -82,14 +82,10 @@ type (
 const (
 	slowAggregateQueryDuration = 0.5 // seconds
 
-	// To convert mg/dL to mmol/L and vice-versa
-	mgdlPerMmoll float64 = 18.01559
 	// Hypo limit (~70 mg/dL)
 	patientGlyHypoLimitMmoll float64 = 3.9
 	// Hyper limit (~180 mg/dL)
 	patientGlyHyperLimitMmoll float64 = 10.0
-	unitMgdL                          = "mg/dL"
-	unitMmolL                         = "mmol/L"
 )
 
 func writeMongoJSONResponse(res http.ResponseWriter, req *http.Request, cursor mongo.StorageIterator, logData *LoggerInfo) {
@@ -208,7 +204,7 @@ func getLimitValueAsMmolL(p deviceParameter) (float64, error) {
 		return 0, err
 	}
 	if p.Unit == unitMgdL {
-		return limitValue / mgdlPerMmoll, nil
+		return convertBG(limitValue, unitMgdL)
 	} else if p.Unit != unitMmolL {
 		return 0, errors.New("Invalid parameter unit")
 	}
@@ -217,8 +213,8 @@ func getLimitValueAsMmolL(p deviceParameter) (float64, error) {
 
 // Get the first / last data time for the specified user
 func (a *API) getDataSummaryRangeV1(ctx context.Context, traceID string, userID string, numDays int64) (*store.Date, string, error) {
-	timeIt(ctx, "dr") // data-range
-	defer timeEnd(ctx, "dr")
+	timeIt(ctx, "getDataRange")
+	defer timeEnd(ctx, "getDataRange")
 
 	dates, err := a.store.GetDataRangeV1(ctx, traceID, userID)
 	if err != nil {
@@ -249,7 +245,7 @@ func (a *API) getDataSummaryGlyLimits(ctx context.Context, traceID, userID strin
 	}
 	var iterPumpSettings mongo.StorageIterator
 
-	timeIt(ctx, "ps")
+	timeIt(ctx, "getLastPumpSettings")
 	iterPumpSettings, err = a.store.GetLatestPumpSettingsV1(ctx, traceID, userID)
 	if err != nil {
 		return nil, err
@@ -271,7 +267,7 @@ func (a *API) getDataSummaryGlyLimits(ctx context.Context, traceID, userID strin
 					glyLimits.hyper, err = getLimitValueAsMmolL(parameter)
 				}
 				if err != nil {
-					a.logger.Printf("{%s} - getDataSummaryV1 for %s: Parse device parameter value error: %s (%v)", traceID, userID, err.Error(), parameter)
+					a.logger.Printf("{%s} - getDataSummaryGlyLimits for %s: Parse device parameter value error: %s (%v)", traceID, userID, err.Error(), parameter)
 					break
 				}
 				if haveHypo && haveHyper {
@@ -279,10 +275,10 @@ func (a *API) getDataSummaryGlyLimits(ctx context.Context, traceID, userID strin
 				}
 			}
 		} else {
-			a.logger.Printf("{%s} - getDataSummaryV1 for %s: Decode pump settings error: %s", traceID, userID, err.Error())
+			a.logger.Printf("{%s} - getDataSummaryGlyLimits for %s: Decode pump settings error: %s", traceID, userID, err.Error())
 		}
 	} // else: No pump settings (Use the default values)!
-	timeEnd(ctx, "ps")
+	timeEnd(ctx, "getLastPumpSettings")
 
 	return glyLimits, nil
 }
@@ -294,15 +290,15 @@ func (a *API) getDataSummaryThresholds(ctx context.Context, traceID string, user
 	var totalNumBelowRange int = 0
 	var tresholds *summaryTresholds = &summaryTresholds{}
 
-	timeIt(ctx, "fbg")
+	timeIt(ctx, "getBG")
 	iterBG, err := a.store.GetCbgAndSmbgForSummaryV1(ctx, traceID, userID, startTime)
 	if err != nil {
 		return nil, err
 	}
 	defer iterBG.Close(ctx)
-	timeEnd(ctx, "fbg")
+	timeEnd(ctx, "getBG")
 
-	timeIt(ctx, "pbg")
+	timeIt(ctx, "computeBG")
 	for iterBG.Next(ctx) {
 		bgValue := simplifiedBgDatum{}
 		err = iterBG.Decode(&bgValue)
@@ -311,7 +307,7 @@ func (a *API) getDataSummaryThresholds(ctx context.Context, traceID string, user
 		}
 		totalNumBgValues++
 		if bgValue.Unit == unitMgdL {
-			bgValue.Value = bgValue.Value / mgdlPerMmoll
+			bgValue.Value, _ = convertBG(bgValue.Value, unitMgdL)
 		}
 		if bgValue.Value < glyLimits.hypo {
 			totalNumBelowRange++
@@ -319,7 +315,7 @@ func (a *API) getDataSummaryThresholds(ctx context.Context, traceID string, user
 			totalNumInRange++
 		}
 	}
-	timeEnd(ctx, "pbg")
+	timeEnd(ctx, "computeBG")
 
 	if totalNumBgValues > 0 {
 		tresholds.totalNumBgValues = totalNumBgValues

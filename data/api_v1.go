@@ -344,7 +344,7 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 	if withPumpSettings {
 		// Initial query to fetch for this user, the client wants the
 		// latest pumpSettings
-		timeIt(ctx, "gps")
+		timeIt(ctx, "getLastPumpSettings")
 		iterPumpSettings, err = a.store.GetLatestPumpSettingsV1(ctx, res.TraceID, userID)
 		if err != nil {
 			logError := &detailedError{
@@ -356,21 +356,21 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 			return res.WriteError(logError)
 		}
 		defer iterPumpSettings.Close(ctx)
-		timeEnd(ctx, "gps")
+		timeEnd(ctx, "getLastPumpSettings")
 
 		// Fetch parameters history from portal:
-		timeIt(ctx, "gph")
+		timeIt(ctx, "getParamHistory")
 		writeParams.parametersHistory, err = a.store.GetDiabeloopParametersHistory(ctx, userID, parameterLevelFilter[:])
 		if err != nil {
 			// Just log the problem, don't crash the query
 			writeParams.parametersHistory = nil
 			a.logger.Printf("{%s} - {GetDiabeloopParametersHistory:\"%s\"}", res.TraceID, err)
 		}
-		timeEnd(ctx, "gph")
+		timeEnd(ctx, "getParamHistory")
 	}
 
 	// Fetch normal data:
-	timeIt(ctx, "gd")
+	timeIt(ctx, "getData")
 	iterData, err = a.store.GetDataV1(ctx, res.TraceID, userID, dates)
 	if err != nil {
 		logError := &detailedError{
@@ -382,10 +382,10 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 		return res.WriteError(logError)
 	}
 	defer iterData.Close(ctx)
-	timeEnd(ctx, "gd")
+	timeEnd(ctx, "getData")
 
-	timeIt(ctx, "wd")
-	defer timeEnd(ctx, "wd")
+	timeIt(ctx, "writeData")
+	defer timeEnd(ctx, "writeData")
 	// We return a JSON array, first charater is: '['
 	err = res.WriteString("[\n")
 	if err != nil {
@@ -400,17 +400,17 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 		}
 	}
 
-	timeIt(ctx, "wdm")
+	timeIt(ctx, "writeDataMain")
 	writeParams.iter = iterData
 	err = writeFromIterV1(ctx, writeParams)
 	if err != nil {
 		return err
 	}
-	timeEnd(ctx, "wdm")
+	timeEnd(ctx, "writeDataMain")
 
 	// Fetch uploads
 	if len(writeParams.uploadIDs) > 0 {
-		timeIt(ctx, "gu")
+		timeIt(ctx, "getUploads")
 		iterUploads, err = a.store.GetDataFromIDV1(ctx, res.TraceID, writeParams.uploadIDs)
 		if err != nil {
 			// Just log the problem, don't crash the query
@@ -421,11 +421,11 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 			writeParams.iter = iterUploads
 			err = writeFromIterV1(ctx, writeParams)
 			if err != nil {
-				timeEnd(ctx, "gu")
+				timeEnd(ctx, "getUploads")
 				return err
 			}
 		}
-		timeEnd(ctx, "gu")
+		timeEnd(ctx, "getUploads")
 	}
 
 	// Silently failed theses error to the client, but record them to the log

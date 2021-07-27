@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
@@ -41,7 +40,6 @@ type (
 	RequestLoggerFunc func(HandlerLoggerFunc) HandlerLoggerFunc
 )
 
-var regexpUserID *regexp.Regexp
 var emptyUserIDs = []string{}
 
 func (res *httpResponseWriter) Grow(n int) {
@@ -99,15 +97,6 @@ func (res *httpResponseWriter) WriteHeader(statusCode int) {
 
 // middlewareV1 middleware to log received requests
 func (a *API) middlewareV1(fn HandlerLoggerFunc, checkPermissions bool, params ...string) http.HandlerFunc {
-	// Init part:
-	if regexpUserID == nil {
-		var err error
-		regexpUserID, err = regexp.Compile("^[a-f0-9]+$")
-		if err != nil {
-			a.logger.Panicln("Failed to compile userId regexp")
-		}
-	}
-
 	// The mux handler func:
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error
@@ -151,7 +140,10 @@ func (a *API) middlewareV1(fn HandlerLoggerFunc, checkPermissions bool, params .
 				userID := res.VARS["userID"]
 				userIDs = []string{userID}
 
-				if !regexpUserID.MatchString(userID) {
+				if len(userID) > 64 {
+					// Quick verification on the userID for security reason
+					// Partial but may help without beeing a burden
+					// 64 characters is probably a good compromise
 					res.WriteError(&detailedError{
 						Status:          http.StatusBadRequest,
 						Code:            "invalid_userid",
