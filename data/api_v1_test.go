@@ -223,7 +223,7 @@ func TestAPI_GetDataSummaryV1(t *testing.T) {
 	n, _ := result.Body.Read(body)
 	bodyStr := string(body[:n])
 
-	expectedBody := "{\"userId\":\"abcdef\",\"rangeStart\":\"2021-01-01T00:00:00.000Z\",\"rangeEnd\":\"2021-01-03T00:00:00.000Z\",\"computeDays\":1,\"percentTimeInRange\":50,\"percentTimeBelowRange\":25,\"numBgValues\":4}"
+	expectedBody := "{\"userId\":\"abcdef\",\"rangeStart\":\"2021-01-01T00:00:00.000Z\",\"rangeEnd\":\"2021-01-03T00:00:00.000Z\",\"computeDays\":1,\"percentTimeInRange\":50,\"percentTimeBelowRange\":25,\"numBgValues\":4,\"glyHypoLimit\":70,\"glyHyperLimit\":180,\"glyUnit\":\"mg/dL\"}"
 	if bodyStr != expectedBody {
 		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
 	}
