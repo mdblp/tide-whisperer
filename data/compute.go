@@ -68,8 +68,12 @@ type (
 	}
 	// summaryGlyLimits is the return struct of getDataSummaryGlyLimits()
 	summaryGlyLimits struct {
-		hypo  float64
-		hyper float64
+		hypoMgdl   float64
+		hyperMgdl  float64
+		hypoMmoll  float64
+		hyperMmoll float64
+		// The unit found in the parameters
+		unit string
 	}
 	// summaryTresholds is the return struct of getDataSummaryThresholds()
 	summaryTresholds struct {
@@ -80,12 +84,11 @@ type (
 )
 
 const (
-	slowAggregateQueryDuration = 0.5 // seconds
-
-	// Hypo limit (~70 mg/dL)
-	patientGlyHypoLimitMmoll float64 = 3.9
-	// Hyper limit (~180 mg/dL)
-	patientGlyHyperLimitMmoll float64 = 10.0
+	slowAggregateQueryDuration         = 0.5 // seconds
+	patientGlyHypoLimitMgdl    float64 = 70.0
+	patientGlyHyperLimitMgdl   float64 = 180
+	patientGlyHypoLimitMmoll   float64 = 3.9
+	patientGlyHyperLimitMmoll  float64 = 10.0
 )
 
 func writeMongoJSONResponse(res http.ResponseWriter, req *http.Request, cursor mongo.StorageIterator, logData *LoggerInfo) {
@@ -198,17 +201,19 @@ func (a *API) GetTimeInRange(res http.ResponseWriter, req *http.Request) {
 	writeMongoJSONResponse(res, req, iter, logInfo)
 }
 
-func getLimitValueAsMmolL(p deviceParameter) (float64, error) {
+func getParameterLimitValue(p deviceParameter) (mgdl float64, mmoll float64, unit string, err error) {
 	limitValue, err := strconv.ParseFloat(p.Value, 64)
 	if err != nil {
-		return 0, err
+		return 0, 0, "", err
 	}
 	if p.Unit == unitMgdL {
-		return convertBG(limitValue, unitMgdL)
-	} else if p.Unit != unitMmolL {
-		return 0, errors.New("Invalid parameter unit")
+		mgdl = limitValue
+		mmoll, err = convertBG(mgdl, unitMgdL)
+	} else if p.Unit == unitMmolL {
+		mmoll = limitValue
+		mgdl, err = convertBG(mgdl, unitMmolL)
 	}
-	return limitValue, nil
+	return mgdl, mmoll, p.Unit, err
 }
 
 // Get the first / last data time for the specified user
@@ -240,8 +245,11 @@ func (a *API) getDataSummaryRangeV1(ctx context.Context, traceID string, userID 
 func (a *API) getDataSummaryGlyLimits(ctx context.Context, traceID, userID string) (*summaryGlyLimits, error) {
 	var err error
 	var glyLimits *summaryGlyLimits = &summaryGlyLimits{
-		hypo:  patientGlyHypoLimitMmoll,
-		hyper: patientGlyHyperLimitMmoll,
+		hypoMgdl:   patientGlyHypoLimitMgdl,
+		hyperMgdl:  patientGlyHyperLimitMgdl,
+		hypoMmoll:  patientGlyHypoLimitMmoll,
+		hyperMmoll: patientGlyHyperLimitMmoll,
+		unit:       unitMgdL,
 	}
 	var iterPumpSettings mongo.StorageIterator
 
@@ -252,6 +260,7 @@ func (a *API) getDataSummaryGlyLimits(ctx context.Context, traceID, userID strin
 	}
 	defer iterPumpSettings.Close(ctx)
 
+	// This algorithm assume that the parameters units are the same for hypo and hyper
 	if iterPumpSettings.Next(ctx) {
 		var pumpSettings PumpSettings
 		err = iterPumpSettings.Decode(&pumpSettings)
@@ -261,10 +270,10 @@ func (a *API) getDataSummaryGlyLimits(ctx context.Context, traceID, userID strin
 			for _, parameter := range pumpSettings.Payload.Parameters {
 				if !haveHypo && parameter.Name == "PATIENT_GLY_HYPO_LIMIT" {
 					haveHypo = true
-					glyLimits.hypo, err = getLimitValueAsMmolL(parameter)
+					glyLimits.hypoMgdl, glyLimits.hypoMmoll, glyLimits.unit, err = getParameterLimitValue(parameter)
 				} else if !haveHyper && parameter.Name == "PATIENT_GLY_HYPER_LIMIT" {
 					haveHyper = true
-					glyLimits.hyper, err = getLimitValueAsMmolL(parameter)
+					glyLimits.hyperMgdl, glyLimits.hyperMmoll, glyLimits.unit, err = getParameterLimitValue(parameter)
 				}
 				if err != nil {
 					a.logger.Printf("{%s} - getDataSummaryGlyLimits for %s: Parse device parameter value error: %s (%v)", traceID, userID, err.Error(), parameter)
@@ -288,6 +297,7 @@ func (a *API) getDataSummaryThresholds(ctx context.Context, traceID string, user
 	var totalNumBgValues int = 0
 	var totalNumInRange int = 0
 	var totalNumBelowRange int = 0
+	var totalWrongUnit int = 0
 	var tresholds *summaryTresholds = &summaryTresholds{}
 
 	timeIt(ctx, "getBG")
@@ -307,12 +317,19 @@ func (a *API) getDataSummaryThresholds(ctx context.Context, traceID string, user
 		}
 		totalNumBgValues++
 		if bgValue.Unit == unitMgdL {
-			bgValue.Value, _ = convertBG(bgValue.Value, unitMgdL)
-		}
-		if bgValue.Value < glyLimits.hypo {
-			totalNumBelowRange++
-		} else if bgValue.Value < glyLimits.hyper {
-			totalNumInRange++
+			if bgValue.Value < glyLimits.hypoMgdl {
+				totalNumBelowRange++
+			} else if bgValue.Value < glyLimits.hyperMgdl {
+				totalNumInRange++
+			}
+		} else if bgValue.Unit == unitMmolL {
+			if bgValue.Value < glyLimits.hypoMmoll {
+				totalNumBelowRange++
+			} else if bgValue.Value < glyLimits.hyperMmoll {
+				totalNumInRange++
+			}
+		} else {
+			totalWrongUnit++
 		}
 	}
 	timeEnd(ctx, "computeBG")
@@ -321,6 +338,9 @@ func (a *API) getDataSummaryThresholds(ctx context.Context, traceID string, user
 		tresholds.totalNumBgValues = totalNumBgValues
 		tresholds.percentTimeBelowRange = int(math.Round(100.0 * float64(totalNumBelowRange) / float64(totalNumBgValues)))
 		tresholds.percentTimeInRange = int(math.Round(100.0 * float64(totalNumInRange) / float64(totalNumBgValues)))
+	}
+	if totalWrongUnit > 0 {
+		a.logger.Printf("Found %d wrong unit in CBG data for user %s", totalWrongUnit, userID)
 	}
 
 	return tresholds, nil

@@ -51,7 +51,12 @@ type (
 		PercentTimeBelowRange int `json:"percentTimeBelowRange"`
 		// Number of bg values used to compute the TIR & TBR (if 0, the percent values are meaningless)
 		NumBgValues int `json:"numBgValues"`
-		// Add hypo/hyper limits value used ?
+		// The Hypo limit used to compute TIR & TBR
+		GlyHypoLimit float64 `json:"glyHypoLimit"`
+		// The Hyper limit used to compute TIR & TBR
+		GlyHyperLimit float64 `json:"glyHyperLimit"`
+		// The unit of hypo/hyper values
+		GlyUnit string `json:"glyUnit"`
 	}
 	simplifiedBgDatum struct {
 		Value float64 `json:"value" bson:"value"`
@@ -238,6 +243,14 @@ func (a *API) getDataSummaryV1(ctx context.Context, res *httpResponseWriter) err
 		NumBgValues:           tresholds.totalNumBgValues,
 		PercentTimeBelowRange: tresholds.percentTimeBelowRange,
 		PercentTimeInRange:    tresholds.percentTimeInRange,
+		GlyUnit:               glyLimits.unit,
+	}
+	if glyLimits.unit == unitMgdL {
+		result.GlyHypoLimit = glyLimits.hypoMgdl
+		result.GlyHyperLimit = glyLimits.hyperMgdl
+	} else {
+		result.GlyHypoLimit = glyLimits.hypoMmoll
+		result.GlyHyperLimit = glyLimits.hyperMmoll
 	}
 
 	jsonResult, err := json.Marshal(result)

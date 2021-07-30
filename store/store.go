@@ -695,7 +695,7 @@ func (c *Client) GetDataFromIDV1(ctx context.Context, traceID string, ids []stri
 func (c *Client) GetCbgAndSmbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error) {
 	query := bson.M{
 		"_userId": userID,
-		"type":    bson.M{"$in": []string{"cbg", "smbg"}},
+		"type":    "cbg",
 		"time":    bson.M{"$gt": startDate},
 	}
 

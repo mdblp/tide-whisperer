@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,7 +24,7 @@ type timeItType struct {
 
 const (
 	// To convert mg/dL to mmol/L and vice-versa
-	mgdlPerMmoll float64 = 18.01559
+	mgdlPerMmoll float64 = 18.01577
 	unitMgdL             = "mg/dL"
 	unitMmolL            = "mmol/L"
 )
@@ -39,11 +40,14 @@ const (
 //
 // - return: The converted value in the opposite unit
 func convertBG(value float64, unit string) (float64, error) {
+	if value < 0 {
+		return 0, errors.New("Invalid glycemia value")
+	}
 	if unit == unitMgdL {
-		return value / mgdlPerMmoll, nil
+		return math.Round(10.0*value/mgdlPerMmoll) / 10, nil
 	}
 	if unit == unitMmolL {
-		return value * mgdlPerMmoll, nil
+		return math.Round(value * mgdlPerMmoll), nil
 	}
 	return 0, errors.New("Invalid parameter unit")
 }
