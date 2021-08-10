@@ -104,7 +104,7 @@ type (
 		GetDataV1(ctx context.Context, traceID string, userID string, dates *Date) (goComMgo.StorageIterator, error)
 		GetLatestPumpSettingsV1(ctx context.Context, traceID string, userID string) (goComMgo.StorageIterator, error)
 		GetDataFromIDV1(ctx context.Context, traceID string, ids []string) (goComMgo.StorageIterator, error)
-		GetCbgAndSmbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error)
+		GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error)
 	}
 
 	// SchemaVersion struct
@@ -691,8 +691,8 @@ func (c *Client) GetDataFromIDV1(ctx context.Context, traceID string, ids []stri
 	return dataCollection(c).Find(ctx, query, opts)
 }
 
-// GetCbgAndSmbgForSummaryV1 return the cbg/smbg values for the given user starting at startDate
-func (c *Client) GetCbgAndSmbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error) {
+// GetCbgForSummaryV1 return the cbg/smbg values for the given user starting at startDate
+func (c *Client) GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error) {
 	query := bson.M{
 		"_userId": userID,
 		"type":    "cbg",

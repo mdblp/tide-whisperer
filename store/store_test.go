@@ -1632,7 +1632,7 @@ func TestStore_GetDataFromIDV1(t *testing.T) {
 	}
 }
 
-func TestStore_GetCbgAndSmbgForSummaryV1(t *testing.T) {
+func TestStore_GetCbgForSummaryV1(t *testing.T) {
 	var err error
 	var iter goComMgo.StorageIterator
 	var data []map[string]interface{}
@@ -1674,9 +1674,9 @@ func TestStore_GetCbgAndSmbgForSummaryV1(t *testing.T) {
 	)
 	ctx := context.Background()
 	traceID := uuid.New().String()
-	iter, err = store.GetCbgAndSmbgForSummaryV1(ctx, traceID, userID, "2020-01-02T00:00:00.000Z")
+	iter, err = store.GetCbgForSummaryV1(ctx, traceID, userID, "2020-01-02T00:00:00.000Z")
 	if err != nil {
-		t.Fatalf("Unexpected error during GetCbgAndSmbgForSummaryV1: %s", err)
+		t.Fatalf("Unexpected error during GetCbgForSummaryV1: %s", err)
 	}
 	defer iter.Close(ctx)
 
@@ -1691,7 +1691,6 @@ func TestStore_GetCbgAndSmbgForSummaryV1(t *testing.T) {
 	have12 := false
 	have13 := false
 	for p, datum := range data {
-		// fmt.Println("GetCbgAndSmbgForSummaryV1 ", p, " -> ", datum)
 		units := datum["units"].(string)
 		if units != "mmol/L" {
 			t.Fatalf("Unexpected unit %s expected mmol/L", units)

@@ -180,8 +180,8 @@ func (c *MockStoreClient) GetDataFromIDV1(ctx context.Context, traceID string, i
 	return nil, fmt.Errorf("{%s} - No data", traceID)
 }
 
-// GetCbgAndSmbgForSummaryV1 return the cbg/smbg values for the given user starting at startDate
-func (c *MockStoreClient) GetCbgAndSmbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error) {
+// GetCbgForSummaryV1 return the cbg/smbg values for the given user starting at startDate
+func (c *MockStoreClient) GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error) {
 	if c.DataBGV1 != nil {
 		return &MockStoreIterator{
 			numIter: -1,

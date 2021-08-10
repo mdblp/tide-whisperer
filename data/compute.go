@@ -301,7 +301,7 @@ func (a *API) getDataSummaryThresholds(ctx context.Context, traceID string, user
 	var tresholds *summaryTresholds = &summaryTresholds{}
 
 	timeIt(ctx, "getBG")
-	iterBG, err := a.store.GetCbgAndSmbgForSummaryV1(ctx, traceID, userID, startTime)
+	iterBG, err := a.store.GetCbgForSummaryV1(ctx, traceID, userID, startTime)
 	if err != nil {
 		return nil, err
 	}
