@@ -2,6 +2,9 @@
 
 Data access API for tidepool
 
+## Unreleased
+### Added
+- YLP-767 Add route to get information for a specific IMEI
 ## 0.10.0 - 2021-08-10
 ### Added
 - YLP-892 Add tide-whisperer v1 route for compute TIR & TBR with pumpSettings parameters

@@ -93,6 +93,7 @@ func (a *API) setHandlesV1(prefix string, rtr *mux.Router) {
 	rtr.HandleFunc(prefix+"/summary/{userID}", a.middlewareV1(a.getDataSummaryV1, true, "userID")).Methods("GET")
 	rtr.HandleFunc(prefix+"/data/{userID}", a.middlewareV1(a.getDataV1, true, "userID")).Methods("GET")
 	rtr.HandleFunc(prefix+"/{.*}", a.middlewareV1(a.getNotFoundV1, false)).Methods("GET")
+	rtr.HandleFunc(prefix+"/imei/{imei}", a.middlewareV1(a.getImeiV1, false, "imei")).Methods("GET")
 }
 
 // getNotFoundV1 should it be version free?
@@ -450,6 +451,142 @@ func (a *API) getDataV1(ctx context.Context, res *httpResponseWriter) error {
 	}
 
 	// Last JSON array charater:
+	return res.WriteString("]\n")
+}
+
+// @Summary Get the data for a specific imei
+//
+// @Description Get the data for a specific imei, returning a JSON array of objects
+//
+// @ID tide-whisperer-api-v1-getimei
+// @Produce json
+//
+// @Success 200 {array} string "Array of objects"
+// @Failure 400 {object} data.detailedError
+// @Failure 403 {object} data.detailedError
+// @Failure 404 {object} data.detailedError
+// @Failure 500 {object} data.detailedError
+//
+// @Param imei path string true "The IMEI device to search data for"
+//
+// @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
+//
+// @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
+//
+// @Param limit query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
+//
+// @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
+//
+// @Router /v1/imei/{imei} [get]
+func (a *API) getImeiV1(ctx context.Context, res *httpResponseWriter) error {
+	var err error
+	// Mongo iterators
+	var iterData mongo.StorageIterator
+	imei := res.VARS["imei"]
+
+	query := res.URL.Query()
+	startDate := query.Get("startDate")
+	endDate := query.Get("endDate")
+	limit := query.Get("limit")
+
+	// Check startDate & endDate parameter
+	if startDate != "" || endDate != "" {
+		var logError *detailedError
+		var startTime time.Time
+		var endTime time.Time
+		var timeRange int64 = 1 // endDate - startDate in seconds, initialized to 1 to avoid trigger an error, see below
+
+		if startDate != "" {
+			startTime, err = time.Parse(time.RFC3339Nano, startDate)
+		}
+		if err == nil && endDate != "" {
+			endTime, err = time.Parse(time.RFC3339Nano, endDate)
+		}
+
+		if err == nil && startDate != "" && endDate != "" {
+			timeRange = endTime.Unix() - startTime.Unix()
+		}
+
+		if timeRange > 0 {
+			// Make an estimated guessed about the amount of data we need to send
+			// to help our buffer, since we may send ten or so megabytes of JSON
+			// I saw ~ 1.15 byte per second in my test
+			// fmt.Printf("Grow: %d * 1.15 -> %d\n", timeRange, int(math.Round(float64(timeRange)*1.15)))
+			res.Grow(int(math.Round(float64(timeRange) * 1.15)))
+		} else {
+			err = fmt.Errorf("startDate is after endDate")
+		}
+
+		if err != nil {
+			logError = &detailedError{
+				Status:          errorInvalidParameters.Status,
+				Code:            errorInvalidParameters.Code,
+				Message:         errorInvalidParameters.Message,
+				InternalMessage: err.Error(),
+			}
+			return res.WriteError(logError)
+		}
+	}
+
+	dates := &store.Date{
+		Start: startDate,
+		End:   endDate,
+	}
+
+	a.logger.Printf("Looking for IMEI %s", imei)
+	queryLimit := 10
+	if limit != "" {
+		queryLimit, err = strconv.Atoi(limit)
+		if err != nil {
+			a.logger.Printf("limit value (%s) is not accepted, using default value %d", limit, queryLimit)
+		}	
+	}
+
+	// Fetch data:
+	timeIt(ctx, "getImei")
+	iterData, err = a.store.GetImeiV1(ctx, res.TraceID, imei, queryLimit, dates)
+	if err != nil {
+		logError := &detailedError{
+			Status:          errorRunningQuery.Status,
+			Code:            errorRunningQuery.Code,
+			Message:         errorRunningQuery.Message,
+			InternalMessage: err.Error(),
+		}
+		return res.WriteError(logError)
+	}
+	defer iterData.Close(ctx)
+	timeEnd(ctx, "getImei")
+
+	timeIt(ctx, "writeImei")
+	// We return a JSON array, first charater is: '['
+	err = res.WriteString("[\n")
+	if err != nil {
+		return err
+	}
+
+	var writeCount int
+	for iterData.Next(ctx) {
+		var results map[string]interface{}
+		err := iterData.Decode(&results)
+		if err != nil {
+			a.logger.Printf("request %s for IMEI %s Mongo Decode returned error: %s", res.TraceID, imei, err)
+		} 
+		if len(results) > 0 {
+			if bytes, err := json.Marshal(results); err != nil {
+				a.logger.Printf("returned error: %s", err)
+				} else {
+				if writeCount > 0 {
+					res.Write([]byte(","))
+				}
+				res.Write([]byte("\n"))
+				res.Write(bytes)
+				writeCount++
+			}
+		}
+	}
+	timeEnd(ctx, "writeImei")
+
+	// Last JSON array character:
 	return res.WriteString("]\n")
 }
 

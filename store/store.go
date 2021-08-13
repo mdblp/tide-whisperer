@@ -102,6 +102,7 @@ type (
 		// V1 API data functions:
 		GetDataRangeV1(ctx context.Context, traceID string, userID string) (*Date, error)
 		GetDataV1(ctx context.Context, traceID string, userID string, dates *Date) (goComMgo.StorageIterator, error)
+		GetImeiV1(ctx context.Context, traceID string, imei string, limit int, dates *Date) (goComMgo.StorageIterator, error)
 		GetLatestPumpSettingsV1(ctx context.Context, traceID string, userID string) (goComMgo.StorageIterator, error)
 		GetDataFromIDV1(ctx context.Context, traceID string, ids []string) (goComMgo.StorageIterator, error)
 		GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error)
@@ -660,6 +661,67 @@ func (c *Client) GetDataV1(ctx context.Context, traceID string, userID string, d
 	opts.SetComment(traceID)
 
 	return dataCollection(c).Find(ctx, query, opts)
+}
+
+/* Get the information about IMEI device, it takes a subset of the detailed information from pumpsettings 
+db.deviceData.aggregate([
+	{$match: { "payload.device.imei": "1234567890", type: "pumpSettings"}},
+	{$project:{
+				_userId: 1,
+				device: "$payload.device",
+				pump: "$payload.pump",
+				cgm: "$payload.cgm",
+				time: 1,
+				uploadId: 1
+				}
+	},
+	{$sort:  { time : -1}},
+	{$limit: 5},
+])
+*/
+func (c *Client) GetImeiV1(ctx context.Context, traceID string, imei string, limit int, dates *Date) (goComMgo.StorageIterator, error) {
+
+	match := bson.M{
+		"payload.device.imei": imei,
+		"type": "pumpSettings",
+	}
+
+	if dates.Start != "" && dates.End != "" {
+		match["time"] = bson.M{"$gte": dates.Start, "$lt": dates.End}
+	} else if dates.Start != "" {
+		match["time"] = bson.M{"$gte": dates.Start}
+	} else if dates.End != "" {
+		match["time"] = bson.M{"$lt": dates.End}
+	}
+
+	pipeline := []bson.M{
+		{
+			"$match": match,
+		},
+		{
+			"$project": bson.M{
+				"_userId": 1,
+				"time": 1,
+				"uploadId": 1,
+				"device": "$payload.device",
+				"pump": "$payload.pump",
+				"cgm": "$payload.cgm",
+			},
+		},
+		{
+			"$sort": bson.M{
+				"time": -1,
+			},
+		},
+		{
+			"$limit": limit,
+		},
+	}
+
+	opts := options.Aggregate()
+	opts.SetComment(traceID)
+
+	return dataCollection(c).Aggregate(ctx, pipeline, opts)
 }
 
 // GetLatestPumpSettingsV1 return the latest type == "pumpSettings"
