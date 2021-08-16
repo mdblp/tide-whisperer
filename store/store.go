@@ -663,7 +663,7 @@ func (c *Client) GetDataV1(ctx context.Context, traceID string, userID string, d
 	return dataCollection(c).Find(ctx, query, opts)
 }
 
-/* Get the information about IMEI device, it takes a subset of the detailed information from pumpsettings 
+/* Get the information about IMEI device, it takes a subset of the detailed information from pumpsettings
 db.deviceData.aggregate([
 	{$match: { "payload.device.imei": "1234567890", type: "pumpSettings"}},
 	{$project:{
@@ -683,7 +683,7 @@ func (c *Client) GetImeiV1(ctx context.Context, traceID string, imei string, lim
 
 	match := bson.M{
 		"payload.device.imei": imei,
-		"type": "pumpSettings",
+		"type":                "pumpSettings",
 	}
 
 	if dates.Start != "" && dates.End != "" {
@@ -700,12 +700,13 @@ func (c *Client) GetImeiV1(ctx context.Context, traceID string, imei string, lim
 		},
 		{
 			"$project": bson.M{
-				"_userId": 1,
-				"time": 1,
+				"id":       1,
+				"_userId":  1,
+				"time":     1,
 				"uploadId": 1,
-				"device": "$payload.device",
-				"pump": "$payload.pump",
-				"cgm": "$payload.cgm",
+				"device":   "$payload.device",
+				"pump":     "$payload.pump",
+				"cgm":      "$payload.cgm",
 			},
 		},
 		{

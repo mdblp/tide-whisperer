@@ -17,6 +17,7 @@ import (
 )
 
 var testingConfig = &goComMgo.Config{
+
 	Database:               "data_test",
 	Timeout:                2 * time.Second,
 	WaitConnectionInterval: 5 * time.Second,
@@ -1494,6 +1495,199 @@ func TestStore_GetDataV1(t *testing.T) {
 			t.Fatalf("Invalid datum id %s at %d", id, p)
 		}
 	}
+}
+
+func TestStore_GetImei1(t *testing.T) {
+	userID := "abcd"
+	imei := "1234567890"
+	ddr := &Date{
+		Start: "2020-01-01T00:00:00.000Z",
+		End:   "2021-01-02T00:00:00.000Z",
+	}
+	store := before(t,
+		bson.M{
+			"_userId": userID,
+			"id":      "1",
+			"time":    "2020-01-01T00:00:00.000Z",
+			"type":    "pumpSettings",
+			"payload": bson.M{
+				"cgm": bson.M{
+					"manufacturer": "Dexcom",
+					"name":         "G6",
+				},
+				"device": bson.M{
+					"imei":         "1234567890",
+					"manufacturer": "Diabeloop",
+				},
+				"pump": bson.M{
+					"name":         "Kaleido",
+					"serialNumber": "123456",
+				},
+			},
+			"uploadId": "ced7cce3ba0dac6860ee8c33b1281f6f",
+		},
+		bson.M{
+			"_userId": userID,
+			"id":      "2",
+			"time":    "2020-06-01T00:00:00.000Z",
+			"type":    "pumpSettings",
+			"payload": bson.M{
+				"cgm": bson.M{
+					"manufacturer": "Dexcom",
+					"name":         "G6",
+				},
+				"device": bson.M{
+					"imei":         "1234567890",
+					"manufacturer": "Diabeloop",
+				},
+				"pump": bson.M{
+					"name":         "Kaleido",
+					"serialNumber": "123456",
+				},
+			},
+			"uploadId": "ced7cce3ba0dac6860ee8c33b1281f6f",
+		},
+		bson.M{
+			"_userId": "a00000",
+			"id":      "a",
+			"time":    "2020-11-01T00:00:00.000Z",
+			"type":    "pumpSettings",
+			"payload": bson.M{
+				"cgm": bson.M{
+					"manufacturer": "Dexcom",
+					"name":         "G6",
+				},
+				"device": bson.M{
+					"imei":         "00",
+					"manufacturer": "Diabeloop",
+				},
+				"pump": bson.M{
+					"name":         "Kaleido",
+					"serialNumber": "123456",
+				},
+			},
+			"uploadId": "ced7cce3ba0dac6860ee8c33b1281f6f",
+		},
+		bson.M{
+			"_userId": userID,
+			"id":      "3",
+			"time":    "2021-01-01T00:00:00.000Z",
+			"type":    "pumpSettings",
+			"payload": bson.M{
+				"cgm": bson.M{
+					"manufacturer": "Dexcom",
+					"name":         "G6",
+				},
+				"device": bson.M{
+					"imei":         "1234567890",
+					"manufacturer": "Diabeloop",
+				},
+				"pump": bson.M{
+					"name":         "Kaleido",
+					"serialNumber": "123456",
+				},
+			},
+			"uploadId": "ced7cce3ba0dac6860ee8c33b1281f6f",
+		},
+	)
+	ctx := context.Background()
+
+	// return all values for a given IMEI
+	expectedData := map[string]bool{
+		"1": true,
+		"2": true,
+		"a": false,
+		"3": true,
+	}
+	validateImeiResult(store, t, ctx, imei, 100, ddr, expectedData)
+
+	// return the last value for a given IMEI
+	expectedData = map[string]bool{
+		"1": false,
+		"2": false,
+		"a": false,
+		"3": true,
+	}
+	validateImeiResult(store, t, ctx, imei, 1, ddr, expectedData)
+
+	// return the last value for a given IMEI in a period range
+	expectedData = map[string]bool{
+		"1": true,
+		"2": false,
+		"a": false,
+		"3": false,
+	}
+	ddrCustomRange := &Date{
+		Start: "2020-01-01T00:00:00.000Z",
+		End:   "2020-01-02T00:00:00.000Z",
+	}
+	validateImeiResult(store, t, ctx, imei, 100, ddrCustomRange, expectedData)
+
+	// return no value for a non existing IMEI
+	expectedData = map[string]bool{
+		"1": false,
+		"2": false,
+		"a": false,
+		"3": false,
+	}
+	validateImeiResult(store, t, ctx, "does.not.exist", 1, ddr, expectedData)
+
+	// return no value for a an existing IMEI having no record in the selected period range
+	expectedData = map[string]bool{
+		"1": false,
+		"2": false,
+		"a": false,
+		"3": false,
+	}
+	ddrNodataInRange := &Date{
+		Start: "2019-01-01T00:00:00.000Z",
+		End:   "2020-01-01T00:00:00.000Z",
+	}
+	validateImeiResult(store, t, ctx, imei, 1, ddrNodataInRange, expectedData)
+
+}
+
+func validateImeiResult(store *Client, t *testing.T, ctx context.Context, imei string, limit int, ddr *Date, expectedData map[string]bool) {
+	var iter goComMgo.StorageIterator
+	var data []map[string]interface{}
+	nbrOfExpectedItems := 0
+
+	for _, item := range expectedData {
+		if item {
+			nbrOfExpectedItems++
+		}
+	}
+
+	traceID := uuid.New().String()
+	iter, err := store.GetImeiV1(ctx, traceID, imei, limit, ddr)
+	if err != nil {
+		t.Fatalf("Unexpected error during GetImeiV1: %s", err)
+	}
+	defer iter.Close(ctx)
+
+	if data, err = iteratorToAllData(ctx, iter); err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	// testing limit result
+	if len(data) > limit {
+		t.Fatalf("Expected a max number of %d items, having %d", limit, len(data))
+	}
+
+	// testing number of returned elements
+	if len(data) != nbrOfExpectedItems {
+		t.Fatalf("Expected a result of %d data having %d", nbrOfExpectedItems, len(data))
+	}
+
+	// testing returned data
+	for p, datum := range data {
+		id := datum["id"].(string)
+		if !(expectedData[id]) {
+			t.Log(data)
+			t.Fatalf("Invalid datum id %s at %d", id, p)
+		}
+	}
+
 }
 
 func TestStore_GetLatestPumpSettingsV1(t *testing.T) {

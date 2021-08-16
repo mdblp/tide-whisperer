@@ -49,6 +49,7 @@ type MockStoreClient struct {
 	DataIDV1    []string
 	DataBGV1    []string
 	DataPSV1    *string
+	ImeiV1      []string
 }
 
 func NewMockStoreClient() *MockStoreClient {
@@ -154,6 +155,18 @@ func (c *MockStoreClient) GetDataV1(ctx context.Context, traceID string, userID 
 		}, nil
 	}
 	return nil, fmt.Errorf("{%s} - [%s] - No data", traceID, userID)
+}
+
+// GetDataV1 v1 api mock call to fetch diabetes data
+func (c *MockStoreClient) GetImeiV1(ctx context.Context, traceID string, imei string, limit int, dates *Date) (goComMgo.StorageIterator, error) {
+	if c.ImeiV1 != nil {
+		return &MockStoreIterator{
+			numIter: -1,
+			maxIter: len(c.DataV1),
+			data:    c.ImeiV1,
+		}, nil
+	}
+	return nil, fmt.Errorf("{%s} - [%s] - No data", traceID, imei)
 }
 
 // GetLatestPumpSettingsV1 return the latest type == "pumpSettings"
