@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## UNREALESED
+### Added
+- YLP-1035 publish new bucket schema
+
 ## 0.11.0 - 2021-09-09
 ### Added
 - YLP-893 put in place metrics 
