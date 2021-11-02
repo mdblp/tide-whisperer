@@ -12,6 +12,7 @@ pipeline {
                         env.GIT_COMMIT = "f".multiply(40)
                     }
                     env.RUN_ID = UUID.randomUUID().toString()
+                    env.GOPRIVATE="github.com/mdblp/tide-whisperer-v2"
                 }
             }
         }
@@ -22,7 +23,11 @@ pipeline {
                 }
             }
             steps {
-                sh "$WORKSPACE/build.sh"
+                withCredentials ([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                    sh 'git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"'
+                    sh "$WORKSPACE/build.sh"
+                    sh 'git config --global --unset url."https://${GITHUB_TOKEN}@github.com/".insteadOf'
+                }
             }
         }
         stage('Test') {

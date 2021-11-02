@@ -1,5 +1,7 @@
 # Development
 FROM golang:1.15-alpine AS development
+ARG GOPRIVATE
+ARG GITHUB_TOKEN
 ENV GO111MODULE=on
 WORKDIR /go/src/github.com/tidepool-org/tide-whisperer
 RUN adduser -D tidepool && \
