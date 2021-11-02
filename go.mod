@@ -10,13 +10,12 @@ require (
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
-	github.com/kr/pretty v0.2.0 // indirect
 	github.com/mdblp/hydrophone v0.8.0
-	github.com/mdblp/tide-whisperer-v2 v0.0.0-20211029144901-152199a587e3
+	// temp dependency based on feature/v2-client branch
+	github.com/mdblp/tide-whisperer-v2 v0.0.0-20211102171514-ee008e42f31d
 	github.com/prometheus/client_golang v1.11.0
 	github.com/swaggo/swag v1.7.4
 	github.com/tidepool-org/go-common v0.0.0
 	gitlab.com/msvechla/mux-prometheus v0.0.2
 	go.mongodb.org/mongo-driver v1.7.0
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 )
