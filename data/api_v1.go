@@ -91,6 +91,7 @@ func (a *API) setHandlesV1(prefix string, rtr *mux.Router) {
 	rtr.HandleFunc(prefix+"/range/{userID}", a.middlewareV1(a.getRangeV1, true, "userID")).Methods("GET")
 	rtr.HandleFunc(prefix+"/summary/{userID}", a.middlewareV1(a.getDataSummaryV1, true, "userID")).Methods("GET")
 	rtr.HandleFunc(prefix+"/data/{userID}", a.middlewareV1(a.getDataV1, true, "userID")).Methods("GET")
+	rtr.HandleFunc(prefix+"/dataV2/{userID}", a.middlewareV1(a.getDataV2, true, "userID")).Methods("GET")
 	rtr.HandleFunc(prefix+"/{.*}", a.middlewareV1(a.getNotFoundV1, false)).Methods("GET")
 }
 

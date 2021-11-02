@@ -1,0 +1,133 @@
+package data
+
+import (
+	"context"
+	"sync"
+
+	"github.com/mdblp/tide-whisperer-v2/schema"
+	"github.com/tidepool-org/go-common/clients/mongo"
+	"github.com/tidepool-org/tide-whisperer/store"
+)
+
+func (a *API) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *store.Date, iterData chan mongo.StorageIterator, logError chan *detailedError) {
+	defer wg.Done()
+	timeIt(ctx, "getData")
+	data, err := a.store.GetDataV1(ctx, traceID, userID, dates, []string{"cbg"})
+	if err != nil {
+		logError <- &detailedError{
+			Status:          errorRunningQuery.Status,
+			Code:            errorRunningQuery.Code,
+			Message:         errorRunningQuery.Message,
+			InternalMessage: err.Error(),
+		}
+	} else {
+		iterData <- data
+	}
+	timeEnd(ctx, "getData")
+}
+func (a *API) getDataFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *store.Date, tideV2Data chan []schema.CbgBucket, logErrorDataV2 chan *detailedError) {
+	defer wg.Done()
+	timeIt(ctx, "getDataFromTideV2")
+	data, err := a.tideV2Client.GetDataV2(userID, sessionToken, dates.Start, dates.End)
+	if err != nil {
+		logErrorDataV2 <- &detailedError{
+			Status:          errorTideV2Http.Status,
+			Code:            errorTideV2Http.Code,
+			Message:         errorTideV2Http.Message,
+			InternalMessage: err.Error(),
+		}
+	} else {
+		tideV2Data <- data
+	}
+	timeEnd(ctx, "getDataFromTideV2")
+}
+
+// @Summary Get the data for a specific patient using new bucket api
+//
+// @Description Get the data for a specific patient, returning a JSON array of objects
+//
+// @ID tide-whisperer-api-v1-getdata
+// @Produce json
+//
+// @Success 200 {array} string "Array of objects"
+// @Failure 400 {object} data.detailedError
+// @Failure 403 {object} data.detailedError
+// @Failure 404 {object} data.detailedError
+// @Failure 500 {object} data.detailedError
+//
+// @Param userID path string true "The ID of the user to search data for"
+//
+// @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
+//
+// @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
+//
+// @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
+//
+// @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
+// @Security TidepoolAuth
+//
+// @Router /v1/dataV2/{userID} [get]
+func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
+	params, logError := getDataV1Params(res)
+	if logError != nil {
+		return res.WriteError(logError)
+	}
+	// Mongo iterators
+	var iterPumpSettings mongo.StorageIterator
+	var iterUploads mongo.StorageIterator
+
+	dates := &params.dates
+
+	writeParams := &params.writer
+
+	if params.includePumpSettings {
+		iterPumpSettings, logError = a.getLatestPumpSettings(ctx, res.TraceID, params.user, writeParams)
+		if logError != nil {
+			return res.WriteError(logError)
+		}
+		defer iterPumpSettings.Close(ctx)
+	}
+
+	// Fetch data from store and V2 API (for cbg)
+	var wg sync.WaitGroup
+	sessionToken := res.Header.Get("x-tidepool-session-token")
+	wg.Add(2)
+	chanStoreError := make(chan *detailedError, 1)
+	chanMongoIter := make(chan mongo.StorageIterator, 1)
+	chanApiError := make(chan *detailedError, 1)
+	chanApiResult := make(chan []schema.CbgBucket, 1)
+	// Parallel routines
+	go a.getDataFromStore(ctx, &wg, res.TraceID, params.user, dates, chanMongoIter, chanStoreError)
+	go a.getDataFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiResult, chanApiError)
+
+	go func() {
+		wg.Wait()
+		close(chanStoreError)
+		close(chanApiError)
+		close(chanMongoIter)
+		close(chanApiResult)
+	}()
+	logErrorStore := <-chanStoreError
+	logErrorDataV2 := <-chanApiError
+	iterData := <-chanMongoIter
+	tideV2Data := <-chanApiResult
+
+	if logErrorStore != nil {
+		return res.WriteError(logErrorStore)
+	}
+	if logErrorDataV2 != nil {
+		return res.WriteError(logErrorDataV2)
+	}
+	defer iterData.Close(ctx)
+
+	return a.writeDataV1(
+		ctx,
+		res,
+		params.includePumpSettings,
+		iterPumpSettings,
+		iterUploads,
+		iterData,
+		tideV2Data,
+		writeParams,
+	)
+}
