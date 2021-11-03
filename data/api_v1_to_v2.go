@@ -71,7 +71,7 @@ func (a *API) getDataFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID 
 //
 // @Description Get the data for a specific patient, returning a JSON array of objects
 //
-// @ID tide-whisperer-api-v1-getdata
+// @ID tide-whisperer-api-v1V2-getdata
 // @Produce json
 //
 // @Success 200 {array} string "Array of objects"
