@@ -15,7 +15,7 @@ import (
 var dataFromStoreTimer = promauto.NewHistogram(prometheus.HistogramOpts{
 	Name:      "data_from_store_time",
 	Help:      "A histogram for getDataFromStore execution time (ms)",
-	Buckets:   prometheus.LinearBuckets(-3, .1, 61),
+	Buckets:   prometheus.LinearBuckets(20, 20, 300),
 	Subsystem: "tidewhisperer",
 	Namespace: "dblp",
 })
@@ -23,7 +23,7 @@ var dataFromStoreTimer = promauto.NewHistogram(prometheus.HistogramOpts{
 var dataFromTideV2Timer = promauto.NewHistogram(prometheus.HistogramOpts{
 	Name:      "data_from_tidev2_time",
 	Help:      "A histogram for dataFromTideV2Timer execution time (ms)",
-	Buckets:   prometheus.LinearBuckets(-3, .1, 61),
+	Buckets:   prometheus.LinearBuckets(20, 20, 300),
 	Subsystem: "tidewhisperer",
 	Namespace: "dblp",
 })
