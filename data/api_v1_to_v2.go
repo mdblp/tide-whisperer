@@ -118,19 +118,19 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	sessionToken := res.Header.Get("x-tidepool-session-token")
 	wg.Add(2)
 	chanStoreError := make(chan *detailedError, 1)
+	defer close(chanStoreError)
 	chanMongoIter := make(chan mongo.StorageIterator, 1)
+	defer close(chanMongoIter)
 	chanApiError := make(chan *detailedError, 1)
+	defer close(chanApiError)
 	chanApiResult := make(chan []schema.CbgBucket, 1)
+	defer close(chanApiResult)
+
 	// Parallel routines
 	go a.getDataFromStore(ctx, &wg, res.TraceID, params.user, dates, chanMongoIter, chanStoreError)
 	go a.getDataFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiResult, chanApiError)
 
 	wg.Wait()
-
-	defer close(chanStoreError)
-	defer close(chanApiError)
-	defer close(chanMongoIter)
-	defer close(chanApiResult)
 
 	logErrorStore := <-chanStoreError
 	if logErrorStore != nil {
