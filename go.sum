@@ -274,6 +274,8 @@ github.com/mdblp/tide-whisperer-v2 v0.0.0-20211029144901-152199a587e3 h1:R/KnZSH
 github.com/mdblp/tide-whisperer-v2 v0.0.0-20211029144901-152199a587e3/go.mod h1:ZtoG7yaIHHR0hsoUe/ssDRONJ5HZL6n8+G695f5wKzw=
 github.com/mdblp/tide-whisperer-v2 v0.0.0-20211102171514-ee008e42f31d h1:JRT9rknjc8Or0Ve08TUcD49xWc9/I8P75qI0mScyCNI=
 github.com/mdblp/tide-whisperer-v2 v0.0.0-20211102171514-ee008e42f31d/go.mod h1:ZtoG7yaIHHR0hsoUe/ssDRONJ5HZL6n8+G695f5wKzw=
+github.com/mdblp/tide-whisperer-v2 v0.0.0-20211103112513-444eb2931d09 h1:oZylSZ+PeY/d8cOKLnYsGJVcNNud54aJkWjwT1eP/9w=
+github.com/mdblp/tide-whisperer-v2 v0.0.0-20211103112513-444eb2931d09/go.mod h1:ZtoG7yaIHHR0hsoUe/ssDRONJ5HZL6n8+G695f5wKzw=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
 github.com/mitchellh/go-homedir v1.0.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
