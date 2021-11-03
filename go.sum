@@ -270,12 +270,8 @@ github.com/mdblp/metrics-middleware v0.1.0 h1:xCZ9UTUvak65WrF/unHZNSFttBdAa8gTdQ
 github.com/mdblp/metrics-middleware v0.1.0/go.mod h1:7vW6KFWyECV+1Swg4UZT2pU7F1KIUMo6qtg9IrFe5vY=
 github.com/mdblp/shoreline v0.14.2-0.20210928141428-a5ad659ca077 h1:j+mldn6gj0XPZfk6Ix6QTO/h3cdVVOBxUCVxQDUuF+k=
 github.com/mdblp/shoreline v0.14.2-0.20210928141428-a5ad659ca077/go.mod h1:6h/nrrCpPoIj79yaN77QQJhVjscKty9NJgGJsJi8KsQ=
-github.com/mdblp/tide-whisperer-v2 v0.0.0-20211029144901-152199a587e3 h1:R/KnZSHpGXWk6nbf6AEZIiC06AenL6WsqwvMBLUdx6Q=
-github.com/mdblp/tide-whisperer-v2 v0.0.0-20211029144901-152199a587e3/go.mod h1:ZtoG7yaIHHR0hsoUe/ssDRONJ5HZL6n8+G695f5wKzw=
-github.com/mdblp/tide-whisperer-v2 v0.0.0-20211102171514-ee008e42f31d h1:JRT9rknjc8Or0Ve08TUcD49xWc9/I8P75qI0mScyCNI=
-github.com/mdblp/tide-whisperer-v2 v0.0.0-20211102171514-ee008e42f31d/go.mod h1:ZtoG7yaIHHR0hsoUe/ssDRONJ5HZL6n8+G695f5wKzw=
-github.com/mdblp/tide-whisperer-v2 v0.0.0-20211103112513-444eb2931d09 h1:oZylSZ+PeY/d8cOKLnYsGJVcNNud54aJkWjwT1eP/9w=
-github.com/mdblp/tide-whisperer-v2 v0.0.0-20211103112513-444eb2931d09/go.mod h1:ZtoG7yaIHHR0hsoUe/ssDRONJ5HZL6n8+G695f5wKzw=
+github.com/mdblp/tide-whisperer-v2 v0.0.0-20211103145225-298e596f7336 h1:DnwfRUlUs9aMJ59AL9R+IX7TViJrDEk1CbxhFUknVl8=
+github.com/mdblp/tide-whisperer-v2 v0.0.0-20211103145225-298e596f7336/go.mod h1:ZtoG7yaIHHR0hsoUe/ssDRONJ5HZL6n8+G695f5wKzw=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
 github.com/mitchellh/go-homedir v1.0.0/go.mod h1:SfyaCUpYCn1Vlf4IUYiD9fPX4A5wJrkLzIz1N1q0pr0=
