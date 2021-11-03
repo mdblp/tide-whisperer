@@ -129,12 +129,12 @@ func TestAPI_GetDataV2(t *testing.T) {
 {"id":"03","time":"2021-01-10T00:00:02.000Z","type":"basal","uploadId":"00","value":12},
 {"id":"04","time":"2021-01-10T00:00:03.000Z","type":"basal","uploadId":"00","value":13},
 {"id":"05","time":"2021-01-10T00:00:04.000Z","type":"basal","uploadId":"00","value":14},
-{"id":"bucket1_0","time":"2021-01-01T00:05:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","uploadId":"bucket1","value":10},
-{"id":"bucket1_1","time":"2021-01-01T00:10:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","uploadId":"bucket1","value":10.2},
-{"id":"bucket1_2","time":"2021-01-01T00:15:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","uploadId":"bucket1","value":10.8},
-{"id":"bucket2_0","time":"2021-01-02T00:05:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","uploadId":"bucket2","value":11},
-{"id":"bucket2_1","time":"2021-01-02T00:10:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","uploadId":"bucket2","value":11.2},
-{"id":"bucket2_2","time":"2021-01-02T00:15:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","uploadId":"bucket2","value":11.8},
+{"id":"bucket1_0","time":"2021-01-01T00:05:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10},
+{"id":"bucket1_1","time":"2021-01-01T00:10:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10.2},
+{"id":"bucket1_2","time":"2021-01-01T00:15:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10.8},
+{"id":"bucket2_0","time":"2021-01-02T00:05:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11},
+{"id":"bucket2_1","time":"2021-01-02T00:10:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11.2},
+{"id":"bucket2_2","time":"2021-01-02T00:15:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11.8},
 {"id":"00","time":"2021-01-10T00:00:00.000Z","type":"upload","uploadId":"00"}]
 `
 

@@ -199,7 +199,6 @@ func writeDataV2(ctx context.Context, p *writeFromIter) error {
 			// Building a fake id (bucket.Id/range index)
 			datum["id"] = fmt.Sprintf("%s_%d", bucket.Id, i)
 			datum["type"] = "cbg"
-			datum["uploadId"] = bucket.Id
 			datum["time"] = sample.Timestamp
 			datum["timezone"] = sample.Timezone
 			datum["units"] = sample.Units
