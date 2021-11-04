@@ -11,8 +11,8 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/mdblp/hydrophone v0.8.0
-	// temp dependency based on feature/v2-client branch
-	github.com/mdblp/tide-whisperer-v2 v0.0.0-20211103145225-298e596f7336
+	// on main branch (release 2.0.0-RC1)
+	github.com/mdblp/tide-whisperer-v2 v0.0.0-20211104102959-d6789b681958
 	github.com/prometheus/client_golang v1.11.0
 	github.com/swaggo/swag v1.7.4
 	github.com/tidepool-org/go-common v0.0.0
