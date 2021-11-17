@@ -5,6 +5,8 @@ Data access API for tidepool
 ## Unreleased
 ### Added
 - YLP-1071 New route to mix old store and bucket store results
+### Engineering
+- YLP-1025 Delete index named UniqId in db Data
 
 ## 0.11.0 - 2021-09-09
 ### Added
