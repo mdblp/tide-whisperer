@@ -2,7 +2,7 @@
 
 Data access API for tidepool
 
-## Unreleased
+## 0.12.0 - 2021-11-22
 ### Added
 - YLP-1071 New route to mix old store and bucket store results
 ### Engineering
