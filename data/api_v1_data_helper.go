@@ -162,7 +162,7 @@ func (a *API) writeDataV1(
 
 	if len(Basals) > 0 {
 		timeIt(ctx, "writeBasals")
-		writeParams.cbgs = Cbgs
+		writeParams.basals = Basals
 		err = writeBasals(ctx, writeParams)
 		if err != nil {
 			return err
