@@ -19,7 +19,7 @@ pipeline {
         stage('Build') {
             agent {
                 docker {
-                    image 'docker.ci.diabeloop.eu/go-build:1.15'
+                    image 'docker.ci.diabeloop.eu/go-build:1.17'
                 }
             }
             steps {
