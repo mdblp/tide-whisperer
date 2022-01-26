@@ -22,6 +22,7 @@ import (
 	"github.com/tidepool-org/go-common/clients/shoreline"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/tide-whisperer/auth"
+	"github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/store"
 )
 
@@ -256,8 +257,7 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 
 	var parametersHistory map[string]interface{}
 	var parametersHistoryErr error
-	var basalSecurityProfile interface{}
-	var basalSecurityProfileErr error
+	var basalSecurityProfile *schema.Profile
 	if store.InArray("pumpSettings", queryParams.Types) || (len(queryParams.Types) == 1 && queryParams.Types[0] == "") {
 		a.logger.Printf("Calling GetDiabeloopParametersHistory")
 
@@ -266,12 +266,14 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 			a.jsonError(res, errorRunningQuery, start)
 			return
 		}
-
-		if basalSecurityProfile, basalSecurityProfileErr = a.store.GetLatestBasalSecurityProfile(ctx, requestID, queryParams.UserID); basalSecurityProfileErr != nil {
+		lastestProfile, basalSecurityProfileErr := a.store.GetLatestBasalSecurityProfile(ctx, requestID, queryParams.UserID);
+		if basalSecurityProfileErr != nil {
 			a.logger.Printf("%s request %s user %s GetLatestBasalSecurityProfile returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, basalSecurityProfileErr)
 			a.jsonError(res, errorRunningQuery, start)
 			return
 		}
+		basalSecurityProfile = TransformToExposedModel(lastestProfile)
+
 	}
 	var writeCount int
 

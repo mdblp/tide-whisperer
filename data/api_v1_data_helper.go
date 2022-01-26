@@ -130,14 +130,14 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 		writer.basalSecurityProfile = nil
 		a.logger.Printf("{%s} - {GetLatestBasalSecurityProfile:\"%s\"}", traceID, err)
 	}
-	writer.basalSecurityProfile = transformToExposedModel(lastestProfile)
+	writer.basalSecurityProfile = TransformToExposedModel(lastestProfile)
 	timeEnd(ctx, "getLatestBasalSecurityProfile")
 
 	return iterPumpSettings, nil
 }
 
-func transformToExposedModel(lastestProfile *store.DbProfile) internalSchema.Profile {
-	var result internalSchema.Profile
+func TransformToExposedModel(lastestProfile *store.DbProfile) *internalSchema.Profile {
+	var result *internalSchema.Profile
 	// Build start and end schedule
 	for i, value := range lastestProfile.BasalSchedule {
 		var elem internalSchema.Schedule
