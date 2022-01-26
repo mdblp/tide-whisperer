@@ -98,6 +98,7 @@ type (
 		GetDataRangeV1(ctx context.Context, traceID string, userID string) (*Date, error)
 		GetDataV1(ctx context.Context, traceID string, userID string, dates *Date, excludeTypes []string) (goComMgo.StorageIterator, error)
 		GetLatestPumpSettingsV1(ctx context.Context, traceID string, userID string) (goComMgo.StorageIterator, error)
+		GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (bson.M, error)
 		GetUploadDataV1(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error)
 		GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error)
 	}
@@ -678,6 +679,33 @@ func (c *Client) GetLatestPumpSettingsV1(ctx context.Context, traceID string, us
 	opts.SetHint(idxUserIDTypeTime)
 	opts.SetComment(traceID)
 	return dataCollection(c).Find(ctx, query, opts)
+}
+
+func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (bson.M, error) {
+	query := bson.M{
+		"_userId": userID,
+		"type":    "basalSecurity",
+	}
+
+	opts := options.Find()
+	//opts.SetProjection(unwantedPumpSettingsFields) TODO
+	opts.SetSort(bson.M{"time": -1})
+	opts.SetLimit(1)
+	opts.SetComment(traceID)
+	var result = []bson.M{}
+	cursor, err := dataCollection(c).Find(ctx, query, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	defer cursor.Close(ctx)
+	err = cursor.All(ctx, &result)
+	if err != nil {
+		return nil, err
+	} else if len(result) == 0 {
+		return nil, nil
+	}
+	return result[0], nil
 }
 
 // GetUploadDataV1 Fetch upload data from theirs upload ids, using the $in query parameter

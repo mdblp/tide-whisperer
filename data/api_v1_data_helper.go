@@ -122,6 +122,15 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 		a.logger.Printf("{%s} - {GetDiabeloopParametersHistory:\"%s\"}", traceID, err)
 	}
 	timeEnd(ctx, "getParamHistory")
+
+	timeIt(ctx, "getLatestBasalSecurityProfile")
+	writer.basalSecurityProfile, err = a.store.GetLatestBasalSecurityProfile(ctx, traceID, userID)
+	if err != nil {
+		writer.basalSecurityProfile = nil
+		a.logger.Printf("{%s} - {GetLatestBasalSecurityProfile:\"%s\"}", traceID, err)
+	}
+	timeEnd(ctx, "getLatestBasalSecurityProfile")
+
 	return iterPumpSettings, nil
 }
 
