@@ -682,6 +682,10 @@ func (c *Client) GetLatestPumpSettingsV1(ctx context.Context, traceID string, us
 }
 
 func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (bson.M, error) {
+	if userID == "" {
+		return nil, errors.New("invalid user id")
+	}
+	
 	query := bson.M{
 		"_userId": userID,
 		"type":    "basalSecurity",
