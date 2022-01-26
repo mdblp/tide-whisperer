@@ -35,7 +35,7 @@ type MockStoreClient struct {
 	DeviceModel string
 
 	ParametersHistory    bson.M
-	BasalSecurityProfile bson.M
+	BasalSecurityProfile *DbProfile
 
 	DeviceData          []string
 	GetDeviceDataCall   Params
@@ -169,7 +169,7 @@ func (c *MockStoreClient) GetLatestPumpSettingsV1(ctx context.Context, traceID s
 	return nil, fmt.Errorf("{%s} - [%s] - No data", traceID, userID)
 }
 
-func (c *MockStoreClient) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (bson.M, error) {
+func (c *MockStoreClient) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*DbProfile, error) {
 	if c.BasalSecurityProfile != nil {
 		return c.BasalSecurityProfile, nil
 	}

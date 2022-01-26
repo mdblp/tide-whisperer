@@ -98,7 +98,7 @@ type (
 		GetDataRangeV1(ctx context.Context, traceID string, userID string) (*Date, error)
 		GetDataV1(ctx context.Context, traceID string, userID string, dates *Date, excludeTypes []string) (goComMgo.StorageIterator, error)
 		GetLatestPumpSettingsV1(ctx context.Context, traceID string, userID string) (goComMgo.StorageIterator, error)
-		GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (bson.M, error)
+		GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*DbProfile, error)
 		GetUploadDataV1(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error)
 		GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error)
 	}
@@ -136,6 +136,19 @@ type (
 	Date struct {
 		Start string
 		End   string
+	}
+
+	DbSchedule struct {
+		Rate  float64 `bson:"rate,omitempty"`
+		Start int64   `bson:"start,omitempty"`
+	}
+
+	DbProfile struct {
+		Type          string       `bson:"type,omitempty"`
+		Time          time.Time    `bson:"time,omitempty"`
+		Timezone      string       `bson:"timezone,omitempty"`
+		Guid          string       `bson:"guid,omitempty"`
+		BasalSchedule []DbSchedule `bson:"basalSchedule,omitempty"`
 	}
 )
 
@@ -681,11 +694,11 @@ func (c *Client) GetLatestPumpSettingsV1(ctx context.Context, traceID string, us
 	return dataCollection(c).Find(ctx, query, opts)
 }
 
-func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (bson.M, error) {
+func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*DbProfile, error) {
 	if userID == "" {
 		return nil, errors.New("invalid user id")
 	}
-	
+
 	query := bson.M{
 		"_userId": userID,
 		"type":    "basalSecurity",
@@ -696,7 +709,7 @@ func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID stri
 	opts.SetSort(bson.M{"time": -1})
 	opts.SetLimit(1)
 	opts.SetComment(traceID)
-	var result = []bson.M{}
+	var result []DbProfile
 	cursor, err := dataCollection(c).Find(ctx, query, opts)
 	if err != nil {
 		return nil, err
@@ -709,7 +722,8 @@ func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID stri
 	} else if len(result) == 0 {
 		return nil, nil
 	}
-	return result[0], nil
+
+	return &result[0], nil
 }
 
 // GetUploadDataV1 Fetch upload data from theirs upload ids, using the $in query parameter

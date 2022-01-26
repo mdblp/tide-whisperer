@@ -9,6 +9,7 @@ import (
 
 	"github.com/mdblp/tide-whisperer-v2/schema"
 	"github.com/tidepool-org/go-common/clients/mongo"
+	internalSchema "github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/store"
 )
 
@@ -124,14 +125,36 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 	timeEnd(ctx, "getParamHistory")
 
 	timeIt(ctx, "getLatestBasalSecurityProfile")
-	writer.basalSecurityProfile, err = a.store.GetLatestBasalSecurityProfile(ctx, traceID, userID)
+	lastestProfile, err := a.store.GetLatestBasalSecurityProfile(ctx, traceID, userID)
 	if err != nil {
 		writer.basalSecurityProfile = nil
 		a.logger.Printf("{%s} - {GetLatestBasalSecurityProfile:\"%s\"}", traceID, err)
 	}
+	writer.basalSecurityProfile = transformToExposedModel(lastestProfile)
 	timeEnd(ctx, "getLatestBasalSecurityProfile")
 
 	return iterPumpSettings, nil
+}
+
+func transformToExposedModel(lastestProfile *store.DbProfile) internalSchema.Profile {
+	var result internalSchema.Profile
+	// Build start and end schedule
+	for i, value := range lastestProfile.BasalSchedule {
+		var elem internalSchema.Schedule
+		elem.Rate = value.Rate
+		elem.Start = value.Start
+		if i == len(lastestProfile.BasalSchedule)-1 {
+			elem.End = 0
+		} else {
+			elem.End = lastestProfile.BasalSchedule[i+1].Start
+		}
+		result.BasalSchedule = append(result.BasalSchedule, elem)
+	}
+	result.Guid = lastestProfile.Guid
+	result.Time = lastestProfile.Time
+	result.Timezone = lastestProfile.Timezone
+	result.Type = lastestProfile.Type
+	return result
 }
 
 func (a *API) writeDataV1(

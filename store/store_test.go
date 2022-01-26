@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
 )
@@ -1726,7 +1726,7 @@ func TestStore_GetLatestBasalSecurityProfile(t *testing.T) {
 	store := before(t,
 		bson.M{
 			"_active":        true,
-			"id":             "1",
+			"guid":           "1",
 			"deviceId":       "Kaleido-fake-12345",
 			"deviceTime":     "2020-01-01T08:20:00",
 			"time":           "2020-01-01T08:20:00Z",
@@ -1755,7 +1755,7 @@ func TestStore_GetLatestBasalSecurityProfile(t *testing.T) {
 		},
 		bson.M{
 			"_active":        true,
-			"id":             "2",
+			"guid":           "2",
 			"deviceId":       "Kaleido-fake-12345",
 			"deviceTime":     "2020-01-01T08:40:00",
 			"time":           "2020-01-01T08:40:00Z",
@@ -1784,7 +1784,7 @@ func TestStore_GetLatestBasalSecurityProfile(t *testing.T) {
 		},
 		bson.M{
 			"_active":        true,
-			"id":             "3",
+			"guid":           "3",
 			"deviceId":       "Kaleido-fake-12345",
 			"deviceTime":     "2020-01-01T09:00:00",
 			"time":           "2020-01-01T09:00:00Z",
@@ -1820,8 +1820,7 @@ func TestStore_GetLatestBasalSecurityProfile(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 
-	id := data["id"].(string)
-	if id != "3" {
-		t.Fatalf("Expected return id to be 3, having %s", id)
+	if data.Guid != "3" {
+		t.Fatalf("Expected return id to be 3, having %s", data.Guid)
 	}
 }
