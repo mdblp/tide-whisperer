@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -120,7 +121,13 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	// Mongo iterators
 	var iterPumpSettings mongo.StorageIterator
 	var iterUploads mongo.StorageIterator
-
+	var groups int
+	for _, value := range params.source {
+		if value {
+			groups++
+		}
+	}
+	fmt.Printf("number of channels %v", groups)
 	dates := &params.dates
 
 	writeParams := &params.writer
@@ -136,24 +143,37 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	// Fetch data from store and V2 API (for cbg)
 	var wg sync.WaitGroup
 	sessionToken := res.Header.Get("x-tidepool-session-token")
-	wg.Add(3)
+	wg.Add(groups)
 	chanStoreError := make(chan *detailedError, 1)
 	defer close(chanStoreError)
 	chanMongoIter := make(chan mongo.StorageIterator, 1)
 	defer close(chanMongoIter)
-	chanApiError := make(chan *detailedError, 1)
-	defer close(chanApiError)
-	chanApiCbgs := make(chan []schema.CbgBucket, 1)
-	defer close(chanApiCbgs)
-	chanApiBasals := make(chan []schema.BasalBucket, 1)
-	defer close(chanApiBasals)
-	chanApiBasalError := make(chan *detailedError, 1)
-	defer close(chanApiBasalError)
 
 	// Parallel routines
 	go a.getDataFromStore(ctx, &wg, res.TraceID, params.user, dates, chanMongoIter, chanStoreError)
-	go a.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiError)
-	go a.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
+
+	chanApiCbgs := make(chan []schema.CbgBucket, 1)
+	chanApiError := make(chan *detailedError, 1)
+	if params.source["cbgBucket"] {
+		fmt.Printf("cbg bucket")
+		defer close(chanApiError)
+		defer close(chanApiCbgs)
+		go a.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiError)
+	} else {
+		close(chanApiError)
+		close(chanApiCbgs)
+	}
+	chanApiBasals := make(chan []schema.BasalBucket, 1)
+	chanApiBasalError := make(chan *detailedError, 1)
+	if params.source["basalBucket"] {
+		fmt.Printf("basal bucket")
+		defer close(chanApiBasals)
+		defer close(chanApiBasalError)
+		go a.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
+	} else {
+		close(chanApiBasals)
+		close(chanApiBasalError)
+	}
 
 	wg.Wait()
 
@@ -161,16 +181,22 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	if logErrorStore != nil {
 		return res.WriteError(logErrorStore)
 	}
-	logErrorDataV2 := <-chanApiError
-	logErrorDataV2 = <-chanApiBasalError
-	if logErrorDataV2 != nil {
-		return res.WriteError(logErrorDataV2)
+	if params.source["cbgBucket"] || params.source["basalBucket"] {
+		logErrorDataV2 := <-chanApiError
+		logErrorDataV2 = <-chanApiBasalError
+		if logErrorDataV2 != nil {
+			return res.WriteError(logErrorDataV2)
+		}
 	}
-
 	iterData := <-chanMongoIter
-	Cbgs := <-chanApiCbgs
-	Basals := <-chanApiBasals
-
+	var Cbgs []schema.CbgBucket
+	if params.source["cbgBucket"] {
+		Cbgs = <-chanApiCbgs
+	}
+	var Basals []schema.BasalBucket
+	if params.source["basalBucket"] {
+		Basals = <-chanApiBasals
+	}
 	defer iterData.Close(ctx)
 
 	return a.writeDataV1(

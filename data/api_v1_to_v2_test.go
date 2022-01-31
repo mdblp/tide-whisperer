@@ -1,8 +1,10 @@
 package data
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,7 +13,36 @@ import (
 	"github.com/mdblp/tide-whisperer-v2/schema"
 )
 
-const dayTimeFormat = "2006-01-02"
+const (
+	dayTimeFormat  = "2006-01-02"
+	expectedDataV1 = `{"id":"01","time":"2021-01-10T00:00:00.000Z","type":"basal","uploadId":"00","value":10},
+		{"id":"02","time":"2021-01-10T00:00:01.000Z","type":"basal","uploadId":"00","value":11},
+		{"id":"03","time":"2021-01-10T00:00:02.000Z","type":"basal","uploadId":"00","value":12},
+		{"id":"04","time":"2021-01-10T00:00:03.000Z","type":"basal","uploadId":"00","value":13},
+		{"id":"05","time":"2021-01-10T00:00:04.000Z","type":"basal","uploadId":"00","value":14}`
+	expectedCbgBucket = `{"id":"bucket1_0","time":"2021-01-01T00:05:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10},
+	{"id":"bucket1_1","time":"2021-01-01T00:10:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10.2},
+	{"id":"bucket1_2","time":"2021-01-01T00:15:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10.8},
+	{"id":"bucket2_0","time":"2021-01-02T00:05:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11},
+	{"id":"bucket2_1","time":"2021-01-02T00:10:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11.2},
+	{"id":"bucket2_2","time":"2021-01-02T00:15:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11.8}`
+	expectedBasalBucket = `{"deliveryType":"automated","duration":1000,"id":"bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"Paris","type":"basal"}`
+	expectedDataIdV1    = `{"id":"00","time":"2021-01-10T00:00:00.000Z","type":"upload","uploadId":"00"}`
+)
+
+func compareString(str1 string, str2 string) bool {
+	// cleanse strings
+	str1 = strings.ReplaceAll(str1, " ", "")
+	str1 = strings.ReplaceAll(str1, "\n", "")
+	str1 = strings.ReplaceAll(str1, "\t", "")
+	str2 = strings.ReplaceAll(str2, " ", "")
+	str2 = strings.ReplaceAll(str2, "\n", "")
+	str2 = strings.ReplaceAll(str2, "\t", "")
+
+	fmt.Printf("str1: %v\n", str1)
+	fmt.Printf("str2: %v\n", str2)
+	return str1 == str2
+}
 
 func TestAPI_GetDataV2(t *testing.T) {
 	traceID := uuid.New().String()
@@ -127,7 +158,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 	resetOPAMockRouteV1(true, "/v1/dataV2", userID)
 	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getDataV2, true, "userID")
 
-	request, _ := http.NewRequest("GET", "/v1/dataV2/"+userID, nil)
+	// testing with cbg and basal buckets
+	request, _ := http.NewRequest("GET", "/v1/dataV2/"+userID+"?basalBucket=true&cbgBucket=true", nil)
 	request.Header.Set("x-tidepool-trace-session", traceID)
 	request.Header.Set("x-tidepool-session-token", userID)
 	request = mux.SetURLVars(request, urlParams)
@@ -144,23 +176,106 @@ func TestAPI_GetDataV2(t *testing.T) {
 	n, _ := result.Body.Read(body)
 	bodyStr := string(body[:n])
 
-	expectedBody := `[
-{"id":"01","time":"2021-01-10T00:00:00.000Z","type":"basal","uploadId":"00","value":10},
-{"id":"02","time":"2021-01-10T00:00:01.000Z","type":"basal","uploadId":"00","value":11},
-{"id":"03","time":"2021-01-10T00:00:02.000Z","type":"basal","uploadId":"00","value":12},
-{"id":"04","time":"2021-01-10T00:00:03.000Z","type":"basal","uploadId":"00","value":13},
-{"id":"05","time":"2021-01-10T00:00:04.000Z","type":"basal","uploadId":"00","value":14},
-{"id":"bucket1_0","time":"2021-01-01T00:05:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10},
-{"id":"bucket1_1","time":"2021-01-01T00:10:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10.2},
-{"id":"bucket1_2","time":"2021-01-01T00:15:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":10.8},
-{"id":"bucket2_0","time":"2021-01-02T00:05:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11},
-{"id":"bucket2_1","time":"2021-01-02T00:10:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11.2},
-{"id":"bucket2_2","time":"2021-01-02T00:15:00Z","timezone":"GMT","type":"cbg","units":"mmol/L","value":11.8},
-{"deliveryType":"automated","duration":1000,"id":"bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"Paris","type":"basal"},
-{"id":"00","time":"2021-01-10T00:00:00.000Z","type":"upload","uploadId":"00"}]
-`
+	expectedBody := "[" + strings.Join(
+		[]string{
+			expectedDataV1,
+			expectedCbgBucket,
+			expectedBasalBucket,
+			expectedDataIdV1,
+		}, ",") + "]"
 
-	if bodyStr != expectedBody {
+	if !compareString(bodyStr, expectedBody) {
 		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
 	}
+
+	// testing with cbg only
+	request, _ = http.NewRequest("GET", "/v1/dataV2/"+userID+"?cbgBucket=true", nil)
+	request.Header.Set("x-tidepool-trace-session", traceID)
+	request.Header.Set("x-tidepool-session-token", userID)
+	request = mux.SetURLVars(request, urlParams)
+	response = httptest.NewRecorder()
+
+	handlerLogFunc(response, request)
+	result = response.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
+	}
+
+	body = make([]byte, 2048)
+	defer result.Body.Close()
+	n, _ = result.Body.Read(body)
+	bodyStr = string(body[:n])
+
+	expectedBody = "[" + strings.Join(
+		[]string{
+			expectedDataV1,
+			expectedCbgBucket,
+			// expectedBasalBucket,
+			expectedDataIdV1,
+		}, ",") + "]"
+
+	if !compareString(bodyStr, expectedBody) {
+		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
+	}
+
+	// testing with basal only
+	request, _ = http.NewRequest("GET", "/v1/dataV2/"+userID+"?basalBucket=true", nil)
+	request.Header.Set("x-tidepool-trace-session", traceID)
+	request.Header.Set("x-tidepool-session-token", userID)
+	request = mux.SetURLVars(request, urlParams)
+	response = httptest.NewRecorder()
+
+	handlerLogFunc(response, request)
+	result = response.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
+	}
+
+	body = make([]byte, 2048)
+	defer result.Body.Close()
+	n, _ = result.Body.Read(body)
+	bodyStr = string(body[:n])
+
+	expectedBody = "[" + strings.Join(
+		[]string{
+			expectedDataV1,
+			// expectedCbgBucket,
+			expectedBasalBucket,
+			expectedDataIdV1,
+		}, ",") + "]"
+
+	if !compareString(bodyStr, expectedBody) {
+		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
+	}
+
+	// testing with no buscket
+	request, _ = http.NewRequest("GET", "/v1/dataV2/"+userID, nil)
+	request.Header.Set("x-tidepool-trace-session", traceID)
+	request.Header.Set("x-tidepool-session-token", userID)
+	request = mux.SetURLVars(request, urlParams)
+	response = httptest.NewRecorder()
+
+	handlerLogFunc(response, request)
+	result = response.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
+	}
+
+	body = make([]byte, 2048)
+	defer result.Body.Close()
+	n, _ = result.Body.Read(body)
+	bodyStr = string(body[:n])
+
+	expectedBody = "[" + strings.Join(
+		[]string{
+			expectedDataV1,
+			// expectedCbgBucket,
+			// expectedBasalBucket,
+			expectedDataIdV1,
+		}, ",") + "]"
+
+	if !compareString(bodyStr, expectedBody) {
+		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
+	}
+
 }
