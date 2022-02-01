@@ -2,7 +2,6 @@ package data
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -29,10 +28,17 @@ var dataFromTideV2Timer = promauto.NewHistogram(prometheus.HistogramOpts{
 	Namespace: "dblp",
 })
 
-func (a *API) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *store.Date, iterData chan mongo.StorageIterator, logError chan *detailedError) {
+func excludedTypes() map[string]string {
+	return map[string]string{
+		"cbgBucket":   "cbg",
+		"basalBucket": "basal",
+	}
+}
+
+func (a *API) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *store.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *detailedError) {
 	defer wg.Done()
 	start := time.Now()
-	data, err := a.store.GetDataV1(ctx, traceID, userID, dates, []string{"cbg"})
+	data, err := a.store.GetDataV1(ctx, traceID, userID, dates, excludes)
 	if err != nil {
 		logError <- &detailedError{
 			Status:          errorRunningQuery.Status,
@@ -121,13 +127,23 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	// Mongo iterators
 	var iterPumpSettings mongo.StorageIterator
 	var iterUploads mongo.StorageIterator
-	var groups int
-	for _, value := range params.source {
+	var chanApiCbgs chan []schema.CbgBucket
+	var chanApiBasals chan []schema.BasalBucket
+	var chanApiCbgError, chanApiBasalError chan *detailedError
+	var logErrorDataV2 *detailedError
+	var wg sync.WaitGroup
+
+	var exclusions = excludedTypes()
+	var exclusionList []string
+	groups := 0
+	for key, value := range params.source {
 		if value {
 			groups++
+			if _, ok := exclusions[key]; ok {
+				exclusionList = append(exclusionList, exclusions[key])
+			}
 		}
 	}
-	fmt.Printf("number of channels %v", groups)
 	dates := &params.dates
 
 	writeParams := &params.writer
@@ -141,38 +157,29 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	}
 
 	// Fetch data from store and V2 API (for cbg)
-	var wg sync.WaitGroup
 	sessionToken := res.Header.Get("x-tidepool-session-token")
-	wg.Add(groups)
 	chanStoreError := make(chan *detailedError, 1)
 	defer close(chanStoreError)
 	chanMongoIter := make(chan mongo.StorageIterator, 1)
 	defer close(chanMongoIter)
 
 	// Parallel routines
-	go a.getDataFromStore(ctx, &wg, res.TraceID, params.user, dates, chanMongoIter, chanStoreError)
+	wg.Add(groups)
+	go a.getDataFromStore(ctx, &wg, res.TraceID, params.user, dates, exclusionList, chanMongoIter, chanStoreError)
 
-	chanApiCbgs := make(chan []schema.CbgBucket, 1)
-	chanApiError := make(chan *detailedError, 1)
 	if params.source["cbgBucket"] {
-		fmt.Printf("cbg bucket")
-		defer close(chanApiError)
+		chanApiCbgs = make(chan []schema.CbgBucket, 1)
 		defer close(chanApiCbgs)
-		go a.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiError)
-	} else {
-		close(chanApiError)
-		close(chanApiCbgs)
+		chanApiCbgError = make(chan *detailedError, 1)
+		defer close(chanApiCbgError)
+		go a.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiCbgError)
 	}
-	chanApiBasals := make(chan []schema.BasalBucket, 1)
-	chanApiBasalError := make(chan *detailedError, 1)
 	if params.source["basalBucket"] {
-		fmt.Printf("basal bucket")
+		chanApiBasals = make(chan []schema.BasalBucket, 1)
 		defer close(chanApiBasals)
+		chanApiBasalError = make(chan *detailedError, 1)
 		defer close(chanApiBasalError)
 		go a.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
-	} else {
-		close(chanApiBasals)
-		close(chanApiBasalError)
 	}
 
 	wg.Wait()
@@ -181,8 +188,13 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	if logErrorStore != nil {
 		return res.WriteError(logErrorStore)
 	}
-	if params.source["cbgBucket"] || params.source["basalBucket"] {
-		logErrorDataV2 := <-chanApiError
+	if params.source["cbgBucket"] {
+		logErrorDataV2 = <-chanApiCbgError
+		if logErrorDataV2 != nil {
+			return res.WriteError(logErrorDataV2)
+		}
+	}
+	if params.source["basalBucket"] {
 		logErrorDataV2 = <-chanApiBasalError
 		if logErrorDataV2 != nil {
 			return res.WriteError(logErrorDataV2)
