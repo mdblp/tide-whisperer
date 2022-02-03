@@ -44,12 +44,40 @@ func compareString(str1 string, str2 string) bool {
 	return str1 == str2
 }
 
-func TestAPI_GetDataV2(t *testing.T) {
+func assertRequest(apiParams map[string]string, urlParams map[string]string, expectedStatusCode int, expectedBody string) error {
 	traceID := uuid.New().String()
-	userID := "abcdef"
-	urlParams := map[string]string{
-		"userID": userID,
+	userID := apiParams["userID"]
+
+	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getDataV2, true, "userID")
+	request, _ := http.NewRequest("GET", "/v1/dataV2/"+userID, nil)
+	request.Header.Set("x-tidepool-trace-session", traceID)
+	request.Header.Set("x-tidepool-session-token", userID)
+	request = mux.SetURLVars(request, apiParams)
+	q := request.URL.Query()
+	for key, value := range urlParams {
+		q.Add(key, value)
 	}
+	request.URL.RawQuery = q.Encode()
+	response := httptest.NewRecorder()
+
+	handlerLogFunc(response, request)
+	result := response.Result()
+	if result.StatusCode != expectedStatusCode {
+		return fmt.Errorf("Expected %d to equal %d", response.Code, http.StatusOK)
+	}
+
+	body := make([]byte, 2048)
+	defer result.Body.Close()
+	n, _ := result.Body.Read(body)
+	bodyStr := string(body[:n])
+	if !compareString(bodyStr, expectedBody) {
+		return fmt.Errorf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
+	}
+	return nil
+}
+
+func TestAPI_GetDataV2(t *testing.T) {
+	userID := "abcdef"
 
 	storage.DataV1 = []string{
 		"{\"id\":\"01\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"basal\",\"value\":10}",
@@ -156,26 +184,16 @@ func TestAPI_GetDataV2(t *testing.T) {
 	})
 
 	resetOPAMockRouteV1(true, "/v1/dataV2", userID)
-	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getDataV2, true, "userID")
 
-	// testing with cbg and basal buckets
-	request, _ := http.NewRequest("GET", "/v1/dataV2/"+userID+"?basalBucket=true&cbgBucket=true", nil)
-	request.Header.Set("x-tidepool-trace-session", traceID)
-	request.Header.Set("x-tidepool-session-token", userID)
-	request = mux.SetURLVars(request, urlParams)
-	response := httptest.NewRecorder()
+	// // testing with cbg and basal buckets
 
-	handlerLogFunc(response, request)
-	result := response.Result()
-	if result.StatusCode != http.StatusOK {
-		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
+	apiParms := map[string]string{
+		"userID": userID,
 	}
-
-	body := make([]byte, 2048)
-	defer result.Body.Close()
-	n, _ := result.Body.Read(body)
-	bodyStr := string(body[:n])
-
+	urlParams := map[string]string{
+		"basalBucket": "true",
+		"cbgBucket":   "true",
+	}
 	expectedBody := "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -183,99 +201,53 @@ func TestAPI_GetDataV2(t *testing.T) {
 			expectedBasalBucket,
 			expectedDataIdV1,
 		}, ",") + "]"
-
-	if !compareString(bodyStr, expectedBody) {
-		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
+	err := assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
+	if err != nil {
+		t.Fatalf("CBG and Basal buckets: %v", err.Error())
 	}
 
 	// testing with cbg only
-	request, _ = http.NewRequest("GET", "/v1/dataV2/"+userID+"?cbgBucket=true", nil)
-	request.Header.Set("x-tidepool-trace-session", traceID)
-	request.Header.Set("x-tidepool-session-token", userID)
-	request = mux.SetURLVars(request, urlParams)
-	response = httptest.NewRecorder()
-
-	handlerLogFunc(response, request)
-	result = response.Result()
-	if result.StatusCode != http.StatusOK {
-		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
+	urlParams = map[string]string{
+		"cbgBucket": "true",
 	}
-
-	body = make([]byte, 2048)
-	defer result.Body.Close()
-	n, _ = result.Body.Read(body)
-	bodyStr = string(body[:n])
-
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
 			expectedCbgBucket,
-			// expectedBasalBucket,
 			expectedDataIdV1,
 		}, ",") + "]"
 
-	if !compareString(bodyStr, expectedBody) {
-		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
+	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
+	if err != nil {
+		t.Fatalf("Cbg bucket only: %v", err.Error())
 	}
 
 	// testing with basal only
-	request, _ = http.NewRequest("GET", "/v1/dataV2/"+userID+"?basalBucket=true", nil)
-	request.Header.Set("x-tidepool-trace-session", traceID)
-	request.Header.Set("x-tidepool-session-token", userID)
-	request = mux.SetURLVars(request, urlParams)
-	response = httptest.NewRecorder()
 
-	handlerLogFunc(response, request)
-	result = response.Result()
-	if result.StatusCode != http.StatusOK {
-		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
+	urlParams = map[string]string{
+		"basalBucket": "true",
 	}
-
-	body = make([]byte, 2048)
-	defer result.Body.Close()
-	n, _ = result.Body.Read(body)
-	bodyStr = string(body[:n])
-
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
-			// expectedCbgBucket,
 			expectedBasalBucket,
 			expectedDataIdV1,
 		}, ",") + "]"
 
-	if !compareString(bodyStr, expectedBody) {
-		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
+	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
+	if err != nil {
+		t.Fatalf("Basal bucket only: %v", err.Error())
 	}
 
-	// testing with no buscket
-	request, _ = http.NewRequest("GET", "/v1/dataV2/"+userID, nil)
-	request.Header.Set("x-tidepool-trace-session", traceID)
-	request.Header.Set("x-tidepool-session-token", userID)
-	request = mux.SetURLVars(request, urlParams)
-	response = httptest.NewRecorder()
-
-	handlerLogFunc(response, request)
-	result = response.Result()
-	if result.StatusCode != http.StatusOK {
-		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
-	}
-
-	body = make([]byte, 2048)
-	defer result.Body.Close()
-	n, _ = result.Body.Read(body)
-	bodyStr = string(body[:n])
-
+	// // testing with no buscket
+	urlParams = map[string]string{}
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
-			// expectedCbgBucket,
-			// expectedBasalBucket,
 			expectedDataIdV1,
 		}, ",") + "]"
-
-	if !compareString(bodyStr, expectedBody) {
-		t.Fatalf("Expected '%s' to equal '%s'", bodyStr, expectedBody)
+	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
+	if err != nil {
+		t.Fatalf("No bucket: %v", err.Error())
 	}
-
 }
