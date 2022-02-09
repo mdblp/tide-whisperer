@@ -226,6 +226,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 
 	urlParams = map[string]string{
 		"basalBucket": "true",
+		"cbgBucket":   "false",
 	}
 	expectedBody = "[" + strings.Join(
 		[]string{
@@ -244,6 +245,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
+			expectedCbgBucket,
 			expectedDataIdV1,
 		}, ",") + "]"
 	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
