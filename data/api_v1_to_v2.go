@@ -28,13 +28,6 @@ var dataFromTideV2Timer = promauto.NewHistogram(prometheus.HistogramOpts{
 	Namespace: "dblp",
 })
 
-func excludedTypes() map[string]string {
-	return map[string]string{
-		"cbgBucket":   "cbg",
-		"basalBucket": "basal",
-	}
-}
-
 func (a *API) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *store.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *detailedError) {
 	defer wg.Done()
 	start := time.Now()
@@ -115,6 +108,10 @@ func (a *API) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID
 //
 // @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
 //
+// @Param cbgBucket query string false "no parameter or not equal to true to get cbg from buckets" format(boolean)
+//
+// @Param basalBucket query string false "true to get basals from buckets, if the parameter is not there or not equal to true the basals are from deviceData" format(boolean)
+//
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security TidepoolAuth
 //
@@ -133,7 +130,10 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	var logErrorDataV2 *detailedError
 	var wg sync.WaitGroup
 
-	var exclusions = excludedTypes()
+	var exclusions = map[string]string{
+		"cbgBucket":   "cbg",
+		"basalBucket": "basal",
+	}
 	var exclusionList []string
 	groups := 0
 	for key, value := range params.source {
