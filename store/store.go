@@ -703,27 +703,22 @@ func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID stri
 		"_userId": userID,
 		"type":    "basalSecurity",
 	}
-
-	opts := options.Find()
+	opts := options.FindOne()
 	//opts.SetProjection(unwantedPumpSettingsFields) TODO
 	opts.SetSort(bson.M{"time": -1})
-	opts.SetLimit(1)
 	opts.SetComment(traceID)
-	var result []DbProfile
-	cursor, err := dataCollection(c).Find(ctx, query, opts)
+	var result *DbProfile
+	err := dataCollection(c).FindOne(ctx, query, opts).Decode(&result)
+
 	if err != nil {
-		return nil, err
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		} else {
+			return nil, err
+		}
 	}
 
-	defer cursor.Close(ctx)
-	err = cursor.All(ctx, &result)
-	if err != nil {
-		return nil, err
-	} else if len(result) == 0 {
-		return nil, nil
-	}
-
-	return &result[0], nil
+	return result, nil
 }
 
 // GetUploadDataV1 Fetch upload data from theirs upload ids, using the $in query parameter

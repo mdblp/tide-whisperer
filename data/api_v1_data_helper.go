@@ -142,12 +142,13 @@ func TransformToExposedModel(lastestProfile *store.DbProfile) *internalSchema.Pr
 	if lastestProfile != nil {
 		result = &internalSchema.Profile{} 
 		// Build start and end schedule
+		// the BasalSchedule array is sorted on Start by the terminal
 		for i, value := range lastestProfile.BasalSchedule {
 			var elem internalSchema.Schedule
 			elem.Rate = value.Rate
 			elem.Start = value.Start
 			if i == len(lastestProfile.BasalSchedule)-1 {
-				elem.End = 0
+				elem.End = lastestProfile.BasalSchedule[0].Start 
 			} else {
 				elem.End = lastestProfile.BasalSchedule[i+1].Start
 			}

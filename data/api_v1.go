@@ -400,16 +400,20 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 					p.uploadIDs = append(p.uploadIDs, uploadID)
 				}
 			}
-			// Add the parameter history to the pump settings
-			if datumType == "pumpSettings" && p.parametersHistory != nil {
+			
+			if datumType == "pumpSettings" && (p.parametersHistory != nil || p.basalSecurityProfile != nil) {
 				payload := datum["payload"].(map[string]interface{})
-				payload["history"] = p.parametersHistory["history"]
-				datum["payload"] = payload
-			}
-			// Add the basal security profile to the pump settings
-			if datumType == "pumpSettings" && p.basalSecurityProfile != nil {
-				payload := datum["payload"].(map[string]interface{})
-				payload["basalsecurityprofile"] = p.basalSecurityProfile
+				
+				// Add the parameter history to the pump settings
+				if p.parametersHistory != nil {
+					payload["history"] = p.parametersHistory["history"]
+				}
+
+				// Add the basal security profile to the pump settings
+				if p.basalSecurityProfile != nil {
+					payload["basalsecurityprofile"] = p.basalSecurityProfile
+				}
+
 				datum["payload"] = payload
 			}
 

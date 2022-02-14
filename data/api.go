@@ -296,16 +296,17 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 			results = results["latest_doc"].(map[string]interface{})
 		}
 		if len(results) > 0 {
-			if results["type"].(string) == "pumpSettings" && parametersHistory != nil {
+			if results["type"].(string) == "pumpSettings" && (parametersHistory != nil || basalSecurityProfile != nil ) {
 				payload := results["payload"].(map[string]interface{})
-				payload["history"] = parametersHistory["history"]
-				results["payload"] = payload
-			}
 
-			// Add the basal security profile to the pump settings
-			if results["type"].(string) == "pumpSettings" && basalSecurityProfile != nil {
-				payload := results["payload"].(map[string]interface{})
-				payload["basalsecurityprofile"] = basalSecurityProfile
+				if parametersHistory != nil {
+					payload["history"] = parametersHistory["history"]
+				}
+
+				if basalSecurityProfile != nil {
+					payload["basalsecurityprofile"] = basalSecurityProfile
+				}
+				
 				results["payload"] = payload
 			}
 
