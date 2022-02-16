@@ -707,7 +707,7 @@ func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID stri
 	//opts.SetProjection(unwantedPumpSettingsFields) TODO
 	opts.SetSort(bson.M{"time": -1})
 	opts.SetComment(traceID)
-	var result *DbProfile
+	var result DbProfile
 	err := dataCollection(c).FindOne(ctx, query, opts).Decode(&result)
 
 	if err != nil {
@@ -718,7 +718,7 @@ func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID stri
 		}
 	}
 
-	return result, nil
+	return &result, nil
 }
 
 // GetUploadDataV1 Fetch upload data from theirs upload ids, using the $in query parameter
