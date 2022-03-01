@@ -310,10 +310,10 @@ github.com/mdblp/go-common v0.7.2-0.20210611071916-2fe8363c8b02 h1:d9NwgwmGPtvSR
 github.com/mdblp/go-common v0.7.2-0.20210611071916-2fe8363c8b02/go.mod h1:Rm0RdSiXr58v45bOWECyNWrU18VyqLnS+rxe23L3DzA=
 github.com/mdblp/go-common v1.2.0 h1:Us8qlAob77JBWmAmpYLNnEb2Mp92ZUsgLHzk8iDAPb8=
 github.com/mdblp/go-common v1.2.0/go.mod h1:2wzi36N7JwmpOPaqSDqFIcWx+9h2hA7SId5GA3+MRNA=
-github.com/mdblp/metrics-middleware v0.1.0/go.mod h1:7vW6KFWyECV+1Swg4UZT2pU7F1KIUMo6qtg9IrFe5vY=
+github.com/mdblp/go-routers v0.3.0/go.mod h1:tKHQDoShZ/Ugu4It5V/DJC4/gOVb2pZYH5GigfjPlTs=
 github.com/mdblp/shoreline v1.8.4/go.mod h1:NrmI2LubanRLqM8gFUP6ikSOmddFYOyiKmoM77gTXOM=
-github.com/mdblp/tide-whisperer-v2 v0.0.0-20220117150717-4b55fbd64eaa h1:8APOzk+RBJqvsVFJa+57iF+sJLOjd9S/48Is+1WDrfU=
-github.com/mdblp/tide-whisperer-v2 v0.0.0-20220117150717-4b55fbd64eaa/go.mod h1:T4jrpfkN30TGTjZb1j5vVW6W6OeGRZAhnu7n1+jxPEk=
+github.com/mdblp/tide-whisperer-v2 v0.0.0-20220301103622-c040313aa1c2 h1:M7ZkgWvPFHF5JFeC49e5Fls5dB+Puy9ls7eyQoPM+B8=
+github.com/mdblp/tide-whisperer-v2 v0.0.0-20220301103622-c040313aa1c2/go.mod h1:YCcuZMCgc4KvHLVd9bt+PR6Tunc+l7/OArq/gvM1V/U=
 github.com/microcosm-cc/bluemonday v1.0.16/go.mod h1:Z0r70sCuXHig8YpBzCc5eGHAap2K7e/u082ZUpDRRqM=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
