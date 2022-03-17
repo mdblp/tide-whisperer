@@ -257,7 +257,7 @@ func writeCbgs(ctx context.Context, p *writeFromIter) error {
 		for i, sample := range bucket.Samples {
 			datum := make(map[string]interface{})
 			// Building a fake id (bucket.Id/range index)
-			datum["id"] = fmt.Sprintf("%s_%d", bucket.Id, i)
+			datum["id"] = fmt.Sprintf("%s_%s_%d", "cbg", bucket.Id, i)
 			datum["type"] = "cbg"
 			datum["time"] = sample.Timestamp
 			datum["timezone"] = sample.Timezone
@@ -295,7 +295,7 @@ func writeBasals(ctx context.Context, p *writeFromIter) error {
 		for i, sample := range bucket.Samples {
 			datum := make(map[string]interface{})
 			// Building a fake id (bucket.Id/range index)
-			datum["id"] = fmt.Sprintf("%s_%d", bucket.Id, i)
+			datum["id"] = fmt.Sprintf("%s_%s_%d", "basal" , bucket.Id, i)
 			datum["type"] = "basal"
 			datum["time"] = sample.Timestamp
 			datum["timezone"] = sample.Timezone
