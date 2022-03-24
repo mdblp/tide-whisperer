@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mdblp/tide-whisperer-v2/schema"
+	"github.com/mdblp/tide-whisperer-v2/v2/schema"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tidepool-org/go-common/clients/mongo"
