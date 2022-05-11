@@ -56,7 +56,7 @@ func TestGetData_NoToken(t *testing.T) {
 // TestGetData_WrongToken calling GetData route with an authorized token should be unauthorized
 func TestGetData_WrongToken(t *testing.T) {
 	resetMocks()
-	mockShoreline.Unauthorized = true
+	mockAuth.Unauthorized = true
 
 	urlParams := make(map[string]string)
 	request, response := getDataPrepareRequest("mytoken", urlParams)
@@ -80,7 +80,7 @@ func TestGetData_GoodTokenSameUser(t *testing.T) {
 // TestGetData_GoodTokenGuestUserNotInvited calling GetData route for a user who didn't invite the user owning the token should be unauthorized
 func TestGetData_GoodTokenGuestUserNotInvited(t *testing.T) {
 	resetMocks()
-	mockShoreline.UserID = "guestUninvited"
+	mockAuth.UserID = "guestUninvited"
 	auth := mockPerms.GetMockedAuth(false, map[string]interface{}{}, "tidewhisperer-get")
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
 
@@ -94,7 +94,7 @@ func TestGetData_GoodTokenGuestUserNotInvited(t *testing.T) {
 // TestGetData_GoodTokenGuestUserNotInvited calling GetData route for a user who invited the user owning the token should be authorized
 func TestGetData_GoodTokenGuestUserInvited(t *testing.T) {
 	resetMocks()
-	mockShoreline.UserID = "guest"
+	mockAuth.UserID = "guest"
 
 	urlParams := make(map[string]string)
 	request, response := getDataPrepareRequest("mytoken", urlParams)
@@ -107,8 +107,8 @@ func TestGetData_GoodTokenGuestUserInvited(t *testing.T) {
 // TestGetData_ServerToken calling GetData route for any user with a server token should be authorized
 func TestGetData_ServerToken(t *testing.T) {
 	resetMocks()
-	mockShoreline.UserID = "server"
-	mockShoreline.IsServer = true
+	mockAuth.UserID = "server"
+	mockAuth.IsServer = true
 	auth := mockPerms.GetMockedAuth(false, map[string]interface{}{}, "tidewhisperer-get")
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
 

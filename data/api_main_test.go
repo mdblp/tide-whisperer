@@ -29,7 +29,7 @@ var (
 	logger                    = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
 	storage                   = store.NewMockStoreClient()
 	mockShoreline             = shoreline.NewMock("token")
-	mockAuth                  = auth.NewMock()
+	mockAuth                  = auth.NewMock("token")
 	mockPerms                 = opa.NewMock()
 	mockTideV2                = twV2Client.NewMock()
 	tidewhisperer             = InitAPI(storage, mockShoreline, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
@@ -43,6 +43,10 @@ func resetMocks() {
 	mockShoreline.UserID = "patient"
 	mockShoreline.Unauthorized = false
 	mockShoreline.IsServer = false
+
+	mockAuth.UserID = "patient"
+	mockAuth.Unauthorized = false
+	mockAuth.IsServer = false
 
 	auth := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-get")
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)

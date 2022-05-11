@@ -29,9 +29,9 @@ func getDefaultResponseWriter(t *testing.T) *httpResponseWriter {
 }
 
 func resetOPAMockRouteV1(authorized bool, route string, userID string) {
-	mockShoreline.UserID = userID
-	mockShoreline.IsServer = false
-	mockShoreline.Unauthorized = !authorized
+	mockAuth.UserID = userID
+	mockAuth.IsServer = false
+	mockAuth.Unauthorized = !authorized
 	auth := mockPerms.GetMockedAuth(authorized, map[string]interface{}{}, "tidewhisperer-v1")
 	mockPerms.SetMockOpaAuth(route, &auth, nil)
 }
