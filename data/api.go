@@ -266,7 +266,7 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 			a.jsonError(res, errorRunningQuery, start)
 			return
 		}
-		lastestProfile, basalSecurityProfileErr := a.store.GetLatestBasalSecurityProfile(ctx, requestID, queryParams.UserID);
+		lastestProfile, basalSecurityProfileErr := a.store.GetLatestBasalSecurityProfile(ctx, requestID, queryParams.UserID)
 		if basalSecurityProfileErr != nil {
 			a.logger.Printf("%s request %s user %s GetLatestBasalSecurityProfile returned error: %s", DataAPIPrefix, requestID, queryParams.UserID, basalSecurityProfileErr)
 			a.jsonError(res, errorRunningQuery, start)
@@ -296,7 +296,7 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 			results = results["latest_doc"].(map[string]interface{})
 		}
 		if len(results) > 0 {
-			if results["type"].(string) == "pumpSettings" && (parametersHistory != nil || basalSecurityProfile != nil ) {
+			if results["type"].(string) == "pumpSettings" && (parametersHistory != nil || basalSecurityProfile != nil) {
 				payload := results["payload"].(map[string]interface{})
 
 				if parametersHistory != nil {
@@ -306,7 +306,7 @@ func (a *API) GetData(res http.ResponseWriter, req *http.Request, vars map[strin
 				if basalSecurityProfile != nil {
 					payload["basalsecurityprofile"] = basalSecurityProfile
 				}
-				
+
 				results["payload"] = payload
 			}
 
@@ -424,22 +424,8 @@ func (d detailedError) setInternalMessage(internal error) detailedError {
 	return d
 }
 
-func (a *API) getTokenData(req *http.Request) *shoreline.TokenData {
-	var td *shoreline.TokenData
-	if sessionToken := req.Header.Get("x-tidepool-session-token"); sessionToken != "" {
-		td = a.shorelineClient.CheckToken(sessionToken)
-	} else if restrictedTokens, found := req.URL.Query()["restricted_token"]; found && len(restrictedTokens) == 1 {
-		restrictedToken, restrictedTokenErr := a.authClient.GetRestrictedToken(req.Context(), restrictedTokens[0])
-		if restrictedTokenErr == nil && restrictedToken != nil && restrictedToken.Authenticates(req) {
-			td = &shoreline.TokenData{UserID: restrictedToken.UserID}
-		}
-	}
-
-	return td
-}
-
 func (a *API) isAuthorized(req *http.Request, targetUserIDs []string) bool {
-	td := a.getTokenData(req)
+	td := a.authClient.Authenticate(req)
 	if td == nil {
 		a.logger.Printf("%s - %s %s HTTP/%d.%d - Missing header token", req.RemoteAddr, req.Method, req.URL.String(), req.ProtoMajor, req.ProtoMinor)
 		return false
