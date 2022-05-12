@@ -96,8 +96,6 @@ func (a *API) SetHandlers(prefix string, rtr *mux.Router) {
 
 	// v0 routes:
 	rtr.HandleFunc("/status", a.getStatus).Methods("GET")
-	rtr.HandleFunc("/compute/tir", a.GetTimeInRange).Methods("GET")
-	rtr.Handle("/{userID}", varsHandler(a.GetData)).Methods("GET")
 }
 
 func (h varsHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
