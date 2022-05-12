@@ -11,11 +11,11 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/mdblp/go-common/clients/auth"
 	twV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/go-common/clients/version"
-	"github.com/tidepool-org/tide-whisperer/auth"
 	"github.com/tidepool-org/tide-whisperer/store"
 )
 

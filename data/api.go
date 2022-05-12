@@ -17,10 +17,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
+	"github.com/mdblp/go-common/clients/auth"
 	tideV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/status"
-	"github.com/tidepool-org/tide-whisperer/auth"
 	"github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/store"
 )
@@ -430,7 +430,7 @@ func (a *API) isAuthorized(req *http.Request, targetUserIDs []string) bool {
 	}
 	if len(targetUserIDs) == 1 {
 		targetUserID := targetUserIDs[0]
-		if td.UserID == targetUserID {
+		if td.UserId == targetUserID {
 			return true
 		}
 	}

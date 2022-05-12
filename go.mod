@@ -11,14 +11,14 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/prometheus/client_golang v1.11.0
 	github.com/stretchr/testify v1.7.1 // indirect
-	github.com/tidepool-org/go-common v0.0.0
+	github.com/tidepool-org/go-common v0.9.0
 	gitlab.com/msvechla/mux-prometheus v0.0.2
-	go.mongodb.org/mongo-driver v1.8.1
+	go.mongodb.org/mongo-driver v1.9.1
 )
 
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.0.1
-	github.com/mdblp/shoreline v1.9.1
+	github.com/mdblp/shoreline v1.9.2
 	github.com/mdblp/tide-whisperer-v2/v2 v2.3.3
 )
 
@@ -40,7 +40,7 @@ require (
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/mdblp/go-common v1.2.0 // indirect
+	github.com/mdblp/go-common v1.2.1-0.20220512153952-be77aa051d02 // indirect
 	github.com/mdblp/go-routers v0.3.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

@@ -321,12 +321,18 @@ github.com/mdblp/go-common v0.7.2-0.20210611071916-2fe8363c8b02 h1:d9NwgwmGPtvSR
 github.com/mdblp/go-common v0.7.2-0.20210611071916-2fe8363c8b02/go.mod h1:Rm0RdSiXr58v45bOWECyNWrU18VyqLnS+rxe23L3DzA=
 github.com/mdblp/go-common v1.2.0 h1:Us8qlAob77JBWmAmpYLNnEb2Mp92ZUsgLHzk8iDAPb8=
 github.com/mdblp/go-common v1.2.0/go.mod h1:2wzi36N7JwmpOPaqSDqFIcWx+9h2hA7SId5GA3+MRNA=
+github.com/mdblp/go-common v1.2.1-0.20220512152324-afa3dbea44d5 h1:1PlzY/R+ZyAP9k7VPopNfWtnbJO4FoGzNe06pDWV4qI=
+github.com/mdblp/go-common v1.2.1-0.20220512152324-afa3dbea44d5/go.mod h1:wlr53KPqW2LAOTBSxvdrJ+lLYws6f2so6mWNjP0CYqI=
+github.com/mdblp/go-common v1.2.1-0.20220512153952-be77aa051d02 h1:+8ECwfC1cuCchXXraF5AecWgaun3ZTX++Xr+1XSqe5s=
+github.com/mdblp/go-common v1.2.1-0.20220512153952-be77aa051d02/go.mod h1:XIdb0Q3dhsp4oFeczoZu4eFsy6FZ36o/DGazEwW5OD0=
 github.com/mdblp/go-routers v0.3.0/go.mod h1:tKHQDoShZ/Ugu4It5V/DJC4/gOVb2pZYH5GigfjPlTs=
 github.com/mdblp/go-routers v0.3.1 h1:dLhmaAKitYUK71KlCLKJQrv5Rzv0icfXwT6nuZi3wfs=
 github.com/mdblp/go-routers v0.3.1/go.mod h1:aV0+zTjJJoGTCJ+FHsHwIpHi4bElKfzdqsEeQKF8oJA=
 github.com/mdblp/shoreline v1.8.4/go.mod h1:NrmI2LubanRLqM8gFUP6ikSOmddFYOyiKmoM77gTXOM=
 github.com/mdblp/shoreline v1.9.1 h1:HhVn4S/BtopqKnlm8dDWrzMxixJFLihY2yWygbjdbXk=
 github.com/mdblp/shoreline v1.9.1/go.mod h1:+Q30W/bW6ujtV8VWte3ludcY7xbggPOVzIE4/aldsaw=
+github.com/mdblp/shoreline v1.9.2 h1:J5hlsjBbz+kZAMOr27O2FlenQB1Ii/P4dMkCbMePvsY=
+github.com/mdblp/shoreline v1.9.2/go.mod h1:+Q30W/bW6ujtV8VWte3ludcY7xbggPOVzIE4/aldsaw=
 github.com/mdblp/tide-whisperer-v2 v0.0.0-20220301103622-c040313aa1c2 h1:M7ZkgWvPFHF5JFeC49e5Fls5dB+Puy9ls7eyQoPM+B8=
 github.com/mdblp/tide-whisperer-v2 v0.0.0-20220301103622-c040313aa1c2/go.mod h1:YCcuZMCgc4KvHLVd9bt+PR6Tunc+l7/OArq/gvM1V/U=
 github.com/mdblp/tide-whisperer-v2/v2 v2.3.3 h1:GqPGrv/ZjczeTHJPB2uozj5hFHZABXI/5DRtwYgoWKY=
@@ -488,6 +494,8 @@ go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738/go.mod h1:dnLIgRNXwCJa5e+c6mI
 go.mongodb.org/mongo-driver v1.5.3/go.mod h1:gRXCHX4Jo7J0IJ1oDQyUxF7jfy19UfxniMS4xxMmUqw=
 go.mongodb.org/mongo-driver v1.8.1 h1:OZE4Wni/SJlrcmSIBRYNzunX5TKxjrTS4jKSnA99oKU=
 go.mongodb.org/mongo-driver v1.8.1/go.mod h1:0sQWfOeY63QTntERDJJ/0SuKK0T1uVSgKCuAROlKEPY=
+go.mongodb.org/mongo-driver v1.9.1 h1:m078y9v7sBItkt1aaoe2YlvWEXcD263e1a4E1fBrJ1c=
+go.mongodb.org/mongo-driver v1.9.1/go.mod h1:0sQWfOeY63QTntERDJJ/0SuKK0T1uVSgKCuAROlKEPY=
 go.opencensus.io v0.20.1/go.mod h1:6WKK9ahsWS3RSO+PY9ZHZUfv2irvY6gN279GOPZjmmk=
 go.opencensus.io v0.20.2/go.mod h1:6WKK9ahsWS3RSO+PY9ZHZUfv2irvY6gN279GOPZjmmk=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
