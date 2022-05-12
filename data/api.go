@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/mux"
 	tideV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
 	"github.com/tidepool-org/go-common/clients/opa"
-	"github.com/tidepool-org/go-common/clients/shoreline"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/tide-whisperer/auth"
 	"github.com/tidepool-org/tide-whisperer/schema"
@@ -29,13 +28,12 @@ import (
 type (
 	// API struct for tide-whisperer
 	API struct {
-		store           store.Storage
-		shorelineClient shoreline.Client
-		authClient      auth.ClientInterface
-		perms           opa.Client
-		schemaVersion   store.SchemaVersion
-		logger          *log.Logger
-		tideV2Client    tideV2Client.ClientInterface
+		store         store.Storage
+		authClient    auth.ClientInterface
+		perms         opa.Client
+		schemaVersion store.SchemaVersion
+		logger        *log.Logger
+		tideV2Client  tideV2Client.ClientInterface
 	}
 
 	varsHandler func(http.ResponseWriter, *http.Request, map[string]string)
@@ -71,15 +69,14 @@ var (
 	errorNotfound          = detailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 )
 
-func InitAPI(storage store.Storage, shoreline shoreline.Client, auth auth.ClientInterface, permsClient opa.Client, schemaV store.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface) *API {
+func InitAPI(storage store.Storage, auth auth.ClientInterface, permsClient opa.Client, schemaV store.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface) *API {
 	return &API{
-		store:           storage,
-		shorelineClient: shoreline,
-		authClient:      auth,
-		perms:           permsClient,
-		schemaVersion:   schemaV,
-		logger:          logger,
-		tideV2Client:    V2Client,
+		store:         storage,
+		authClient:    auth,
+		perms:         permsClient,
+		schemaVersion: schemaV,
+		logger:        logger,
+		tideV2Client:  V2Client,
 	}
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/mux"
 	twV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
 	"github.com/tidepool-org/go-common/clients/opa"
-	"github.com/tidepool-org/go-common/clients/shoreline"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/go-common/clients/version"
 	"github.com/tidepool-org/tide-whisperer/auth"
@@ -28,11 +27,10 @@ var (
 	serverToken               = "token"
 	logger                    = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
 	storage                   = store.NewMockStoreClient()
-	mockShoreline             = shoreline.NewMock("token")
 	mockAuth                  = auth.NewMock("token")
 	mockPerms                 = opa.NewMock()
 	mockTideV2                = twV2Client.NewMock()
-	tidewhisperer             = InitAPI(storage, mockShoreline, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
+	tidewhisperer             = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
 	defaultGetDataURLVars     = map[string]string{"userID": "patient"}
 	defaultGetDataStoreParams = getDataStoreDefaultParams()
 	rtr                       = mux.NewRouter()
@@ -40,10 +38,6 @@ var (
 
 // Utility function to reset all mocks to default value
 func resetMocks() {
-	mockShoreline.UserID = "patient"
-	mockShoreline.Unauthorized = false
-	mockShoreline.IsServer = false
-
 	mockAuth.UserID = "patient"
 	mockAuth.Unauthorized = false
 	mockAuth.IsServer = false
