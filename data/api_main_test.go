@@ -12,7 +12,9 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mdblp/go-common/clients/auth"
+	"github.com/mdblp/shoreline/token"
 	twV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
+	"github.com/stretchr/testify/mock"
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/go-common/clients/version"
@@ -27,7 +29,7 @@ var (
 	serverToken               = "token"
 	logger                    = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
 	storage                   = store.NewMockStoreClient()
-	mockAuth                  = auth.NewMock("token")
+	mockAuth                  = auth.NewMock()
 	mockPerms                 = opa.NewMock()
 	mockTideV2                = twV2Client.NewMock()
 	tidewhisperer             = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
@@ -38,10 +40,7 @@ var (
 
 // Utility function to reset all mocks to default value
 func resetMocks() {
-	mockAuth.UserID = "patient"
-	mockAuth.Unauthorized = false
-	mockAuth.IsServer = false
-
+	mockAuth.ExpectedCalls = nil
 	auth := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-get")
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
 	auth2 := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-compute")
@@ -140,7 +139,7 @@ func getStatusParseResponse(response *httptest.ResponseRecorder) status.ApiStatu
 // TestGetStatus_StatusOk calling GetStatus route with an enabled storage
 func TestGetStatus_StatusOk(t *testing.T) {
 	resetMocks()
-
+	mockAuth.On("Authenticate", mock.Anything).Return(&token.TokenData{UserId: "patient", IsServer: false})
 	request, response := getStatusPrepareRequest()
 	tidewhisperer.getStatus(response, request)
 
@@ -162,6 +161,7 @@ func TestGetStatus_StatusOk(t *testing.T) {
 // TestGetStatus_StatusKo calling GetStatus route with a disabled storage
 func TestGetStatus_StatusKo(t *testing.T) {
 	resetMocks()
+	mockAuth.On("Authenticate", mock.Anything).Return(&token.TokenData{UserId: "patient", IsServer: false})
 	storage.EnablePingError()
 
 	request, response := getStatusPrepareRequest()

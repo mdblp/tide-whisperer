@@ -321,12 +321,17 @@ github.com/mdblp/go-common v0.7.2-0.20210611071916-2fe8363c8b02/go.mod h1:Rm0RdS
 github.com/mdblp/go-common v1.2.0/go.mod h1:2wzi36N7JwmpOPaqSDqFIcWx+9h2hA7SId5GA3+MRNA=
 github.com/mdblp/go-common v1.2.1-0.20220512153952-be77aa051d02 h1:+8ECwfC1cuCchXXraF5AecWgaun3ZTX++Xr+1XSqe5s=
 github.com/mdblp/go-common v1.2.1-0.20220512153952-be77aa051d02/go.mod h1:XIdb0Q3dhsp4oFeczoZu4eFsy6FZ36o/DGazEwW5OD0=
+github.com/mdblp/go-common v1.3.1-0.20220519085307-6a4fc81c1c8e h1:Z026t9//1sCNEbDW9A7ey/oUSIrShtQONaWJpvU/h3U=
+github.com/mdblp/go-common v1.3.1-0.20220519085307-6a4fc81c1c8e/go.mod h1:U/6Aapha2XbFlXuwrDUHW7kdZChPvj10TElT7ybDBNU=
+github.com/mdblp/go-common v1.3.1 h1:EWnVX1tQxS8VtM5nBlfuvYOx3npamahO4Rejl9ovVRs=
+github.com/mdblp/go-common v1.3.1/go.mod h1:U/6Aapha2XbFlXuwrDUHW7kdZChPvj10TElT7ybDBNU=
 github.com/mdblp/go-routers v0.3.1/go.mod h1:aV0+zTjJJoGTCJ+FHsHwIpHi4bElKfzdqsEeQKF8oJA=
 github.com/mdblp/shoreline v1.9.1/go.mod h1:+Q30W/bW6ujtV8VWte3ludcY7xbggPOVzIE4/aldsaw=
 github.com/mdblp/shoreline v1.9.2 h1:J5hlsjBbz+kZAMOr27O2FlenQB1Ii/P4dMkCbMePvsY=
 github.com/mdblp/shoreline v1.9.2/go.mod h1:+Q30W/bW6ujtV8VWte3ludcY7xbggPOVzIE4/aldsaw=
 github.com/mdblp/tide-whisperer-v2/v2 v2.3.3 h1:GqPGrv/ZjczeTHJPB2uozj5hFHZABXI/5DRtwYgoWKY=
 github.com/mdblp/tide-whisperer-v2/v2 v2.3.3/go.mod h1:H9UWbF6vSeRaT3tQd/3Ui/ejBEPNsyRHm13Fl4coxBs=
+github.com/mdblp/tide-whisperer-v2/v2 v2.5.0/go.mod h1:lvy0moV+Xm39J4wJebo2RevNRFJAjoVrBlPhWHnY7cQ=
 github.com/microcosm-cc/bluemonday v1.0.16/go.mod h1:Z0r70sCuXHig8YpBzCc5eGHAap2K7e/u082ZUpDRRqM=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
@@ -444,6 +449,7 @@ github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/handy v0.0.0-20190108123426-d5acb3125c2a/go.mod h1:qNTQ5P5JnDBl6z3cMAg/SywNDC5ABu5ApDIw6lUbRmI=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
+github.com/stretchr/objx v0.1.1 h1:2vfRuCMp5sSVIDSqO8oNnWJq7mPa6KVP3iPIwFBuy8A=
 github.com/stretchr/objx v0.1.1/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UVUgZn+9EI=
