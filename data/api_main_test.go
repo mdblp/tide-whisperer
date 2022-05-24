@@ -26,16 +26,13 @@ var (
 		Maximum: 99,
 		Minimum: 1,
 	}
-	serverToken               = "token"
-	logger                    = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
-	storage                   = store.NewMockStoreClient()
-	mockAuth                  = auth.NewMock()
-	mockPerms                 = opa.NewMock()
-	mockTideV2                = twV2Client.NewMock()
-	tidewhisperer             = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
-	defaultGetDataURLVars     = map[string]string{"userID": "patient"}
-	defaultGetDataStoreParams = getDataStoreDefaultParams()
-	rtr                       = mux.NewRouter()
+	logger        = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
+	storage       = store.NewMockStoreClient()
+	mockAuth      = auth.NewMock()
+	mockPerms     = opa.NewMock()
+	mockTideV2    = twV2Client.NewMock()
+	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
+	rtr           = mux.NewRouter()
 )
 
 // Utility function to reset all mocks to default value
