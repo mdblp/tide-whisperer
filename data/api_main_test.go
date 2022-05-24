@@ -42,11 +42,6 @@ func resetMocks() {
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
 	auth2 := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-compute")
 	mockPerms.SetMockOpaAuth("/compute/tir", &auth2, nil)
-	storage.DeviceData = make([]string, 1)
-	storage.DeviceData[0] = `{"type":"A","value":"B"}`
-
-	storage.TimeInRangeData = make([]string, 1)
-	storage.TimeInRangeData[0] = `{"userId":"patient","lastCbgTime":"2020-04-15T08:00:00Z"}`
 }
 
 // Utility function to check authorized responses
