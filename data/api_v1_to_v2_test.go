@@ -206,9 +206,10 @@ func TestAPI_GetDataV2(t *testing.T) {
 		t.Fatalf("CBG and Basal buckets: %v", err.Error())
 	}
 
-	// testing with cbg only
+	// testing with cbg only, required to set basal to false
 	urlParams = map[string]string{
-		"cbgBucket": "true",
+		"basalBucket": "false",
+		"cbgBucket":   "true",
 	}
 	expectedBody = "[" + strings.Join(
 		[]string{
@@ -240,12 +241,13 @@ func TestAPI_GetDataV2(t *testing.T) {
 		t.Fatalf("Basal bucket only: %v", err.Error())
 	}
 
-	// // testing with no buscket
+	// // testing with no bucket params expect to get them by default
 	urlParams = map[string]string{}
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
 			expectedCbgBucket,
+			expectedBasalBucket,
 			expectedDataIdV1,
 		}, ",") + "]"
 	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
