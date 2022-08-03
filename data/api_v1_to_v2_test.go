@@ -185,14 +185,12 @@ func TestAPI_GetDataV2(t *testing.T) {
 
 	resetOPAMockRouteV1(true, "/v1/dataV2", userID)
 
-	// // testing with cbg and basal buckets
-
+	// testing with cbg and basal buckets
 	apiParms := map[string]string{
 		"userID": userID,
 	}
 	urlParams := map[string]string{
 		"basalBucket": "true",
-		"cbgBucket":   "true",
 	}
 	expectedBody := "[" + strings.Join(
 		[]string{
@@ -209,7 +207,6 @@ func TestAPI_GetDataV2(t *testing.T) {
 	// testing with cbg only, required to set basal to false
 	urlParams = map[string]string{
 		"basalBucket": "false",
-		"cbgBucket":   "true",
 	}
 	expectedBody = "[" + strings.Join(
 		[]string{
@@ -223,25 +220,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 		t.Fatalf("Cbg bucket only: %v", err.Error())
 	}
 
-	// testing with basal only
-
-	urlParams = map[string]string{
-		"basalBucket": "true",
-		"cbgBucket":   "false",
-	}
-	expectedBody = "[" + strings.Join(
-		[]string{
-			expectedDataV1,
-			expectedBasalBucket,
-			expectedDataIdV1,
-		}, ",") + "]"
-
-	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
-	if err != nil {
-		t.Fatalf("Basal bucket only: %v", err.Error())
-	}
-
-	// // testing with no bucket params expect to get them by default
+	// testing with no bucket params expect to get them by default
 	urlParams = map[string]string{}
 	expectedBody = "[" + strings.Join(
 		[]string{

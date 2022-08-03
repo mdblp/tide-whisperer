@@ -34,12 +34,11 @@ func getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detailedError) {
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 	basalBucket := query.Get("basalBucket") == "true" || query.Get("basalBucket") == ""
-	cbgBucket := query.Get("cbgBucket") == "true" || query.Get("cbgBucket") == ""
 
 	dataSource := map[string]bool{
 		"store":       true,
 		"basalBucket": basalBucket,
-		"cbgBucket":   cbgBucket,
+		"cbgBucket":   true,
 	}
 
 	// Check startDate & endDate parameter
