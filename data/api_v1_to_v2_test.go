@@ -189,9 +189,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 	apiParms := map[string]string{
 		"userID": userID,
 	}
-	urlParams := map[string]string{
-		"basalBucket": "true",
-	}
+	urlParams := map[string]string{}
+	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBody := "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -205,9 +204,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 
 	// testing with cbg only, required to set basal to false
-	urlParams = map[string]string{
-		"basalBucket": "false",
-	}
+	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -218,19 +215,5 @@ func TestAPI_GetDataV2(t *testing.T) {
 	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
 	if err != nil {
 		t.Fatalf("Cbg bucket only: %v", err.Error())
-	}
-
-	// testing with no bucket params expect to get them by default
-	urlParams = map[string]string{}
-	expectedBody = "[" + strings.Join(
-		[]string{
-			expectedDataV1,
-			expectedCbgBucket,
-			expectedBasalBucket,
-			expectedDataIdV1,
-		}, ",") + "]"
-	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
-	if err != nil {
-		t.Fatalf("No bucket: %v", err.Error())
 	}
 }
