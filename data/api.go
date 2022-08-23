@@ -59,9 +59,11 @@ var (
 	errorTideV2Http        = detailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
 	errorInvalidParameters = detailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
 	errorNotfound          = detailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
+	readBasalBucket        = false
 )
 
-func InitAPI(storage store.Storage, auth auth.ClientInterface, permsClient opa.Client, schemaV store.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface) *API {
+func InitAPI(storage store.Storage, auth auth.ClientInterface, permsClient opa.Client, schemaV store.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
+	readBasalBucket = envReadBasalBucket
 	return &API{
 		store:         storage,
 		authClient:    auth,
