@@ -63,7 +63,6 @@ var (
 )
 
 func InitAPI(storage store.Storage, auth auth.ClientInterface, permsClient opa.Client, schemaV store.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
-	//readBasalBucket = envReadBasalBucket
 	return &API{
 		store:           storage,
 		authClient:      auth,
