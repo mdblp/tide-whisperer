@@ -24,7 +24,7 @@ type (
 	}
 )
 
-func getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detailedError) {
+func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detailedError) {
 	var err error
 	// Mongo iterators
 	userID := res.VARS["userID"]
@@ -33,11 +33,10 @@ func getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detailedError) {
 	startDate := query.Get("startDate")
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
-	basalBucket := readBasalBucket
 
 	dataSource := map[string]bool{
 		"store":       true,
-		"basalBucket": basalBucket,
+		"basalBucket": a.readBasalBucket,
 		"cbgBucket":   true,
 	}
 

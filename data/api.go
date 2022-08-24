@@ -20,12 +20,13 @@ import (
 type (
 	// API struct for tide-whisperer
 	API struct {
-		store         store.Storage
-		authClient    auth.ClientInterface
-		perms         opa.Client
-		schemaVersion store.SchemaVersion
-		logger        *log.Logger
-		tideV2Client  tideV2Client.ClientInterface
+		store           store.Storage
+		authClient      auth.ClientInterface
+		perms           opa.Client
+		schemaVersion   store.SchemaVersion
+		logger          *log.Logger
+		tideV2Client    tideV2Client.ClientInterface
+		readBasalBucket bool
 	}
 
 	varsHandler func(http.ResponseWriter, *http.Request, map[string]string)
@@ -59,18 +60,18 @@ var (
 	errorTideV2Http        = detailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
 	errorInvalidParameters = detailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
 	errorNotfound          = detailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
-	readBasalBucket        = false
 )
 
 func InitAPI(storage store.Storage, auth auth.ClientInterface, permsClient opa.Client, schemaV store.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
-	readBasalBucket = envReadBasalBucket
+	//readBasalBucket = envReadBasalBucket
 	return &API{
-		store:         storage,
-		authClient:    auth,
-		perms:         permsClient,
-		schemaVersion: schemaV,
-		logger:        logger,
-		tideV2Client:  V2Client,
+		store:           storage,
+		authClient:      auth,
+		perms:           permsClient,
+		schemaVersion:   schemaV,
+		logger:          logger,
+		tideV2Client:    V2Client,
+		readBasalBucket: envReadBasalBucket,
 	}
 }
 
