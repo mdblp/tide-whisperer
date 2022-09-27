@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## 1.0.8 2022-09-27
+### Engineering
+- YLP-1157: Call tide-v2 for settings retrieval
+
 ## 1.0.7 - 2022-08-23
 ### Engineering
 - YLP-1346 show basal data in Yourloops when retrieving from buckets
