@@ -390,6 +390,13 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 				// Ignore datum with no id, should never happend
 				continue
 			}
+
+			// temp code for a DBGL1 release, allow to no change the front
+			datumGuid, haveGuId := datum["guid"].(string)
+			if haveGuId {
+				datum["eventId"] = datumGuid
+			}
+
 			datumType, haveType := datum["type"].(string)
 			if !haveType {
 				// Ignore datum with no type, should never happend

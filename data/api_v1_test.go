@@ -60,6 +60,7 @@ func TestAPI_GetDataV1(t *testing.T) {
 		"{\"id\":\"03\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:02.000Z\",\"type\":\"cbg\",\"value\":12,\"units\":\"mmol/L\"}",
 		"{\"id\":\"04\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:03.000Z\",\"type\":\"cbg\",\"value\":13,\"units\":\"mmol/L\"}",
 		"{\"id\":\"05\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:04.000Z\",\"type\":\"cbg\",\"value\":14,\"units\":\"mmol/L\"}",
+		"{\"id\":\"06\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:04.000Z\",\"type\":\"bolus\", \"subType\":\"normal\",\"normal\":14,\"guid\":\"bolus1\"}",
 	}
 	storage.DataIDV1 = []string{
 		"{\"id\":\"00\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"upload\"}",
@@ -95,6 +96,7 @@ func TestAPI_GetDataV1(t *testing.T) {
 {"id":"03","time":"2021-01-10T00:00:02.000Z","type":"cbg","units":"mmol/L","uploadId":"00","value":12},
 {"id":"04","time":"2021-01-10T00:00:03.000Z","type":"cbg","units":"mmol/L","uploadId":"00","value":13},
 {"id":"05","time":"2021-01-10T00:00:04.000Z","type":"cbg","units":"mmol/L","uploadId":"00","value":14},
+{"eventId":"bolus1","guid":"bolus1","id":"06","normal":14,"subType":"normal","time":"2021-01-10T00:00:04.000Z","type":"bolus","uploadId":"00"},
 {"id":"00","time":"2021-01-10T00:00:00.000Z","type":"upload","uploadId":"00"}]
 `
 
