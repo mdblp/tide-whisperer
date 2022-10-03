@@ -22,6 +22,7 @@ pipeline {
             agent {
                 docker {
                     image 'docker.ci.diabeloop.eu/go-build:1.17'
+                    label 'blp'
                 }
             }
             steps {
