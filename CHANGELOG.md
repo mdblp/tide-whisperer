@@ -2,7 +2,7 @@
 
 Data access API for tidepool
 
-## UNRELEASED
+## 1.0.9 - 2022-10-03
 ### Engineering
 - YLP-1157: Call tide-v2 for settings retrieval
 
