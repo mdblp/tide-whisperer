@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	portalSchema "github.com/mdblp/portal-api-v2/schema"
-	log "github.com/sirupsen/logrus"
 	"math"
 	"time"
 
@@ -116,16 +115,6 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 	}
 	timeEnd(ctx, "getLastPumpSettings")
 
-	//// Fetch parameters history from portal:
-	//timeIt(ctx, "getParamHistory")
-	//writer.parametersHistory, err = a.store.GetDiabeloopParametersHistory(ctx, userID, parameterLevelFilter[:])
-	//if err != nil {
-	//	// Just log the problem, don't crash the query
-	//	writer.parametersHistory = nil
-	//	a.logger.Printf("{%s} - {GetDiabeloopParametersHistory:\"%s\"}", traceID, err)
-	//}
-	//timeEnd(ctx, "getParamHistory")
-
 	timeIt(ctx, "getLatestBasalSecurityProfile")
 	lastestProfile, err := a.store.GetLatestBasalSecurityProfile(ctx, traceID, userID)
 	if err != nil {
@@ -187,6 +176,10 @@ func (a *API) writeDataV1(
 	if includePumpSettings && pumpSettings != nil {
 		writeParams.settings = pumpSettings
 		err = writePumpSettings(writeParams)
+		if err != nil {
+			return err
+		}
+		err = writeDeviceParameterChanges(writeParams)
 		if err != nil {
 			return err
 		}
@@ -252,6 +245,48 @@ func (a *API) writeDataV1(
 	return res.WriteString("]\n")
 }
 
+func writeDeviceParameterChanges(p *writeFromIter) error {
+	settings := p.settings
+	for _, paramChange := range settings.HistoryParameters {
+		datum := make(map[string]interface{})
+		datum["id"] = uuid.New().String()
+		datum["type"] = "deviceEvent"
+		datum["subType"] = "deviceParameter"
+
+		datum["time"] = paramChange.EffectiveDate
+		datum["timezone"] = paramChange.Timezone
+		datum["lastUpdateDate"] = paramChange.EffectiveDate
+
+		datum["uploadId"] = uuid.New().String()
+		datum["name"] = paramChange.Name
+		datum["units"] = paramChange.Unit
+		datum["value"] = paramChange.Value
+		datum["level"] = paramChange.Level
+		datum["previousValue"] = paramChange.PreviousValue
+
+		jsonDatum, err := json.Marshal(datum)
+		if err != nil {
+			if p.jsonError.firstError == nil {
+				p.jsonError.firstError = err
+			}
+			p.jsonError.numErrors++
+		}
+		if p.writeCount > 0 {
+			// Add the coma and line return (for readability)
+			err = p.res.WriteString(",\n")
+			if err != nil {
+				return err
+			}
+		}
+		err = p.res.Write(jsonDatum)
+		if err != nil {
+			return err
+		}
+		p.writeCount++
+	}
+	return nil
+}
+
 func writePumpSettings(p *writeFromIter) error {
 	settings := p.settings
 	datum := make(map[string]interface{})
@@ -259,12 +294,9 @@ func writePumpSettings(p *writeFromIter) error {
 	datum["type"] = "pumpSettings"
 	datum["uploadId"] = uuid.New().String()
 	datum["time"] = settings.Time
-	log.Info("time : " + settings.Time.String())
-	log.Info("timezone : " + settings.Timezone)
 	datum["timezone"] = settings.Timezone
 	/*TODO fetch from somewhere*/
 	datum["activeSchedule"] = "Normal"
-	//datum["deviceTime"] = "2020-01-17T08:00:00"
 	datum["deviceId"] = settings.CurrentSettings.Device.DeviceID
 	groupedHistoryParameters := groupByChangeDate(settings.HistoryParameters)
 	payload := map[string]interface{}{
@@ -307,13 +339,11 @@ type GroupedHistoryParameters struct {
 func groupByChangeDate(parameters []portalSchema.HistoryParameter) []GroupedHistoryParameters {
 	temporaryMap := make(map[string][]portalSchema.HistoryParameter, 0)
 	for _, p := range parameters {
-		if containsInt(parameterLevelFilter[:], p.Level) {
-			mapTime := p.EffectiveDate.Format("2006-01-02")
-			if temporaryMap[mapTime] == nil {
-				temporaryMap[mapTime] = []portalSchema.HistoryParameter{p}
-			} else {
-				temporaryMap[mapTime] = append(temporaryMap[mapTime], p)
-			}
+		mapTime := p.EffectiveDate.Format("2006-01-02")
+		if temporaryMap[mapTime] == nil {
+			temporaryMap[mapTime] = []portalSchema.HistoryParameter{p}
+		} else {
+			temporaryMap[mapTime] = append(temporaryMap[mapTime], p)
 		}
 	}
 	finalArray := make([]GroupedHistoryParameters, 0)
