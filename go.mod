@@ -19,7 +19,7 @@ require (
 	github.com/mdblp/go-common v1.5.0
 	github.com/mdblp/portal-api-v2 v0.3.0
 	github.com/mdblp/shoreline v1.9.2
-	github.com/mdblp/tide-whisperer-v2/v2 v2.6.2-0.20220923164521-70a6c0fe05c1
+	github.com/mdblp/tide-whisperer-v2/v2 v2.7.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
 )
