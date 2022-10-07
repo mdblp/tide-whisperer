@@ -17,7 +17,7 @@ require (
 
 require (
 	github.com/mdblp/go-common v1.5.0
-	github.com/mdblp/portal-api-v2 v0.3.0
+	github.com/mdblp/portal-api-v2 v0.3.1
 	github.com/mdblp/shoreline v1.9.2
 	github.com/mdblp/tide-whisperer-v2/v2 v2.7.0
 	github.com/sirupsen/logrus v1.9.0
@@ -36,7 +36,7 @@ require (
 	github.com/klauspost/compress v1.15.10 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
-	github.com/mdblp/go-routers v0.5.6 // indirect
+	github.com/mdblp/go-routers v0.6.0 // indirect
 	github.com/montanaflynn/stats v0.6.6 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -45,6 +45,7 @@ require (
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/stretchr/objx v0.4.0 // indirect
+	github.com/t-tomalak/logrus-easy-formatter v0.0.0-20190827215021-c074f06c5816 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect
 	github.com/xdg-go/stringprep v1.0.3 // indirect
