@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+##1.0.10 - 2022-10-25
+### Engineering
+- YLP-1872: Do not raise error when settings are not found
+
 ## 1.0.9 - 2022-10-03
 ### Engineering
 - YLP-1157: Call tide-v2 for settings retrieval
