@@ -7,6 +7,9 @@ import (
 	"github.com/google/uuid"
 	portalSchema "github.com/mdblp/portal-api-v2/schema"
 	"math"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mdblp/tide-whisperer-v2/v2/schema"
@@ -111,7 +114,13 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 			Message:         errorRunningQuery.Message,
 			InternalMessage: err.Error(),
 		}
-		return nil, logError
+
+		if !strings.Contains(err.Error(), strconv.Itoa(http.StatusNotFound)) {
+			a.logger.Printf("{%s}", err.Error())
+			return nil, logError
+		}
+
+		a.logger.Printf("{%s} - {getLatestPumpSettings: no pump settings found for user \"%s\"}", traceID, userID)
 	}
 	timeEnd(ctx, "getLastPumpSettings")
 
