@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	portalSchema "github.com/mdblp/portal-api-v2/schema"
+	orcaSchema "github.com/mdblp/orca/schema"
 	"math"
 	"net/http"
 	"strconv"
@@ -268,7 +268,9 @@ func writeDeviceParameterChanges(p *writeFromIter) error {
 		datum["units"] = paramChange.Unit
 		datum["value"] = paramChange.Value
 		datum["level"] = paramChange.Level
-		datum["previousValue"] = paramChange.PreviousValue
+		if paramChange.PreviousValue != "" {
+			datum["previousValue"] = paramChange.PreviousValue
+		}
 
 		jsonDatum, err := json.Marshal(datum)
 		if err != nil {
@@ -306,12 +308,12 @@ func writePumpSettings(p *writeFromIter) error {
 	datum["deviceId"] = settings.CurrentSettings.Device.DeviceID
 	groupedHistoryParameters := groupByChangeDate(settings.HistoryParameters)
 	payload := map[string]interface{}{
-		"basalSecurityProfile": p.basalSecurityProfile,
-		"cgm":                  settings.CurrentSettings.Cgm,
-		"device":               settings.CurrentSettings.Device,
-		"pump":                 settings.CurrentSettings.Pump,
-		"parameters":           settings.CurrentSettings.Parameters,
-		"history":              groupedHistoryParameters,
+		"basalsecurityrofile": p.basalSecurityProfile,
+		"cgm":                 settings.CurrentSettings.Cgm,
+		"device":              settings.CurrentSettings.Device,
+		"pump":                settings.CurrentSettings.Pump,
+		"parameters":          settings.CurrentSettings.Parameters,
+		"history":             groupedHistoryParameters,
 	}
 	datum["payload"] = payload
 
@@ -338,16 +340,16 @@ func writePumpSettings(p *writeFromIter) error {
 }
 
 type GroupedHistoryParameters struct {
-	ChangeDate time.Time                       `json:"changeDate"`
-	Parameters []portalSchema.HistoryParameter `json:"parameters"`
+	ChangeDate time.Time                     `json:"changeDate"`
+	Parameters []orcaSchema.HistoryParameter `json:"parameters"`
 }
 
-func groupByChangeDate(parameters []portalSchema.HistoryParameter) []GroupedHistoryParameters {
-	temporaryMap := make(map[string][]portalSchema.HistoryParameter, 0)
+func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistoryParameters {
+	temporaryMap := make(map[string][]orcaSchema.HistoryParameter, 0)
 	for _, p := range parameters {
 		mapTime := p.EffectiveDate.Format("2006-01-02")
 		if temporaryMap[mapTime] == nil {
-			temporaryMap[mapTime] = []portalSchema.HistoryParameter{p}
+			temporaryMap[mapTime] = []orcaSchema.HistoryParameter{p}
 		} else {
 			temporaryMap[mapTime] = append(temporaryMap[mapTime], p)
 		}
