@@ -349,6 +349,8 @@ github.com/mdblp/go-routers v0.6.0 h1:q6vLJErOJPxvEqjYnOEC8wyFFzdQNml62QFRxS/0Px
 github.com/mdblp/go-routers v0.6.0/go.mod h1:SrmPSZ00VxW5d/DIWb7Rlc4mhL4pgun/GY2mC2wfA9U=
 github.com/mdblp/orca v0.5.0 h1:nE5kz9kx6TS+rsTskp0QLAu7sfbHi03WmKlS9a27eRI=
 github.com/mdblp/orca v0.5.0/go.mod h1:WFU2sc7GydwUOGeCDK2a/mYaVIkIa4gCcSAr0hEob1I=
+github.com/mdblp/orca v0.6.0 h1:5PEIOqmNlw5xovaYyouGaAVqz4468zwKJRsw0XxIUh8=
+github.com/mdblp/orca v0.6.0/go.mod h1:WFU2sc7GydwUOGeCDK2a/mYaVIkIa4gCcSAr0hEob1I=
 github.com/mdblp/portal-api-v2 v0.3.1 h1:2Q7b8z3o4z+7pB1ka24PmX4ahTEzrgcrPCAQc4SM33k=
 github.com/mdblp/portal-api-v2 v0.3.1/go.mod h1:vNEeU6szcMq6l29fFekKIpnmzal4UI0N8pIyUK28+ys=
 github.com/mdblp/shoreline v1.9.2 h1:J5hlsjBbz+kZAMOr27O2FlenQB1Ii/P4dMkCbMePvsY=
@@ -357,6 +359,8 @@ github.com/mdblp/tide-whisperer-v2/v2 v2.7.0 h1:1dZwZbovuwJjZHLwI+08lSUe7/sOuCJ2
 github.com/mdblp/tide-whisperer-v2/v2 v2.7.0/go.mod h1:XkAQSQC51Rc46cgx04KTx9iTGtqqSngPA3lEq8OwyXw=
 github.com/mdblp/tide-whisperer-v2/v2 v2.7.2-0.20221028142944-4102b327f699 h1:hDhnxSRmsmgmQ/fF9GObrxEqn4wbcCxkmu5kWPfGrZk=
 github.com/mdblp/tide-whisperer-v2/v2 v2.7.2-0.20221028142944-4102b327f699/go.mod h1:Q+zdm50Xf2VaytOzmlzZRWaCzdnzDLGvw1ftCPTMYnI=
+github.com/mdblp/tide-whisperer-v2/v2 v2.8.0 h1:Y4JR4CvGOublLH4UNyBIcBr2mx42jL0s/jKzsFvMiHE=
+github.com/mdblp/tide-whisperer-v2/v2 v2.8.0/go.mod h1:JWaPgbx0SVlBvdXqHtYasmCYE+XHRIKJx/AJvqWd8KQ=
 github.com/microcosm-cc/bluemonday v1.0.16/go.mod h1:Z0r70sCuXHig8YpBzCc5eGHAap2K7e/u082ZUpDRRqM=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=

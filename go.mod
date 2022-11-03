@@ -17,9 +17,9 @@ require (
 
 require (
 	github.com/mdblp/go-common v1.7.0
-	github.com/mdblp/orca v0.5.0
+	github.com/mdblp/orca v0.6.0
 	github.com/mdblp/shoreline v1.9.2
-	github.com/mdblp/tide-whisperer-v2/v2 v2.7.2-0.20221028142944-4102b327f699
+	github.com/mdblp/tide-whisperer-v2/v2 v2.8.0
 	github.com/stretchr/testify v1.8.0
 )
 
