@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	portalSchema "github.com/mdblp/portal-api-v2/schema"
+	"github.com/mdblp/go-common/clients/status"
+	orcaSchema "github.com/mdblp/orca/schema"
 	"math"
+	"net/http"
 	"time"
 
 	"github.com/mdblp/tide-whisperer-v2/v2/schema"
@@ -99,10 +101,7 @@ func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detaile
 }
 
 func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID string, writer *writeFromIter, token string) (*schema.SettingsResult, *detailedError) {
-	// Initial query to fetch for this user, the client wants the
-	// latest pumpSettings
 	timeIt(ctx, "getLastPumpSettings")
-	//iterPumpSettings, err := a.store.GetLatestPumpSettingsV1(ctx, traceID, userID)
 	settings, err := a.tideV2Client.GetSettings(ctx, userID, token)
 	if err != nil {
 		logError := &detailedError{
@@ -111,7 +110,20 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 			Message:         errorRunningQuery.Message,
 			InternalMessage: err.Error(),
 		}
-		return nil, logError
+
+		switch v := err.(type) {
+		case *status.StatusError:
+			if v.Code != http.StatusNotFound {
+				a.logger.Printf("{%s}", err.Error())
+				timeEnd(ctx, "getLastPumpSettings")
+				return nil, logError
+			}
+			a.logger.Printf("{%s} - {getLatestPumpSettings: no pump settings found for user \"%s\"}", traceID, userID)
+		default:
+			a.logger.Printf("{%s}", err.Error())
+			timeEnd(ctx, "getLastPumpSettings")
+			return nil, logError
+		}
 	}
 	timeEnd(ctx, "getLastPumpSettings")
 
@@ -262,7 +274,9 @@ func writeDeviceParameterChanges(p *writeFromIter) error {
 		datum["units"] = paramChange.Unit
 		datum["value"] = paramChange.Value
 		datum["level"] = paramChange.Level
-		datum["previousValue"] = paramChange.PreviousValue
+		if paramChange.PreviousValue != "" {
+			datum["previousValue"] = paramChange.PreviousValue
+		}
 
 		jsonDatum, err := json.Marshal(datum)
 		if err != nil {
@@ -300,7 +314,7 @@ func writePumpSettings(p *writeFromIter) error {
 	datum["deviceId"] = settings.CurrentSettings.Device.DeviceID
 	groupedHistoryParameters := groupByChangeDate(settings.HistoryParameters)
 	payload := map[string]interface{}{
-		"basalSecurityProfile": p.basalSecurityProfile,
+		"basalsecurityprofile": p.basalSecurityProfile,
 		"cgm":                  settings.CurrentSettings.Cgm,
 		"device":               settings.CurrentSettings.Device,
 		"pump":                 settings.CurrentSettings.Pump,
@@ -332,16 +346,16 @@ func writePumpSettings(p *writeFromIter) error {
 }
 
 type GroupedHistoryParameters struct {
-	ChangeDate time.Time                       `json:"changeDate"`
-	Parameters []portalSchema.HistoryParameter `json:"parameters"`
+	ChangeDate time.Time                     `json:"changeDate"`
+	Parameters []orcaSchema.HistoryParameter `json:"parameters"`
 }
 
-func groupByChangeDate(parameters []portalSchema.HistoryParameter) []GroupedHistoryParameters {
-	temporaryMap := make(map[string][]portalSchema.HistoryParameter, 0)
+func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistoryParameters {
+	temporaryMap := make(map[string][]orcaSchema.HistoryParameter, 0)
 	for _, p := range parameters {
 		mapTime := p.EffectiveDate.Format("2006-01-02")
 		if temporaryMap[mapTime] == nil {
-			temporaryMap[mapTime] = []portalSchema.HistoryParameter{p}
+			temporaryMap[mapTime] = []orcaSchema.HistoryParameter{p}
 		} else {
 			temporaryMap[mapTime] = append(temporaryMap[mapTime], p)
 		}

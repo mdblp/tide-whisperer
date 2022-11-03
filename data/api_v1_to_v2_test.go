@@ -1,7 +1,10 @@
 package data
 
 import (
+	"context"
 	"fmt"
+	"github.com/go-playground/assert/v2"
+	"github.com/mdblp/go-common/clients/status"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -216,4 +219,21 @@ func TestAPI_GetDataV2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cbg bucket only: %v", err.Error())
 	}
+}
+
+/*When no settings are found, we should not raise an error in getLatestPumpSettings*/
+func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
+	token := "TestAPI_getLatestPumpSettings_token"
+	userId := "TestAPI_getLatestPumpSettings_userId"
+	ctx := context.Background()
+	timeContext := timeItContext(ctx)
+	clientError := status.StatusError{
+		Status: status.NewStatus(http.StatusNotFound, "GetSettings: no settings found"),
+	}
+	writer := writeFromIter{}
+	tidewhispererAPI := InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
+	res, err := tidewhispererAPI.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
+	assert.Equal(t, err, nil)
+	assert.Equal(t, res, nil)
 }
