@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/mdblp/go-common/clients/status"
 	orcaSchema "github.com/mdblp/orca/schema"
 	"math"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/mdblp/tide-whisperer-v2/v2/schema"
@@ -112,12 +111,19 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 			InternalMessage: err.Error(),
 		}
 
-		if !strings.Contains(err.Error(), strconv.Itoa(http.StatusNotFound)) {
+		switch v := err.(type) {
+		case *status.StatusError:
+			if v.Code != http.StatusNotFound {
+				a.logger.Printf("{%s}", err.Error())
+				timeEnd(ctx, "getLastPumpSettings")
+				return nil, logError
+			}
+			a.logger.Printf("{%s} - {getLatestPumpSettings: no pump settings found for user \"%s\"}", traceID, userID)
+		default:
 			a.logger.Printf("{%s}", err.Error())
+			timeEnd(ctx, "getLastPumpSettings")
 			return nil, logError
 		}
-
-		a.logger.Printf("{%s} - {getLatestPumpSettings: no pump settings found for user \"%s\"}", traceID, userID)
 	}
 	timeEnd(ctx, "getLastPumpSettings")
 
@@ -308,12 +314,12 @@ func writePumpSettings(p *writeFromIter) error {
 	datum["deviceId"] = settings.CurrentSettings.Device.DeviceID
 	groupedHistoryParameters := groupByChangeDate(settings.HistoryParameters)
 	payload := map[string]interface{}{
-		"basalsecurityrofile": p.basalSecurityProfile,
-		"cgm":                 settings.CurrentSettings.Cgm,
-		"device":              settings.CurrentSettings.Device,
-		"pump":                settings.CurrentSettings.Pump,
-		"parameters":          settings.CurrentSettings.Parameters,
-		"history":             groupedHistoryParameters,
+		"basalsecurityprofile": p.basalSecurityProfile,
+		"cgm":                  settings.CurrentSettings.Cgm,
+		"device":               settings.CurrentSettings.Device,
+		"pump":                 settings.CurrentSettings.Pump,
+		"parameters":           settings.CurrentSettings.Parameters,
+		"history":              groupedHistoryParameters,
 	}
 	datum["payload"] = payload
 
