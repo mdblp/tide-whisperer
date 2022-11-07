@@ -102,7 +102,7 @@ func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detaile
 
 func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID string, writer *writeFromIter, token string) (*schema.SettingsResult, *detailedError) {
 	timeIt(ctx, "getLastPumpSettings")
-	settings, err := a.tideV2Client.GetSettings(ctx, userID, token)
+	settings, err := a.tideV2Client.GetSettings(ctx, userID, token, true)
 	if err != nil {
 		logError := &detailedError{
 			Status:          errorRunningQuery.Status,
