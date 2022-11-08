@@ -19,7 +19,7 @@ require (
 	github.com/mdblp/go-common v1.7.0
 	github.com/mdblp/orca v0.6.0
 	github.com/mdblp/shoreline v1.9.2
-	github.com/mdblp/tide-whisperer-v2/v2 v2.8.0
+	github.com/mdblp/tide-whisperer-v2/v2 v2.9.0
 	github.com/stretchr/testify v1.8.0
 )
 
@@ -46,7 +46,7 @@ require (
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mdblp/go-db v1.0.0 // indirect
-	github.com/mdblp/go-routers v0.6.0 // indirect
+	github.com/mdblp/go-routers v1.0.0 // indirect
 	github.com/mdblp/portal-api-v2 v0.3.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
