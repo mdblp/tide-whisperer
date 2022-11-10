@@ -367,7 +367,7 @@ func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistor
 	finalArray := make([]GroupedHistoryParameters, 0)
 	for _, p := range temporaryMap {
 		finalArray = append(finalArray, GroupedHistoryParameters{
-			ChangeDate: *p[0].EffectiveDate,
+			ChangeDate: p[0].Timestamp,
 			Parameters: p,
 		})
 	}
