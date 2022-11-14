@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## 1.1.1 - 2022-11-14
+### Fix
+- YLP-1909: Group param changes by time
+
 ## 1.1.0 - 2022-11-07
 ### Engineering
 - Update tide-v2

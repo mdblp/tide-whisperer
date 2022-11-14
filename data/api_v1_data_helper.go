@@ -351,9 +351,13 @@ type GroupedHistoryParameters struct {
 }
 
 func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistoryParameters {
+	//Group parameters by Timestamp (corresponding to the moment where the request is sent to yourloops when leaving
+	// param edition, vs EffectiveDate which is the time when the parameter is changed on the device)
+	// Old implementation was grouping by same Timestamp -> max of EffectiveDate which is maybe not the best so we
+	// decided to sort by Timestamp only (makes more sense).
 	temporaryMap := make(map[string][]orcaSchema.HistoryParameter, 0)
 	for _, p := range parameters {
-		mapTime := p.EffectiveDate.Format("2006-01-02")
+		mapTime := p.Timestamp.Format(time.RFC3339Nano)
 		if temporaryMap[mapTime] == nil {
 			temporaryMap[mapTime] = []orcaSchema.HistoryParameter{p}
 		} else {
@@ -363,7 +367,7 @@ func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistor
 	finalArray := make([]GroupedHistoryParameters, 0)
 	for _, p := range temporaryMap {
 		finalArray = append(finalArray, GroupedHistoryParameters{
-			ChangeDate: *p[0].EffectiveDate,
+			ChangeDate: p[0].Timestamp,
 			Parameters: p,
 		})
 	}
