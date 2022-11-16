@@ -357,7 +357,7 @@ func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistor
 	// decided to sort by Timestamp only (makes more sense).
 	temporaryMap := make(map[string][]orcaSchema.HistoryParameter, 0)
 	for _, p := range parameters {
-		mapTime := p.Timestamp.Format(time.RFC3339Nano)
+		mapTime := p.Timestamp.Format("2006-01-02")
 		if temporaryMap[mapTime] == nil {
 			temporaryMap[mapTime] = []orcaSchema.HistoryParameter{p}
 		} else {
