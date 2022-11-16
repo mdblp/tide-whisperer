@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## 1.1.2 - 2022-11-16
+### Fix
+- YLP-1912 : Group parameter changes by day and not exact timestamp
+
 ## 1.1.1 - 2022-11-14
 ### Fix
 - YLP-1909: Group param changes by time
