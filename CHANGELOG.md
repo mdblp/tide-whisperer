@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## 1.0.9 - 2022-11-29
+### Engineering
+- Bump dependencies to fix CVEs
+
 ## 1.0.8 - 2022-09-27
 ### Fix 
 - YLP-1802 eventId field missing from results
