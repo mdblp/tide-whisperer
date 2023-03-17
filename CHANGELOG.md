@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## 1.0.10 - 2023-03-17
+### Fix
+- YLP-2171 Review Processing of Time in Loop Mode
+
 ## 1.0.9 - 2022-11-29
 ### Engineering
 - Bump dependencies to fix CVEs
