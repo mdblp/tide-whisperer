@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
+	"github.com/tidepool-org/tide-whisperer/schema"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -25,8 +26,7 @@ func (i *MockStoreIterator) Close(ctx context.Context) error {
 	return nil
 }
 func (i *MockStoreIterator) Decode(val interface{}) error {
-	json.Unmarshal([]byte(i.data[i.numIter]), &val)
-	return nil
+	return json.Unmarshal([]byte(i.data[i.numIter]), &val)
 }
 
 // MockStoreClient use for unit tests
@@ -37,11 +37,12 @@ type MockStoreClient struct {
 	ParametersHistory    bson.M
 	BasalSecurityProfile *DbProfile
 
-	DataRangeV1 []string
-	DataV1      []string
-	DataIDV1    []string
-	DataBGV1    []string
-	DataPSV1    *string
+	DataRangeV1    []string
+	DataV1         []string
+	DataIDV1       []string
+	DataBGV1       []string
+	DataPSV1       *string
+	LoopModeEvents []schema.LoopModeEvent
 }
 
 func NewMockStoreClient() *MockStoreClient {
@@ -146,6 +147,13 @@ func (c *MockStoreClient) GetCbgForSummaryV1(ctx context.Context, traceID string
 			maxIter: len(c.DataBGV1),
 			data:    c.DataBGV1,
 		}, nil
+	}
+	return nil, fmt.Errorf("{%s} - No data", traceID)
+}
+
+func (c *MockStoreClient) GetLoopMode(ctx context.Context, traceID string, userID string, dates *Date) ([]schema.LoopModeEvent, error) {
+	if c.LoopModeEvents != nil {
+		return c.LoopModeEvents, nil
 	}
 	return nil, fmt.Errorf("{%s} - No data", traceID)
 }
