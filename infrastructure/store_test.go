@@ -1,4 +1,4 @@
-package store
+package infrastructure
 
 import (
 	"context"
@@ -19,7 +19,6 @@ import (
 )
 
 var testingConfig = &goComMgo.Config{
-	Database:               "data_test",
 	Timeout:                2 * time.Second,
 	WaitConnectionInterval: 5 * time.Second,
 	MaxConnectionAttempts:  0,
@@ -30,10 +29,13 @@ func before(t *testing.T, docs ...interface{}) *Client {
 	var ctx = context.Background()
 
 	logger := log.New(os.Stdout, "mongo-test ", log.LstdFlags|log.LUTC|log.Lshortfile)
-	if _, exist := os.LookupEnv("TIDEPOOL_STORE_ADDRESSES"); exist {
-		// if mongo connexion information is provided via env var
-		testingConfig.FromEnv()
+
+	if _, exist := os.LookupEnv("TIDEPOOL_STORE_ADDRESSES"); !exist {
+		os.Setenv("TIDEPOOL_STORE_ADDRESSES", "localhost:27018")
+		os.Setenv("TIDEPOOL_STORE_DATABASE", "data_test")
 	}
+	testingConfig.FromEnv()
+
 	store, err := NewStore(testingConfig, logger)
 	if err != nil {
 		t.Fatalf("Unexpected error while creating store: %s", err)

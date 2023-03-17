@@ -1,25 +1,25 @@
-package data
+package api
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/mdblp/go-common/clients/status"
-	orcaSchema "github.com/mdblp/orca/schema"
 	"math"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/mdblp/go-common/clients/status"
+	orcaSchema "github.com/mdblp/orca/schema"
 	"github.com/mdblp/tide-whisperer-v2/v2/schema"
 	"github.com/tidepool-org/go-common/clients/mongo"
-	internalSchema "github.com/tidepool-org/tide-whisperer/schema"
-	"github.com/tidepool-org/tide-whisperer/store"
+	internalSchema "github.com/tidepool-org/tide-whisperer/api/dto"
+	"github.com/tidepool-org/tide-whisperer/infrastructure"
 )
 
 type (
 	apiDataParams struct {
-		dates               store.Date
+		dates               infrastructure.Date
 		user                string
 		traceID             string
 		includePumpSettings bool
@@ -83,7 +83,7 @@ func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detaile
 		}
 	}
 	params := apiDataParams{
-		dates: store.Date{
+		dates: infrastructure.Date{
 			Start: startDate,
 			End:   endDate,
 		},
@@ -139,7 +139,7 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 	return settings, nil
 }
 
-func TransformToExposedModel(lastestProfile *store.DbProfile) *internalSchema.Profile {
+func TransformToExposedModel(lastestProfile *infrastructure.DbProfile) *internalSchema.Profile {
 	var result *internalSchema.Profile
 
 	if lastestProfile != nil {

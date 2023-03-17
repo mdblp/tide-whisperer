@@ -25,36 +25,36 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/tidepool-org/tide-whisperer/api"
+	"github.com/tidepool-org/tide-whisperer/infrastructure"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	muxprom "gitlab.com/msvechla/mux-prometheus/pkg/middleware"
-
 	"github.com/mdblp/go-common/clients/auth"
 	tideV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
-	common "github.com/tidepool-org/go-common"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/tidepool-org/go-common"
 	"github.com/tidepool-org/go-common/clients"
 	"github.com/tidepool-org/go-common/clients/disc"
 	"github.com/tidepool-org/go-common/clients/mongo"
 	"github.com/tidepool-org/go-common/clients/opa"
-	"github.com/tidepool-org/tide-whisperer/data"
-	"github.com/tidepool-org/tide-whisperer/store"
+	muxprom "gitlab.com/msvechla/mux-prometheus/pkg/middleware"
 )
 
 type (
 	// Config holds the configuration for the `tide-whisperer` service
 	Config struct {
 		clients.Config
-		Service             disc.ServiceListing `json:"service"`
-		Mongo               mongo.Config        `json:"mongo"`
-		store.SchemaVersion `json:"schemaVersion"`
+		Service                      disc.ServiceListing `json:"service"`
+		Mongo                        mongo.Config        `json:"mongo"`
+		infrastructure.SchemaVersion `json:"schemaVersion"`
 	}
 )
 
 func main() {
 	var config Config
-	logger := log.New(os.Stdout, data.DataAPIPrefix, log.LstdFlags|log.Lshortfile)
+	logger := log.New(os.Stdout, api.DataAPIPrefix, log.LstdFlags|log.Lshortfile)
 
 	if err := common.LoadEnvironmentConfig(
 		[]string{"TIDEPOOL_TIDE_WHISPERER_SERVICE", "TIDEPOOL_TIDE_WHISPERER_ENV"},
@@ -87,7 +87,7 @@ func main() {
 	 */
 	instrumentation := muxprom.NewCustomInstrumentation(true, "dblp", "tidewhisperer", prometheus.DefBuckets, nil, prometheus.DefaultRegisterer)
 
-	storage, err := store.NewStore(&config.Mongo, logger)
+	storage, err := infrastructure.NewStore(&config.Mongo, logger)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func main() {
 		logger.Print("environment variable READ_BASAL_BUCKET not exported, started with false")
 	}
 
-	dataapi := data.InitAPI(storage, authClient, permsClient, config.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
+	dataapi := api.InitAPI(storage, authClient, permsClient, config.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
 	dataapi.SetHandlers("", rtr)
 
 	// ability to return compressed (gzip/deflate) responses if client browser accepts it

@@ -1,4 +1,4 @@
-package data
+package api
 
 import (
 	"encoding/json"
@@ -8,22 +8,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"github.com/gorilla/mux"
 	"github.com/mdblp/go-common/clients/auth"
 	tideV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/status"
-	"github.com/tidepool-org/tide-whisperer/store"
+	"github.com/tidepool-org/tide-whisperer/infrastructure"
 )
 
 type (
 	// API struct for tide-whisperer
 	API struct {
-		store           store.Storage
+		store           infrastructure.Storage
 		authClient      auth.ClientInterface
 		perms           opa.Client
-		schemaVersion   store.SchemaVersion
+		schemaVersion   infrastructure.SchemaVersion
 		logger          *log.Logger
 		tideV2Client    tideV2Client.ClientInterface
 		readBasalBucket bool
@@ -62,7 +61,7 @@ var (
 	errorNotfound          = detailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 )
 
-func InitAPI(storage store.Storage, auth auth.ClientInterface, permsClient opa.Client, schemaV store.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
+func InitAPI(storage infrastructure.Storage, auth auth.ClientInterface, permsClient opa.Client, schemaV infrastructure.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
 	return &API{
 		store:           storage,
 		authClient:      auth,

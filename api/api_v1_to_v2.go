@@ -1,4 +1,4 @@
-package data
+package api
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/tidepool-org/go-common/clients/mongo"
 	"github.com/tidepool-org/tide-whisperer/data/basal"
 	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
-	"github.com/tidepool-org/tide-whisperer/store"
+	"github.com/tidepool-org/tide-whisperer/infrastructure"
 )
 
 var dataFromStoreTimer = promauto.NewHistogram(prometheus.HistogramOpts{
@@ -30,7 +30,7 @@ var dataFromTideV2Timer = promauto.NewHistogram(prometheus.HistogramOpts{
 	Namespace: "dblp",
 })
 
-func (a *API) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *store.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *detailedError) {
+func (a *API) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *infrastructure.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *detailedError) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := a.store.GetDataV1(ctx, traceID, userID, dates, excludes)
@@ -49,7 +49,7 @@ func (a *API) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID 
 	elapsed_time := time.Now().Sub(start).Milliseconds()
 	dataFromStoreTimer.Observe(float64(elapsed_time))
 }
-func (a *API) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *store.Date, tideV2Data chan []schema.CbgBucket, logErrorDataV2 chan *detailedError) {
+func (a *API) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *infrastructure.Date, tideV2Data chan []schema.CbgBucket, logErrorDataV2 chan *detailedError) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := a.tideV2Client.GetCbgV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
@@ -69,7 +69,7 @@ func (a *API) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID s
 	dataFromTideV2Timer.Observe(float64(elapsed_time))
 }
 
-func (a *API) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *store.Date, v2Data chan []schema.BasalBucket, logErrorDataV2 chan *detailedError) {
+func (a *API) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *infrastructure.Date, v2Data chan []schema.BasalBucket, logErrorDataV2 chan *detailedError) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := a.tideV2Client.GetBasalV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
@@ -117,10 +117,10 @@ func (a *API) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID s
 // @Produce json
 //
 // @Success 200 {array} string "Array of objects"
-// @Failure 400 {object} data.detailedError
-// @Failure 403 {object} data.detailedError
-// @Failure 404 {object} data.detailedError
-// @Failure 500 {object} data.detailedError
+// @Failure 400 {object} api.detailedError
+// @Failure 403 {object} api.detailedError
+// @Failure 404 {object} api.detailedError
+// @Failure 500 {object} api.detailedError
 //
 // @Param userID path string true "The ID of the user to search data for"
 //

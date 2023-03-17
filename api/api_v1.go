@@ -1,4 +1,4 @@
-package data
+package api
 
 import (
 	"context"
@@ -129,10 +129,10 @@ func getSessionToken(res *httpResponseWriter) string {
 // @ID tide-whisperer-api-v1-getrange
 // @Produce json
 // @Success 200 {array} string "Array of two ISO 8601 datetime"
-// @Failure 400 {object} data.detailedError
-// @Failure 403 {object} data.detailedError
-// @Failure 404 {object} data.detailedError
-// @Failure 500 {object} data.detailedError
+// @Failure 400 {object} api.detailedError
+// @Failure 403 {object} api.detailedError
+// @Failure 404 {object} api.detailedError
+// @Failure 500 {object} api.detailedError
 // @Param userID path string true "The ID of the user to search data for"
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security TidepoolAuth

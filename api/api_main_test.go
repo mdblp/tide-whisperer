@@ -1,4 +1,4 @@
-package data
+package api
 
 import (
 	"encoding/json"
@@ -18,16 +18,16 @@ import (
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/go-common/clients/version"
-	"github.com/tidepool-org/tide-whisperer/store"
+	"github.com/tidepool-org/tide-whisperer/infrastructure"
 )
 
 var (
-	schemaVersions = store.SchemaVersion{
+	schemaVersions = infrastructure.SchemaVersion{
 		Maximum: 99,
 		Minimum: 1,
 	}
 	logger        = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
-	storage       = store.NewMockStoreClient()
+	storage       = infrastructure.NewMockStoreClient()
 	mockAuth      = auth.NewMock()
 	mockPerms     = opa.NewMock()
 	mockTideV2    = twV2Client.NewMock()
