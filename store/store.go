@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
+	"github.com/tidepool-org/tide-whisperer/schema"
 )
 
 const (
@@ -94,6 +95,7 @@ type (
 		GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*DbProfile, error)
 		GetUploadDataV1(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error)
 		GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error)
+		GetLoopMode(ctx context.Context, traceID string, userID string, dates *Date) ([]schema.LoopModeEvent, error)
 	}
 
 	// SchemaVersion struct
@@ -442,6 +444,138 @@ func (c *Client) GetDataV1(ctx context.Context, traceID string, userID string, d
 	opts.SetComment(traceID)
 
 	return dataCollection(c).Find(ctx, query, opts)
+}
+
+// GetLoopMode v1 api call to fetch Loop Mode objects
+// and potentially other types
+func (c *Client) GetLoopMode(ctx context.Context, traceID string, userID string, dates *Date) ([]schema.LoopModeEvent, error) {
+	matchUserType := bson.M{
+		"$match": bson.M{
+			"_userId": userID,
+			"type":    "deviceEvent",
+			"subType": "loopMode",
+		},
+	}
+	projectDuration := bson.M{
+		"$project": bson.M{
+			"startTime": bson.M{"$toDate": "$time"},
+			"milliseconds": bson.M{
+				"$switch": bson.M{
+					"branches": bson.A{
+						bson.M{
+							"case": bson.M{"$eq": bson.A{"$duration.units", "milliseconds"}},
+							"then": "$duration.value",
+						},
+						bson.M{
+							"case": bson.M{"$eq": bson.A{"$duration.units", "seconds"}},
+							"then": bson.M{"$multiply": bson.A{"$duration.value", 1000}},
+						},
+						bson.M{
+							"case": bson.M{"$eq": bson.A{"$duration.units", "minutes"}},
+							"then": bson.M{"$multiply": bson.A{"$duration.value", 1000 * 60}},
+						},
+						bson.M{
+							"case": bson.M{"$eq": bson.A{"$duration.units", "hours"}},
+							"then": bson.M{"$multiply": bson.A{"$duration.value", "$duration.value", 1000 * 60 * 60}},
+						},
+					},
+					"default": nil,
+				},
+			},
+		},
+	}
+
+	projectEndTime := bson.M{
+		"$project": bson.M{
+			"startTime": 1,
+			"endTime":   bson.M{"$add": bson.A{"$startTime", "$milliseconds"}},
+			"_id":       0,
+		},
+	}
+	aggregatesStep := []bson.M{matchUserType, projectDuration, projectEndTime}
+
+	startTime, _ := time.Parse(time.RFC3339Nano, dates.Start)
+	endTime, _ := time.Parse(time.RFC3339Nano, dates.End)
+	if !startTime.IsZero() && !endTime.IsZero() {
+		dateMatch := bson.M{
+			"$match": bson.M{
+				"$or": bson.A{
+					bson.M{"endTime": nil},
+					bson.M{
+						"startTime": bson.M{
+							"$gte": startTime,
+							"$lt":  endTime,
+						},
+					},
+					bson.M{
+						"endTime": bson.M{
+							"$gte": startTime,
+							"$lt":  endTime,
+						},
+					},
+				},
+			},
+		}
+		aggregatesStep = append(aggregatesStep, dateMatch)
+	} else if !startTime.IsZero() {
+		dateMatch := bson.M{
+			"$match": bson.M{
+				"$or": bson.A{
+					bson.M{"endTime": nil},
+					bson.M{
+						"startTime": bson.M{
+							"$gte": startTime,
+						},
+					},
+					bson.M{
+						"endTime": bson.M{
+							"$gte": startTime,
+						},
+					},
+				},
+			},
+		}
+		aggregatesStep = append(aggregatesStep, dateMatch)
+	} else if !endTime.IsZero() {
+		dateMatch := bson.M{
+			"$match": bson.M{
+				"$or": bson.A{
+					bson.M{"endTime": nil},
+					bson.M{
+						"startTime": bson.M{
+							"$lt": endTime,
+						},
+					},
+					bson.M{
+						"endTime": bson.M{
+							"$lt": endTime,
+						},
+					},
+				},
+			},
+		}
+		aggregatesStep = append(aggregatesStep, dateMatch)
+	}
+	// Sorting step
+	aggregatesStep = append(aggregatesStep, bson.M{
+		"$sort": bson.M{
+			"startTime": 1,
+		},
+	})
+	opts := options.Aggregate()
+	opts.SetComment(traceID)
+
+	cursor, err := dataCollection(c).Aggregate(ctx, aggregatesStep, opts)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return []schema.LoopModeEvent{}, nil
+		}
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	var res []schema.LoopModeEvent
+	err = cursor.All(ctx, &res)
+	return res, err
 }
 
 // GetLatestPumpSettingsV1 return the latest type == "pumpSettings"

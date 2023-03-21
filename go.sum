@@ -326,8 +326,9 @@ github.com/mdblp/go-common v1.4.1 h1:1ocqzUO/2FChhrwMaOgLO6NykG8EqbL1Tj0vhNisO0U
 github.com/mdblp/go-common v1.4.1/go.mod h1:U/6Aapha2XbFlXuwrDUHW7kdZChPvj10TElT7ybDBNU=
 github.com/mdblp/go-routers v0.5.6 h1:G+wPMl3y3SQP+HotHz4R2JqlMF3QSat1qb7Z/p56fs8=
 github.com/mdblp/go-routers v0.5.6/go.mod h1:tPpqQGKwuHD44fb6ACK3u18ZfWNYMm5hCiFl+tGkFfs=
-github.com/mdblp/shoreline v1.9.2 h1:J5hlsjBbz+kZAMOr27O2FlenQB1Ii/P4dMkCbMePvsY=
 github.com/mdblp/shoreline v1.9.2/go.mod h1:+Q30W/bW6ujtV8VWte3ludcY7xbggPOVzIE4/aldsaw=
+github.com/mdblp/shoreline v1.9.3 h1:LBB3ghkjCv2EyblabcOHjqIyyptHuGx6tLKwmEbR2N4=
+github.com/mdblp/shoreline v1.9.3/go.mod h1:+Q30W/bW6ujtV8VWte3ludcY7xbggPOVzIE4/aldsaw=
 github.com/mdblp/tide-whisperer-v2/v2 v2.6.1 h1:ceGo1b0L+Oxr1E+ScOX8lQGSRKdsIgd+fOzXlB4AIzA=
 github.com/mdblp/tide-whisperer-v2/v2 v2.6.1/go.mod h1:5dh06hVTQS62DtTNTCb7Kpl2YiQZwXvRWuBHjX5FWoo=
 github.com/microcosm-cc/bluemonday v1.0.16/go.mod h1:Z0r70sCuXHig8YpBzCc5eGHAap2K7e/u082ZUpDRRqM=

@@ -9,6 +9,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tidepool-org/go-common/clients/mongo"
+	"github.com/tidepool-org/tide-whisperer/data/basal"
+	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/store"
 )
 
@@ -87,6 +89,26 @@ func (a *API) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID
 	dataFromTideV2Timer.Observe(float64(elapsed_time))
 }
 
+func (a *API) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *store.Date, loopModeData chan []schemaV1.LoopModeEvent, logError chan *detailedError) {
+	defer wg.Done()
+	start := time.Now()
+	loopModes, err := a.store.GetLoopMode(ctx, traceID, userID, dates)
+	if err != nil {
+		logError <- &detailedError{
+			Status:          errorRunningQuery.Status,
+			Code:            errorRunningQuery.Code,
+			Message:         errorRunningQuery.Message,
+			InternalMessage: err.Error(),
+		}
+		loopModeData <- loopModes
+	} else {
+		loopModeData <- loopModes
+		logError <- nil
+	}
+	elapsed_time := time.Since(start).Milliseconds()
+	dataFromStoreTimer.Observe(float64(elapsed_time))
+}
+
 // @Summary Get the data for a specific patient using new bucket api
 //
 // @Description Get the data for a specific patient, returning a JSON array of objects
@@ -126,6 +148,8 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	var iterUploads mongo.StorageIterator
 	var chanApiCbgs chan []schema.CbgBucket
 	var chanApiBasals chan []schema.BasalBucket
+	var chanLoopMode chan []schemaV1.LoopModeEvent
+
 	var chanApiCbgError, chanApiBasalError chan *detailedError
 	var logErrorDataV2 *detailedError
 	var wg sync.WaitGroup
@@ -141,6 +165,10 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 			groups++
 			if _, ok := exclusions[key]; ok {
 				exclusionList = append(exclusionList, exclusions[key])
+			}
+			if key == "basalBucket" {
+				// Adding one group to retrieve loopModes
+				groups++
 			}
 		}
 	}
@@ -159,9 +187,7 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	// Fetch data from store and V2 API (for cbg)
 	sessionToken := getSessionToken(res)
 	chanStoreError := make(chan *detailedError, 1)
-	defer close(chanStoreError)
 	chanMongoIter := make(chan mongo.StorageIterator, 1)
-	defer close(chanMongoIter)
 
 	// Parallel routines
 	wg.Add(groups)
@@ -169,20 +195,30 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 
 	if params.source["cbgBucket"] {
 		chanApiCbgs = make(chan []schema.CbgBucket, 1)
-		defer close(chanApiCbgs)
 		chanApiCbgError = make(chan *detailedError, 1)
-		defer close(chanApiCbgError)
 		go a.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiCbgError)
 	}
 	if params.source["basalBucket"] {
 		chanApiBasals = make(chan []schema.BasalBucket, 1)
-		defer close(chanApiBasals)
 		chanApiBasalError = make(chan *detailedError, 1)
-		defer close(chanApiBasalError)
 		go a.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
+		chanLoopMode = make(chan []schemaV1.LoopModeEvent, 1)
+		go a.getLoopModeData(ctx, &wg, res.TraceID, params.user, dates, chanLoopMode, chanStoreError)
 	}
-
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(chanStoreError)
+		close(chanMongoIter)
+		if params.source["cbgBucket"] {
+			close(chanApiCbgs)
+			close(chanApiCbgError)
+		}
+		if params.source["basalBucket"] {
+			close(chanApiBasals)
+			close(chanApiBasalError)
+			close(chanLoopMode)
+		}
+    }()
 
 	logErrorStore := <-chanStoreError
 	if logErrorStore != nil {
@@ -208,7 +244,13 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 	var Basals []schema.BasalBucket
 	if params.source["basalBucket"] {
 		Basals = <-chanApiBasals
+		loopModes := <-chanLoopMode
+		if len(loopModes) > 0 {
+			loopModes = schemaV1.FillLoopModeEvents(loopModes)
+			Basals = basal.CleanUpBasals(Basals, loopModes)
+		}
 	}
+
 	defer iterData.Close(ctx)
 
 	return a.writeDataV1(

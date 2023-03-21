@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/mdblp/tide-whisperer-v2/v2/schema"
+	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
 )
 
 const (
@@ -215,5 +216,23 @@ func TestAPI_GetDataV2(t *testing.T) {
 	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
 	if err != nil {
 		t.Fatalf("Cbg bucket only: %v", err.Error())
+	}
+
+	// testing with basal buckets + loopMode objects
+	storage.LoopModeEvents = []schemaV1.LoopModeEvent{
+		schemaV1.NewLoopModeEvent(day1, &day2, "automated"),
+	}
+	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	expectedBasalBucketWithLoopModes := `{"deliveryType":"automated","duration":1000,"id":"basal_bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"UTC","type":"basal"}`
+	expectedBody = "[" + strings.Join(
+		[]string{
+			expectedDataV1,
+			expectedCbgBucket,
+			expectedBasalBucketWithLoopModes,
+			expectedDataIdV1,
+		}, ",") + "]"
+	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)
+	if err != nil {
+		t.Fatalf("CBG and Basal buckets: %v", err.Error())
 	}
 }
