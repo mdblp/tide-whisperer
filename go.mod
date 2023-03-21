@@ -17,7 +17,7 @@ require (
 
 require (
 	github.com/mdblp/go-common v1.4.1
-	github.com/mdblp/shoreline v1.9.2
+	github.com/mdblp/shoreline v1.9.3
 	github.com/mdblp/tide-whisperer-v2/v2 v2.6.1
 	github.com/stretchr/testify v1.7.1
 )
