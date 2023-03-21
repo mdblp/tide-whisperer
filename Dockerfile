@@ -5,7 +5,7 @@ ARG GITHUB_TOKEN
 ENV GO111MODULE=on
 WORKDIR /go/src/github.com/tidepool-org/tide-whisperer
 RUN adduser -D tidepool && \
-    apk add --no-cache gcc musl-dev git && \
+    apk add --no-cache gcc musl-dev git tzdata && \
     chown -R tidepool /go/src/github.com/tidepool-org/tide-whisperer
 USER tidepool
 COPY --chown=tidepool . .
@@ -25,4 +25,5 @@ RUN apk --no-cache update && \
     adduser -D tidepool
 USER tidepool
 COPY --from=development --chown=tidepool /go/src/github.com/tidepool-org/tide-whisperer/dist/tide-whisperer .
+COPY --from=development /usr/share/zoneinfo /usr/share/zoneinfo
 CMD ["./tide-whisperer"]
