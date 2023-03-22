@@ -2,7 +2,7 @@
 
 Data access API for tidepool
 
-## UNRELEASED
+## 1.1.3 - 2023-03-22
 ### Fix
 - YLP-2171 Review Processing of Time in Loop Mode
 
