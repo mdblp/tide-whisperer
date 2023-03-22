@@ -2,7 +2,7 @@
 
 which go-junit-report
 if [ "$?" != "0" ]; then
-  go get -u "github.com/jstemmer/go-junit-report"
+  go install github.com/jstemmer/go-junit-report@latest
 fi
 
 go test -v -race -cover -coverprofile=coverage.out ./... 2>&1 > test-result.txt

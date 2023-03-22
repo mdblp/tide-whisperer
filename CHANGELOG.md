@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## 1.1.3 - 2023-03-22
+### Fix
+- YLP-2171 Review Processing of Time in Loop Mode
+
 ## 1.1.2 - 2022-11-16
 ### Fix
 - YLP-1912 : Group parameter changes by day and not exact timestamp
