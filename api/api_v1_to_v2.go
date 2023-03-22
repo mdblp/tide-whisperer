@@ -10,8 +10,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tidepool-org/go-common/clients/mongo"
 	"github.com/tidepool-org/tide-whisperer/data/basal"
-	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/infrastructure"
+	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
 )
 
 var dataFromStoreTimer = promauto.NewHistogram(prometheus.HistogramOpts{
@@ -89,7 +89,7 @@ func (a *API) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID
 	dataFromTideV2Timer.Observe(float64(elapsed_time))
 }
 
-func (a *API) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *store.Date, loopModeData chan []schemaV1.LoopModeEvent, logError chan *detailedError) {
+func (a *API) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *infrastructure.Date, loopModeData chan []schemaV1.LoopModeEvent, logError chan *detailedError) {
 	defer wg.Done()
 	start := time.Now()
 	loopModes, err := a.store.GetLoopMode(ctx, traceID, userID, dates)
@@ -218,7 +218,7 @@ func (a *API) getDataV2(ctx context.Context, res *httpResponseWriter) error {
 			close(chanApiBasalError)
 			close(chanLoopMode)
 		}
-    }()
+	}()
 
 	logErrorStore := <-chanStoreError
 	if logErrorStore != nil {
