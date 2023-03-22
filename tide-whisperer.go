@@ -27,6 +27,8 @@ import (
 
 	"github.com/tidepool-org/tide-whisperer/api"
 	"github.com/tidepool-org/tide-whisperer/infrastructure"
+	"github.com/tidepool-org/tide-whisperer/schema"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -46,9 +48,9 @@ type (
 	// Config holds the configuration for the `tide-whisperer` service
 	Config struct {
 		clients.Config
-		Service                      disc.ServiceListing `json:"service"`
-		Mongo                        mongo.Config        `json:"mongo"`
-		infrastructure.SchemaVersion `json:"schemaVersion"`
+		Service              disc.ServiceListing `json:"service"`
+		Mongo                mongo.Config        `json:"mongo"`
+		schema.SchemaVersion `json:"schemaVersion"`
 	}
 )
 
@@ -87,12 +89,12 @@ func main() {
 	 */
 	instrumentation := muxprom.NewCustomInstrumentation(true, "dblp", "tidewhisperer", prometheus.DefBuckets, nil, prometheus.DefaultRegisterer)
 
-	storage, err := infrastructure.NewStore(&config.Mongo, logger)
+	patientDataMongoRepository, err := infrastructure.NewPatientDataMongoRepository(&config.Mongo, logger)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	defer storage.Close()
-	storage.Start()
+	defer patientDataMongoRepository.Close()
+	patientDataMongoRepository.Start()
 	rtr := mux.NewRouter()
 
 	rtr.Use(instrumentation.Middleware)
@@ -109,7 +111,9 @@ func main() {
 		logger.Print("environment variable READ_BASAL_BUCKET not exported, started with false")
 	}
 
-	dataapi := api.InitAPI(storage, authClient, permsClient, config.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
+	dataUseCase := usecase.NewPatientDataUseCase(logger, tideV2Client, patientDataMongoRepository)
+
+	dataapi := api.InitAPI(dataUseCase, patientDataMongoRepository, authClient, permsClient, config.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
 	dataapi.SetHandlers("", rtr)
 
 	// ability to return compressed (gzip/deflate) responses if client browser accepts it
@@ -140,7 +144,7 @@ func main() {
 	go func() {
 		for {
 			<-sigc
-			storage.Close()
+			patientDataMongoRepository.Close()
 			server.Close()
 			done <- true
 		}

@@ -19,19 +19,21 @@ import (
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/go-common/clients/version"
 	"github.com/tidepool-org/tide-whisperer/infrastructure"
+	"github.com/tidepool-org/tide-whisperer/schema"
 )
 
 var (
-	schemaVersions = infrastructure.SchemaVersion{
+	schemaVersions = schema.SchemaVersion{
 		Maximum: 99,
 		Minimum: 1,
 	}
-	logger        = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
-	storage       = infrastructure.NewMockStoreClient()
-	mockAuth      = auth.NewMock()
-	mockPerms     = opa.NewMock()
-	mockTideV2    = twV2Client.NewMock()
-	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	logger     = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
+	storage    = infrastructure.NewMockStoreClient()
+	mockAuth   = auth.NewMock()
+	mockPerms  = opa.NewMock()
+	mockTideV2 = twV2Client.NewMock()
+	/*TODO replace nil by mock*/
+	tidewhisperer = InitAPI(nil, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
 	rtr           = mux.NewRouter()
 )
 
@@ -42,70 +44,6 @@ func resetMocks() {
 	mockPerms.SetMockOpaAuth("/patient", &auth, nil)
 	auth2 := mockPerms.GetMockedAuth(true, map[string]interface{}{}, "tidewhisperer-compute")
 	mockPerms.SetMockOpaAuth("/compute/tir", &auth2, nil)
-}
-
-// Utility function to check authorized responses
-func checkAuthorized(response *httptest.ResponseRecorder, t *testing.T) {
-	if response.Code != http.StatusOK {
-		t.Fatalf("Resp given [%d] expected [%d] ", response.Code, http.StatusOK)
-	}
-}
-
-// Generic Utility function to check error responses
-func checkResponseError(status int, code string, message string, response *httptest.ResponseRecorder, t *testing.T) {
-	if response.Code != status {
-		t.Fatalf("Resp given [%d] expected [%d] ", response.Code, status)
-	}
-	body, _ := ioutil.ReadAll(response.Body)
-	var dataBody detailedError
-	json.Unmarshal([]byte(string(body)), &dataBody)
-	if dataBody.Status != status {
-		t.Fatalf("Body status given [%d] expected [%d] ", dataBody.Status, status)
-	}
-	if dataBody.Code != code {
-		t.Fatalf("Body code given [%s] expected [%s] ", dataBody.Code, code)
-	}
-	if dataBody.Message != message {
-		t.Fatalf("Body message given [%s] expected [%s] ", dataBody.Message, message)
-	}
-}
-
-// Utility function to check unauthorized responses
-func checkUnAuthorized(response *httptest.ResponseRecorder, t *testing.T) {
-	checkResponseError(http.StatusForbidden, "data_cant_view",
-		"user is not authorized to view data",
-		response, t)
-}
-
-// Utility function to check invalid parameters error responses
-func checkInvalidParams(response *httptest.ResponseRecorder, t *testing.T) {
-	checkResponseError(http.StatusBadRequest, "invalid_parameters",
-		"one or more parameters are invalid",
-		response, t)
-}
-
-// Utility function to parse response body as an array
-func parseArrayResponse(response *httptest.ResponseRecorder) []map[string]interface{} {
-	body, _ := ioutil.ReadAll(response.Body)
-	var dataBody []map[string]interface{}
-	json.Unmarshal([]byte(string(body)), &dataBody)
-	return dataBody
-}
-func prepareGetTestRequest(route string, token string, urlParams map[string]string) (*http.Request, *httptest.ResponseRecorder) {
-	tidewhisperer.SetHandlers("", rtr)
-	request, _ := http.NewRequest("GET", route, nil)
-	if token != "" {
-		request.Header.Set("Authorization", "Bearer "+token)
-	}
-	if len(urlParams) > 0 {
-		q := request.URL.Query()
-		for key, element := range urlParams {
-			q.Add(key, element)
-		}
-		request.URL.RawQuery = q.Encode()
-	}
-	response := httptest.NewRecorder()
-	return request, response
 }
 
 // Utility function to prepare request on GetStatus route
@@ -145,7 +83,7 @@ func TestGetStatus_StatusOk(t *testing.T) {
 		Version: version.ReleaseNumber + "+" + version.FullCommit,
 	}
 	if !reflect.DeepEqual(dataBody, expectedStatus) {
-		t.Fatalf("store.GetStatus given [%v] expected [%v] ", dataBody, expectedStatus)
+		t.Fatalf("patientData.GetStatus given [%v] expected [%v] ", dataBody, expectedStatus)
 	}
 
 }
@@ -169,7 +107,7 @@ func TestGetStatus_StatusKo(t *testing.T) {
 		Version: version.ReleaseNumber + "+" + version.FullCommit,
 	}
 	if !reflect.DeepEqual(dataBody, expectedStatus) {
-		t.Fatalf("store.GetStatus given [%v] expected [%v] ", dataBody, expectedStatus)
+		t.Fatalf("patientData.GetStatus given [%v] expected [%v] ", dataBody, expectedStatus)
 	}
 }
 

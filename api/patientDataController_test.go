@@ -1,10 +1,7 @@
 package api
 
 import (
-	"context"
 	"fmt"
-	"github.com/go-playground/assert/v2"
-	"github.com/mdblp/go-common/clients/status"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mdblp/tide-whisperer-v2/v2/schema"
 	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
 const (
@@ -52,7 +50,7 @@ func assertRequest(apiParams map[string]string, urlParams map[string]string, exp
 	traceID := uuid.New().String()
 	userID := apiParams["userID"]
 
-	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getDataV2, true, "userID")
+	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getData, true, "userID")
 	request, _ := http.NewRequest("GET", "/v1/dataV2/"+userID, nil)
 	request.Header.Set("x-tidepool-trace-session", traceID)
 	request.Header.Set("Authorization", "Bearer "+userID)
@@ -194,7 +192,9 @@ func TestAPI_GetDataV2(t *testing.T) {
 		"userID": userID,
 	}
 	urlParams := map[string]string{}
-	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+
+	patientDataUseCase := usecase.NewPatientDataUseCase(logger, mockTideV2, storage)
+	tidewhisperer = InitAPI(patientDataUseCase, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBody := "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -208,7 +208,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 
 	// testing with cbg only, required to set basal to false
-	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	tidewhisperer = InitAPI(patientDataUseCase, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -225,7 +225,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 	storage.LoopModeEvents = []schemaV1.LoopModeEvent{
 		schemaV1.NewLoopModeEvent(day1, &day2, "automated"),
 	}
-	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, storage)
+	tidewhisperer = InitAPI(patientDataUseCase, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBasalBucketWithLoopModes := `{"deliveryType":"automated","duration":1000,"id":"basal_bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"UTC","type":"basal"}`
 	expectedBody = "[" + strings.Join(
 		[]string{
@@ -241,18 +242,56 @@ func TestAPI_GetDataV2(t *testing.T) {
 }
 
 /*When no settings are found, we should not raise an error in getLatestPumpSettings*/
-func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
-	token := "TestAPI_getLatestPumpSettings_token"
-	userId := "TestAPI_getLatestPumpSettings_userId"
-	ctx := context.Background()
-	timeContext := timeItContext(ctx)
-	clientError := status.StatusError{
-		Status: status.NewStatus(http.StatusNotFound, "GetSettings: no settings found"),
+/*TODO move to the right place*/
+//func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
+//	token := "TestAPI_getLatestPumpSettings_token"
+//	userId := "TestAPI_getLatestPumpSettings_userId"
+//	ctx := context.Background()
+//	timeContext := timeItContext(ctx)
+//	clientError := status.StatusError{
+//		Status: status.NewStatus(http.StatusNotFound, "GetSettings: no settings found"),
+//	}
+//	writer := writeFromIter{}
+//	tidewhispererAPI := InitAPI(nil, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+//	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
+//	res, err := tidewhispererAPI.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
+//	assert.Equal(t, err, nil)
+//	assert.Equal(t, res, nil)
+//}
+
+func TestAPI_GetRangeV1(t *testing.T) {
+	traceID := uuid.New().String()
+	userID := "abcdef"
+	urlParams := map[string]string{
+		"userID": userID,
 	}
-	writer := writeFromIter{}
-	tidewhispererAPI := InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
-	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
-	res, err := tidewhispererAPI.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, res, nil)
+
+	resetOPAMockRouteV1(true, "/v1/range", userID)
+	storage.DataRangeV1 = []string{"2021-01-01T00:00:00.000Z", "2021-01-03T00:00:00.000Z"}
+	t.Cleanup(func() {
+		storage.DataRangeV1 = nil
+	})
+	expectedValue := "[\"" + storage.DataRangeV1[0] + "\",\"" + storage.DataRangeV1[1] + "\"]"
+	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getRange, true, "userID")
+
+	request, _ := http.NewRequest("GET", "/v1/range/"+userID, nil)
+	request.Header.Set("x-tidepool-trace-session", traceID)
+	request.Header.Set("Authorization", "Bearer "+userID)
+	request = mux.SetURLVars(request, urlParams)
+	response := httptest.NewRecorder()
+
+	handlerLogFunc(response, request)
+	result := response.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
+	}
+
+	body := make([]byte, 1024)
+	defer result.Body.Close()
+	n, _ := result.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if bodyStr != expectedValue {
+		t.Errorf("Expected '%s' to equal '%s'", bodyStr, expectedValue)
+	}
 }

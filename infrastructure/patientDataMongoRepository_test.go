@@ -24,7 +24,7 @@ var testingConfig = &goComMgo.Config{
 	MaxConnectionAttempts:  0,
 }
 
-func before(t *testing.T, docs ...interface{}) *Client {
+func before(t *testing.T, docs ...interface{}) *PatientDataMongoRepository {
 	var err error
 	var ctx = context.Background()
 
@@ -36,7 +36,7 @@ func before(t *testing.T, docs ...interface{}) *Client {
 	}
 	testingConfig.FromEnv()
 
-	store, err := NewStore(testingConfig, logger)
+	store, err := NewPatientDataMongoRepository(testingConfig, logger)
 	if err != nil {
 		t.Fatalf("Unexpected error while creating store: %s", err)
 	}
@@ -91,9 +91,9 @@ func contains(s []string, e string) bool {
 }
 
 func basicQuery() bson.M {
-	qParams := &Params{
+	qParams := &schema.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &schema.SchemaVersion{Maximum: 2, Minimum: 0},
 		Dexcom:        true,
 		Medtronic:     true,
 	}
@@ -101,15 +101,15 @@ func basicQuery() bson.M {
 	return generateMongoQuery(qParams)
 }
 
-func allParams() *Params {
+func allParams() *schema.Params {
 	earliestDataTime, _ := time.Parse(time.RFC3339, "2015-10-07T15:00:00Z")
 	latestDataTime, _ := time.Parse(time.RFC3339, "2016-12-13T02:00:00Z")
 
-	return &Params{
+	return &schema.Params{
 		UserID:        "abc123",
 		DeviceID:      "device123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-10-11T15:00:00.000Z"},
+		SchemaVersion: &schema.SchemaVersion{Maximum: 2, Minimum: 0},
+		Date:          schema.Date{"2015-10-07T15:00:00.000Z", "2015-10-11T15:00:00.000Z"},
 		Types:         []string{"smbg", "cbg"},
 		SubTypes:      []string{"stuff"},
 		Carelink:      true,
@@ -138,9 +138,9 @@ func allParamsIncludingUploadIDQuery() bson.M {
 }
 
 func typeAndSubtypeQuery() bson.M {
-	qParams := &Params{
+	qParams := &schema.Params{
 		UserID:             "abc123",
-		SchemaVersion:      &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion:      &schema.SchemaVersion{Maximum: 2, Minimum: 0},
 		Types:              []string{"smbg", "cbg"},
 		SubTypes:           []string{"stuff"},
 		Dexcom:             true,
@@ -152,31 +152,31 @@ func typeAndSubtypeQuery() bson.M {
 }
 
 func uploadIDQuery() bson.M {
-	qParams := &Params{
+	qParams := &schema.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &schema.SchemaVersion{Maximum: 2, Minimum: 0},
 		UploadID:      "xyz123",
 	}
 	return generateMongoQuery(qParams)
 }
 
 func blipQuery() bson.M {
-	qParams := &Params{
+	qParams := &schema.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &schema.SchemaVersion{Maximum: 2, Minimum: 0},
 		LevelFilter:   []int{1, 2},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Date:          schema.Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
 	}
 
 	return generateMongoQuery(qParams)
 }
 
 func typesWithDeviceEventQuery() bson.M {
-	qParams := &Params{
+	qParams := &schema.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &schema.SchemaVersion{Maximum: 2, Minimum: 0},
 		LevelFilter:   []int{1, 2},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Date:          schema.Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
 		Types:         []string{"deviceEvent", "food"},
 	}
 
@@ -184,11 +184,11 @@ func typesWithDeviceEventQuery() bson.M {
 }
 
 func typesWithoutDeviceEventQuery() bson.M {
-	qParams := &Params{
+	qParams := &schema.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &schema.SchemaVersion{Maximum: 2, Minimum: 0},
 		LevelFilter:   []int{1, 2},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Date:          schema.Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
 		Types:         []string{"food"},
 	}
 
@@ -196,11 +196,11 @@ func typesWithoutDeviceEventQuery() bson.M {
 }
 
 func typesWithDeviceEventAndSubTypeQuery() bson.M {
-	qParams := &Params{
+	qParams := &schema.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &schema.SchemaVersion{Maximum: 2, Minimum: 0},
 		LevelFilter:   []int{1, 2},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Date:          schema.Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
 		Types:         []string{"deviceEvent", "food"},
 		SubTypes:      []string{"reservoirChange"},
 	}
@@ -605,7 +605,7 @@ func TestStore_GetDataV1(t *testing.T) {
 	var iter goComMgo.StorageIterator
 	var data []map[string]interface{}
 	userID := "abcdef"
-	ddr := &Date{
+	ddr := &schema.Date{
 		Start: "2020-05-01T00:00:00.000Z",
 		End:   "2021-01-02T00:00:00.000Z",
 	}
@@ -929,7 +929,7 @@ func TestStore_GetLatestBasalSecurityProfile(t *testing.T) {
 
 func TestStore_GetLoopMode(t *testing.T) {
 	userID := "abcdef"
-	ddr := &Date{
+	ddr := &schema.Date{
 		Start: "2020-01-01T07:00:00Z",
 		End:   "2020-01-01T08:20:01Z",
 	}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,31 +14,26 @@ import (
 	tideV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/status"
-	"github.com/tidepool-org/tide-whisperer/infrastructure"
+	"github.com/tidepool-org/tide-whisperer/api/detailederror"
+	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
+	"github.com/tidepool-org/tide-whisperer/schema"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
 type (
 	// API struct for tide-whisperer
 	API struct {
-		store           infrastructure.Storage
+		patientData     PatientDataUseCase
+		databaseAdapter usecase.DatabaseAdapter
 		authClient      auth.ClientInterface
 		perms           opa.Client
-		schemaVersion   infrastructure.SchemaVersion
+		schemaVersion   schema.SchemaVersion
 		logger          *log.Logger
 		tideV2Client    tideV2Client.ClientInterface
 		readBasalBucket bool
 	}
 
 	varsHandler func(http.ResponseWriter, *http.Request, map[string]string)
-
-	// so we can wrap and marshal the detailed error
-	detailedError struct {
-		Status          int    `json:"status"`  // Http status code
-		ID              string `json:"id"`      // provided to user so that we can better track down issues
-		Code            string `json:"code"`    // Code which may be used to translate the message to the final user
-		Message         string `json:"message"` // Understandable message sent to the client
-		InternalMessage string `json:"-"`       // used only for logging so we don't want to serialize it out
-	}
 
 	//generic type as device data can be comprised of many things
 	deviceData map[string]interface{}
@@ -51,19 +47,20 @@ const (
 )
 
 var (
-	errorStatusCheck       = detailedError{Status: http.StatusInternalServerError, Code: "data_status_check", Message: "checking of the status endpoint showed an error"}
-	errorNoViewPermission  = detailedError{Status: http.StatusForbidden, Code: "data_cant_view", Message: "user is not authorized to view data"}
-	errorNoPermissions     = detailedError{Status: http.StatusInternalServerError, Code: "data_perms_error", Message: "error finding permissions for user"}
-	errorRunningQuery      = detailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
-	errorLoadingEvents     = detailedError{Status: http.StatusInternalServerError, Code: "json_marshal_error", Message: "internal server error"}
-	errorTideV2Http        = detailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
-	errorInvalidParameters = detailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
-	errorNotfound          = detailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
+	errorStatusCheck       = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_status_check", Message: "checking of the status endpoint showed an error"}
+	errorNoViewPermission  = detailederror.DetailedError{Status: http.StatusForbidden, Code: "data_cant_view", Message: "user is not authorized to view data"}
+	errorNoPermissions     = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_perms_error", Message: "error finding permissions for user"}
+	errorRunningQuery      = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
+	errorLoadingEvents     = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "json_marshal_error", Message: "internal server error"}
+	errorTideV2Http        = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
+	errorInvalidParameters = detailederror.DetailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
+	errorNotfound          = detailederror.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 )
 
-func InitAPI(storage infrastructure.Storage, auth auth.ClientInterface, permsClient opa.Client, schemaV infrastructure.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
+func InitAPI(patientDataUC PatientDataUseCase, dbAdapter usecase.DatabaseAdapter, auth auth.ClientInterface, permsClient opa.Client, schemaV schema.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
 	return &API{
-		store:           storage,
+		patientData:     patientDataUC,
+		databaseAdapter: dbAdapter,
 		authClient:      auth,
 		perms:           permsClient,
 		schemaVersion:   schemaV,
@@ -77,11 +74,18 @@ func InitAPI(storage infrastructure.Storage, auth auth.ClientInterface, permsCli
 func (a *API) SetHandlers(prefix string, rtr *mux.Router) {
 	rtr.HandleFunc("/swagger", a.get501).Methods("GET")
 
-	a.setHandlesV1(prefix+"/v1", rtr)
+	a.setHandlers(prefix+"/v1", rtr)
 	rtr.HandleFunc("/v2", a.get501).Methods("GET")
 
 	// v0 routes:
 	rtr.HandleFunc("/status", a.getStatus).Methods("GET")
+}
+
+func (a *API) setHandlers(prefix string, rtr *mux.Router) {
+	rtr.HandleFunc(prefix+"/range/{userID}", a.middlewareV1(a.getRange, true, "userID")).Methods("GET")
+	rtr.HandleFunc(prefix+"/data/{userID}", a.middlewareV1(a.getData, true, "userID")).Methods("GET")
+	rtr.HandleFunc(prefix+"/dataV2/{userID}", a.middlewareV1(a.getData, true, "userID")).Methods("GET")
+	rtr.HandleFunc(prefix+"/{.*}", a.middlewareV1(a.getNotFound, false)).Methods("GET")
 }
 
 func (h varsHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
@@ -94,6 +98,12 @@ func (a *API) get501(res http.ResponseWriter, req *http.Request) {
 	return
 }
 
+// getNotFound should it be version free?
+func (a *API) getNotFound(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
+	res.WriteHeader(http.StatusNotFound)
+	return nil
+}
+
 // @Summary Get the api status
 // @Description Get the api status
 // @ID tide-whisperer-api-getstatus
@@ -104,15 +114,15 @@ func (a *API) get501(res http.ResponseWriter, req *http.Request) {
 func (a *API) getStatus(res http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 	var s status.ApiStatus
-	if err := a.store.Ping(); err != nil {
-		errorLog := errorStatusCheck.setInternalMessage(err)
+	if err := a.databaseAdapter.Ping(); err != nil {
+		errorLog := errorStatusCheck.SetInternalMessage(err)
 		a.logError(&errorLog, start)
 		s = status.NewApiStatus(errorLog.Status, err.Error())
 	} else {
 		s = status.NewApiStatus(http.StatusOK, "OK")
 	}
 	if jsonDetails, err := json.Marshal(s); err != nil {
-		a.jsonError(res, errorLoadingEvents.setInternalMessage(err), start)
+		a.jsonError(res, errorLoadingEvents.SetInternalMessage(err), start)
 	} else {
 		res.Header().Add("content-type", "application/json")
 		res.WriteHeader(s.Status.Code)
@@ -122,7 +132,7 @@ func (a *API) getStatus(res http.ResponseWriter, req *http.Request) {
 }
 
 // log error detail and write as application/json
-func (a *API) jsonError(res http.ResponseWriter, err detailedError, startedAt time.Time) {
+func (a *API) jsonError(res http.ResponseWriter, err detailederror.DetailedError, startedAt time.Time) {
 	a.logError(&err, startedAt)
 	jsonErr, _ := json.Marshal(err)
 
@@ -131,15 +141,9 @@ func (a *API) jsonError(res http.ResponseWriter, err detailedError, startedAt ti
 	res.Write(jsonErr)
 }
 
-func (a *API) logError(err *detailedError, startedAt time.Time) {
+func (a *API) logError(err *detailederror.DetailedError, startedAt time.Time) {
 	err.ID = uuid.New().String()
 	a.logger.Println(DataAPIPrefix, fmt.Sprintf("[%s][%s] failed after [%.3f]secs with error [%s][%s] ", err.ID, err.Code, time.Now().Sub(startedAt).Seconds(), err.Message, err.InternalMessage))
-}
-
-// set the internal message that we will use for logging
-func (d detailedError) setInternalMessage(internal error) detailedError {
-	d.InternalMessage = internal.Error()
-	return d
 }
 
 func (a *API) isAuthorized(req *http.Request, targetUserIDs []string) bool {

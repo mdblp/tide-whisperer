@@ -1,4 +1,4 @@
-package api
+package usecase
 
 import (
 	"context"
@@ -11,15 +11,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/mdblp/go-common/clients/status"
 	orcaSchema "github.com/mdblp/orca/schema"
-	"github.com/mdblp/tide-whisperer-v2/v2/schema"
+	schemaV2 "github.com/mdblp/tide-whisperer-v2/v2/schema"
 	"github.com/tidepool-org/go-common/clients/mongo"
+	"github.com/tidepool-org/tide-whisperer/api/detailederror"
 	internalSchema "github.com/tidepool-org/tide-whisperer/api/dto"
-	"github.com/tidepool-org/tide-whisperer/infrastructure"
+	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
+	"github.com/tidepool-org/tide-whisperer/api/util"
+	"github.com/tidepool-org/tide-whisperer/schema"
 )
 
 type (
 	apiDataParams struct {
-		dates               infrastructure.Date
+		dates               schema.Date
 		user                string
 		traceID             string
 		includePumpSettings bool
@@ -28,7 +31,7 @@ type (
 	}
 )
 
-func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detailedError) {
+func (p *PatientData) getDataV1Params(readBasalBucket bool, res *httpreswriter.HttpResponseWriter) (*apiDataParams, *detailederror.DetailedError) {
 	var err error
 	// Mongo iterators
 	userID := res.VARS["userID"]
@@ -39,14 +42,14 @@ func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detaile
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 
 	dataSource := map[string]bool{
-		"store":       true,
-		"basalBucket": a.readBasalBucket,
+		"patientData": true,
+		"basalBucket": readBasalBucket,
 		"cbgBucket":   true,
 	}
 
 	// Check startDate & endDate parameter
 	if startDate != "" || endDate != "" {
-		var logError *detailedError
+		var logError *detailederror.DetailedError
 		var startTime time.Time
 		var endTime time.Time
 		var timeRange int64 = 1 // endDate - startDate in seconds, initialized to 1 to avoid trigger an error, see below
@@ -73,7 +76,7 @@ func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detaile
 		}
 
 		if err != nil {
-			logError = &detailedError{
+			logError = &detailederror.DetailedError{
 				Status:          errorInvalidParameters.Status,
 				Code:            errorInvalidParameters.Code,
 				Message:         errorInvalidParameters.Message,
@@ -83,7 +86,7 @@ func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detaile
 		}
 	}
 	params := apiDataParams{
-		dates: infrastructure.Date{
+		dates: schema.Date{
 			Start: startDate,
 			End:   endDate,
 		},
@@ -100,11 +103,11 @@ func (a *API) getDataV1Params(res *httpResponseWriter) (*apiDataParams, *detaile
 
 }
 
-func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID string, writer *writeFromIter, token string) (*schema.SettingsResult, *detailedError) {
-	timeIt(ctx, "getLastPumpSettings")
-	settings, err := a.tideV2Client.GetSettings(ctx, userID, token, true)
+func (p *PatientData) getLatestPumpSettings(ctx context.Context, traceID string, userID string, writer *writeFromIter, token string) (*schemaV2.SettingsResult, *detailederror.DetailedError) {
+	util.TimeIt(ctx, "getLastPumpSettings")
+	settings, err := p.tideV2Client.GetSettings(ctx, userID, token, true)
 	if err != nil {
-		logError := &detailedError{
+		logError := &detailederror.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
@@ -114,32 +117,32 @@ func (a *API) getLatestPumpSettings(ctx context.Context, traceID string, userID 
 		switch v := err.(type) {
 		case *status.StatusError:
 			if v.Code != http.StatusNotFound {
-				a.logger.Printf("{%s}", err.Error())
-				timeEnd(ctx, "getLastPumpSettings")
+				p.logger.Printf("{%s}", err.Error())
+				util.TimeEnd(ctx, "getLastPumpSettings")
 				return nil, logError
 			}
-			a.logger.Printf("{%s} - {getLatestPumpSettings: no pump settings found for user \"%s\"}", traceID, userID)
+			p.logger.Printf("{%s} - {getLatestPumpSettings: no pump settings found for user \"%s\"}", traceID, userID)
 		default:
-			a.logger.Printf("{%s}", err.Error())
-			timeEnd(ctx, "getLastPumpSettings")
+			p.logger.Printf("{%s}", err.Error())
+			util.TimeEnd(ctx, "getLastPumpSettings")
 			return nil, logError
 		}
 	}
-	timeEnd(ctx, "getLastPumpSettings")
+	util.TimeEnd(ctx, "getLastPumpSettings")
 
-	timeIt(ctx, "getLatestBasalSecurityProfile")
-	lastestProfile, err := a.store.GetLatestBasalSecurityProfile(ctx, traceID, userID)
+	util.TimeIt(ctx, "getLatestBasalSecurityProfile")
+	lastestProfile, err := p.patientDataRepository.GetLatestBasalSecurityProfile(ctx, traceID, userID)
 	if err != nil {
 		writer.basalSecurityProfile = nil
-		a.logger.Printf("{%s} - {GetLatestBasalSecurityProfile:\"%s\"}", traceID, err)
+		p.logger.Printf("{%s} - {GetLatestBasalSecurityProfile:\"%s\"}", traceID, err)
 	}
 	writer.basalSecurityProfile = TransformToExposedModel(lastestProfile)
-	timeEnd(ctx, "getLatestBasalSecurityProfile")
+	util.TimeEnd(ctx, "getLatestBasalSecurityProfile")
 
 	return settings, nil
 }
 
-func TransformToExposedModel(lastestProfile *infrastructure.DbProfile) *internalSchema.Profile {
+func TransformToExposedModel(lastestProfile *schema.DbProfile) *internalSchema.Profile {
 	var result *internalSchema.Profile
 
 	if lastestProfile != nil {
@@ -166,20 +169,20 @@ func TransformToExposedModel(lastestProfile *infrastructure.DbProfile) *internal
 	return result
 }
 
-func (a *API) writeDataV1(
+func (p *PatientData) writeDataV1(
 	ctx context.Context,
-	res *httpResponseWriter,
+	res *httpreswriter.HttpResponseWriter,
 	includePumpSettings bool,
-	pumpSettings *schema.SettingsResult,
+	pumpSettings *schemaV2.SettingsResult,
 	iterUploads mongo.StorageIterator,
 	iterData mongo.StorageIterator,
-	Cbgs []schema.CbgBucket,
-	Basals []schema.BasalBucket,
+	Cbgs []schemaV2.CbgBucket,
+	Basals []schemaV2.BasalBucket,
 	writeParams *writeFromIter,
 ) error {
-	timeIt(ctx, "writeData")
-	defer timeEnd(ctx, "writeData")
-	// We return a JSON array, first charater is: '['
+	util.TimeIt(ctx, "writeData")
+	defer util.TimeEnd(ctx, "writeData")
+	// We return a JSON array, first character is: '['
 	err := res.WriteString("[\n")
 	if err != nil {
 		return err
@@ -197,60 +200,60 @@ func (a *API) writeDataV1(
 		}
 	}
 
-	timeIt(ctx, "writeDataMain")
+	util.TimeIt(ctx, "writeDataMain")
 	writeParams.iter = iterData
 	err = writeFromIterV1(ctx, writeParams)
 	if err != nil {
 		return err
 	}
-	timeEnd(ctx, "writeDataMain")
+	util.TimeEnd(ctx, "writeDataMain")
 
 	if len(Cbgs) > 0 {
-		timeIt(ctx, "WriteCbgs")
+		util.TimeIt(ctx, "WriteCbgs")
 		writeParams.cbgs = Cbgs
 		err = writeCbgs(ctx, writeParams)
 		if err != nil {
 			return err
 		}
-		timeEnd(ctx, "WriteCbgs")
+		util.TimeEnd(ctx, "WriteCbgs")
 	}
 
 	if len(Basals) > 0 {
-		timeIt(ctx, "writeBasals")
+		util.TimeIt(ctx, "writeBasals")
 		writeParams.basals = Basals
 		err = writeBasals(ctx, writeParams)
 		if err != nil {
 			return err
 		}
-		timeEnd(ctx, "writeBasals")
+		util.TimeEnd(ctx, "writeBasals")
 	}
 
 	// Fetch uploads
 	if len(writeParams.uploadIDs) > 0 {
-		timeIt(ctx, "getUploads")
-		iterUploads, err = a.store.GetUploadDataV1(ctx, res.TraceID, writeParams.uploadIDs)
+		util.TimeIt(ctx, "getUploads")
+		iterUploads, err = p.patientDataRepository.GetUploadDataV1(ctx, res.TraceID, writeParams.uploadIDs)
 		if err != nil {
 			// Just log the problem, don't crash the query
 			writeParams.parametersHistory = nil
-			a.logger.Printf("{%s} - {GetUploadDataV1:\"%s\"}", res.TraceID, err)
+			p.logger.Printf("{%s} - {GetUploadDataV1:\"%s\"}", res.TraceID, err)
 		} else {
 			defer iterUploads.Close(ctx)
 			writeParams.iter = iterUploads
 			err = writeFromIterV1(ctx, writeParams)
 			if err != nil {
-				timeEnd(ctx, "getUploads")
+				util.TimeEnd(ctx, "getUploads")
 				return err
 			}
 		}
-		timeEnd(ctx, "getUploads")
+		util.TimeEnd(ctx, "getUploads")
 	}
 
 	// Silently failed theses error to the client, but record them to the log
 	if writeParams.decode.firstError != nil {
-		a.logger.Printf("{%s} - {nErrors:%d,MongoDecode:\"%s\"}", res.TraceID, writeParams.decode.numErrors, writeParams.decode.firstError)
+		p.logger.Printf("{%s} - {nErrors:%d,MongoDecode:\"%s\"}", res.TraceID, writeParams.decode.numErrors, writeParams.decode.firstError)
 	}
 	if writeParams.jsonError.firstError != nil {
-		a.logger.Printf("{%s} - {nErrors:%d,jsonMarshall:\"%s\"}", res.TraceID, writeParams.jsonError.numErrors, writeParams.jsonError.firstError)
+		p.logger.Printf("{%s} - {nErrors:%d,jsonMarshall:\"%s\"}", res.TraceID, writeParams.jsonError.numErrors, writeParams.jsonError.firstError)
 	}
 
 	// Last JSON array character:

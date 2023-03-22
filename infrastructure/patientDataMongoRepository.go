@@ -16,11 +16,8 @@ import (
 )
 
 const (
-	dataCollectionName          = "deviceData"
-	dataStoreAPIPrefix          = "api/data/store "
-	portalDb                    = "portal"
-	parametersHistoryCollection = "patient_parameters_history"
-	idxUserIDTypeTime           = "UserIdTypeTimeWeighted"
+	dataCollectionName = "deviceData"
+	idxUserIDTypeTime  = "UserIdTypeTimeWeighted"
 )
 
 var unwantedFields = bson.M{
@@ -81,68 +78,9 @@ var tideWhispererIndexes = map[string][]mongo.IndexModel{
 	},
 }
 
-type (
-	// Storage - Interface for our storage layer
-	Storage interface {
-		goComMgo.Storage
-		// WithContext(ctx context.Context) Storage
-		// V1 API data functions:
-		GetDataRangeV1(ctx context.Context, traceID string, userID string) (*Date, error)
-		GetDataV1(ctx context.Context, traceID string, userID string, dates *Date, excludeTypes []string) (goComMgo.StorageIterator, error)
-		GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*DbProfile, error)
-		GetUploadDataV1(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error)
-		GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error)
-		GetLoopMode(ctx context.Context, traceID string, userID string, dates *Date) ([]schema.LoopModeEvent, error)
-	}
-
-	// SchemaVersion struct
-	SchemaVersion struct {
-		Minimum int
-		Maximum int
-	}
-
-	// Params struct
-	Params struct {
-		UserID   string
-		Types    []string
-		SubTypes []string
-		Date
-		*SchemaVersion
-		Carelink           bool
-		Dexcom             bool
-		DexcomDataSource   bson.M
-		DeviceID           string
-		Latest             bool
-		Medtronic          bool
-		MedtronicDate      string
-		MedtronicUploadIds []string
-		UploadID           string
-		LevelFilter        []int
-	}
-	// Client struct
-	Client struct {
-		*goComMgo.StoreClient
-	}
-
-	// Date struct
-	Date struct {
-		Start string
-		End   string
-	}
-
-	DbSchedule struct {
-		Rate  float64 `bson:"rate,omitempty"`
-		Start int64   `bson:"start,omitempty"`
-	}
-
-	DbProfile struct {
-		Type          string       `bson:"type,omitempty"`
-		Time          time.Time    `bson:"time,omitempty"`
-		Timezone      string       `bson:"timezone,omitempty"`
-		Guid          string       `bson:"guid,omitempty"`
-		BasalSchedule []DbSchedule `bson:"basalSchedule,omitempty"`
-	}
-)
+type PatientDataMongoRepository struct {
+	*goComMgo.StoreClient
+}
 
 // InArray returns a boolean indicating the presence of a string value in a string array
 func InArray(needle string, arr []string) bool {
@@ -154,29 +92,26 @@ func InArray(needle string, arr []string) bool {
 	return false
 }
 
-// NewStore creates a new Client
-func NewStore(config *goComMgo.Config, logger *log.Logger) (*Client, error) {
+// NewPatientDataMongoRepository creates a new patientData repository for mongo
+func NewPatientDataMongoRepository(config *goComMgo.Config, logger *log.Logger) (*PatientDataMongoRepository, error) {
 	if config != nil {
 		config.Indexes = tideWhispererIndexes
 	}
-	client := Client{}
+	pdmr := PatientDataMongoRepository{}
 	store, err := goComMgo.NewStoreClient(config, logger)
-	client.StoreClient = store
-	return &client, err
+	pdmr.StoreClient = store
+	return &pdmr, err
 }
 
-func dataCollection(c *Client) *mongo.Collection {
-	return c.Collection(dataCollectionName)
-}
-func mgoParametersHistoryCollection(c *Client) *mongo.Collection {
-	return c.Collection(parametersHistoryCollection, portalDb)
+func dataCollection(p *PatientDataMongoRepository) *mongo.Collection {
+	return p.Collection(dataCollectionName)
 }
 
 // generateMongoQuery takes in a number of parameters and constructs a mongo query
 // to retrieve objects from the Tidepool database. It is used by the router.Add("GET", "/{userID}"
 // endpoint, which implements the Tide-whisperer API. See that function for further documentation
 // on parameters
-func generateMongoQuery(p *Params) bson.M {
+func generateMongoQuery(p *schema.Params) bson.M {
 
 	finalQuery := bson.M{}
 	skipParamsQuery := false
@@ -283,12 +218,12 @@ func generateMongoQuery(p *Params) bson.M {
 // GetDataRangeV1 returns the time data range
 //
 // If no data for the requested user, return nil or empty string dates
-func (c *Client) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*Date, error) {
+func (p *PatientDataMongoRepository) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*schema.Date, error) {
 	if userID == "" {
 		return nil, errors.New("user id is missing")
 	}
 
-	dateRange := &Date{
+	dateRange := &schema.Date{
 		Start: "",
 		End:   "",
 	}
@@ -307,7 +242,7 @@ func (c *Client) GetDataRangeV1(ctx context.Context, traceID string, userID stri
 
 	// Finding Last time (i.e. findOne with sort time DESC)
 	opts.SetSort(bson.D{primitive.E{Key: "time", Value: -1}})
-	err := dataCollection(c).FindOne(ctx, query, opts).Decode(&res)
+	err := dataCollection(p).FindOne(ctx, query, opts).Decode(&res)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return nil, nil
@@ -318,7 +253,7 @@ func (c *Client) GetDataRangeV1(ctx context.Context, traceID string, userID stri
 
 	// Finding First time (i.e. findOne with sort time ASC)
 	opts.SetSort(bson.D{primitive.E{Key: "time", Value: 1}})
-	err = dataCollection(c).FindOne(ctx, query, opts).Decode(&res)
+	err = dataCollection(p).FindOne(ctx, query, opts).Decode(&res)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +264,7 @@ func (c *Client) GetDataRangeV1(ctx context.Context, traceID string, userID stri
 
 // GetDataV1 v1 api call to fetch diabetes data, excludes "upload" and "pumpSettings"
 // and potentially other types
-func (c *Client) GetDataV1(ctx context.Context, traceID string, userID string, dates *Date, excludeTypes []string) (goComMgo.StorageIterator, error) {
+func (p *PatientDataMongoRepository) GetDataV1(ctx context.Context, traceID string, userID string, dates *schema.Date, excludeTypes []string) (goComMgo.StorageIterator, error) {
 	if !InArray("upload", excludeTypes) {
 		excludeTypes = append(excludeTypes, "upload")
 	}
@@ -354,12 +289,12 @@ func (c *Client) GetDataV1(ctx context.Context, traceID string, userID string, d
 	opts.SetHint(idxUserIDTypeTime)
 	opts.SetComment(traceID)
 
-	return dataCollection(c).Find(ctx, query, opts)
+	return dataCollection(p).Find(ctx, query, opts)
 }
 
 // GetLoopMode v1 api call to fetch Loop Mode objects
 // and potentially other types
-func (c *Client) GetLoopMode(ctx context.Context, traceID string, userID string, dates *Date) ([]schema.LoopModeEvent, error) {
+func (p *PatientDataMongoRepository) GetLoopMode(ctx context.Context, traceID string, userID string, dates *schema.Date) ([]schema.LoopModeEvent, error) {
 	matchUserType := bson.M{
 		"$match": bson.M{
 			"_userId": userID,
@@ -476,7 +411,7 @@ func (c *Client) GetLoopMode(ctx context.Context, traceID string, userID string,
 	opts := options.Aggregate()
 	opts.SetComment(traceID)
 
-	cursor, err := dataCollection(c).Aggregate(ctx, aggregatesStep, opts)
+	cursor, err := dataCollection(p).Aggregate(ctx, aggregatesStep, opts)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			return []schema.LoopModeEvent{}, nil
@@ -489,7 +424,7 @@ func (c *Client) GetLoopMode(ctx context.Context, traceID string, userID string,
 	return res, err
 }
 
-func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*DbProfile, error) {
+func (p *PatientDataMongoRepository) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*schema.DbProfile, error) {
 	if userID == "" {
 		return nil, errors.New("invalid user id")
 	}
@@ -502,8 +437,8 @@ func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID stri
 	//opts.SetProjection(unwantedPumpSettingsFields) TODO
 	opts.SetSort(bson.M{"time": -1})
 	opts.SetComment(traceID)
-	var result DbProfile
-	err := dataCollection(c).FindOne(ctx, query, opts).Decode(&result)
+	var result schema.DbProfile
+	err := dataCollection(p).FindOne(ctx, query, opts).Decode(&result)
 
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
@@ -517,7 +452,7 @@ func (c *Client) GetLatestBasalSecurityProfile(ctx context.Context, traceID stri
 }
 
 // GetUploadDataV1 Fetch upload data from theirs upload ids, using the $in query parameter
-func (c *Client) GetUploadDataV1(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error) {
+func (p *PatientDataMongoRepository) GetUploadDataV1(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error) {
 	query := bson.M{
 		"uploadId": bson.M{"$in": uploadIds},
 		"type":     "upload",
@@ -526,11 +461,11 @@ func (c *Client) GetUploadDataV1(ctx context.Context, traceID string, uploadIds 
 	opts := options.Find()
 	opts.SetProjection(unwantedFields)
 	opts.SetComment(traceID)
-	return dataCollection(c).Find(ctx, query, opts)
+	return dataCollection(p).Find(ctx, query, opts)
 }
 
 // GetCbgForSummaryV1 return the cbg/smbg values for the given user starting at startDate
-func (c *Client) GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error) {
+func (p *PatientDataMongoRepository) GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error) {
 	query := bson.M{
 		"_userId": userID,
 		"type":    "cbg",
@@ -541,5 +476,5 @@ func (c *Client) GetCbgForSummaryV1(ctx context.Context, traceID string, userID 
 	opts.SetProjection(wantedBgFields)
 	opts.SetComment(traceID)
 	opts.SetHint(idxUserIDTypeTime)
-	return dataCollection(c).Find(ctx, query, opts)
+	return dataCollection(p).Find(ctx, query, opts)
 }

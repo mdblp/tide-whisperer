@@ -35,7 +35,7 @@ type MockStoreClient struct {
 	DeviceModel string
 
 	ParametersHistory    bson.M
-	BasalSecurityProfile *DbProfile
+	BasalSecurityProfile *schema.DbProfile
 
 	DataRangeV1    []string
 	DataV1         []string
@@ -79,9 +79,9 @@ func (c *MockStoreClient) WaitUntilStarted() {}
 func (c *MockStoreClient) Start()            {}
 
 // GetDataRangeV1 mock func, return nil,nil
-func (c *MockStoreClient) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*Date, error) {
+func (c *MockStoreClient) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*schema.Date, error) {
 	if c.DataRangeV1 != nil && len(c.DataRangeV1) == 2 {
-		return &Date{
+		return &schema.Date{
 			Start: c.DataRangeV1[0],
 			End:   c.DataRangeV1[1],
 		}, nil
@@ -90,7 +90,7 @@ func (c *MockStoreClient) GetDataRangeV1(ctx context.Context, traceID string, us
 }
 
 // GetDataV1 v1 api mock call to fetch diabetes data
-func (c *MockStoreClient) GetDataV1(ctx context.Context, traceID string, userID string, dates *Date, excludedType []string) (goComMgo.StorageIterator, error) {
+func (c *MockStoreClient) GetDataV1(ctx context.Context, traceID string, userID string, dates *schema.Date, excludedType []string) (goComMgo.StorageIterator, error) {
 	if c.DataV1 != nil {
 		return &MockStoreIterator{
 			numIter: -1,
@@ -101,7 +101,7 @@ func (c *MockStoreClient) GetDataV1(ctx context.Context, traceID string, userID 
 	return nil, fmt.Errorf("{%s} - [%s] - No data", traceID, userID)
 }
 
-func (c *MockStoreClient) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*DbProfile, error) {
+func (c *MockStoreClient) GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*schema.DbProfile, error) {
 	if c.BasalSecurityProfile != nil {
 		return c.BasalSecurityProfile, nil
 	}
@@ -132,7 +132,7 @@ func (c *MockStoreClient) GetCbgForSummaryV1(ctx context.Context, traceID string
 	return nil, fmt.Errorf("{%s} - No data", traceID)
 }
 
-func (c *MockStoreClient) GetLoopMode(ctx context.Context, traceID string, userID string, dates *Date) ([]schema.LoopModeEvent, error) {
+func (c *MockStoreClient) GetLoopMode(ctx context.Context, traceID string, userID string, dates *schema.Date) ([]schema.LoopModeEvent, error) {
 	if c.LoopModeEvents != nil {
 		return c.LoopModeEvents, nil
 	}

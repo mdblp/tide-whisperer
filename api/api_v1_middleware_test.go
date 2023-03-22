@@ -12,20 +12,22 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mdblp/shoreline/token"
 	"github.com/stretchr/testify/mock"
+	"github.com/tidepool-org/tide-whisperer/api/detailederror"
+	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
 )
 
-func getDefaultResponseWriter(t *testing.T) *httpResponseWriter {
+func getDefaultResponseWriter(t *testing.T) *httpreswriter.HttpResponseWriter {
 	testURL, err := url.Parse("https://localhost/")
 	if err != nil {
 		t.Fatal("Invalid test URL")
 	}
-	res := &httpResponseWriter{
+	res := &httpreswriter.HttpResponseWriter{
 		Header:     http.Header{},
 		URL:        testURL,
 		VARS:       nil,
 		TraceID:    uuid.New().String(),
-		statusCode: http.StatusOK, // Default status
-		err:        nil,
+		StatusCode: http.StatusOK, // Default status
+		Err:        nil,
 	}
 	return res
 }
@@ -42,10 +44,10 @@ func TestApiV1MiddlewareHrwWrite(t *testing.T) {
 
 	value := "OK"
 	res.Write([]byte(value))
-	if res.size != 2 {
-		t.Fatalf("Expected %d to equal 2", res.size)
+	if res.Size != 2 {
+		t.Fatalf("Expected %d to equal 2", res.Size)
 	}
-	result := res.writeBuffer.String()
+	result := res.WriteBuffer.String()
 	if result != value {
 		t.Fatalf("Expected `%s` to equal `%s`", result, value)
 	}
@@ -56,10 +58,10 @@ func TestApiV1MiddlewareHrwWriteString(t *testing.T) {
 
 	value := "OK"
 	res.WriteString(value)
-	if res.size != 2 {
-		t.Fatalf("Expected %d to equal 2", res.size)
+	if res.Size != 2 {
+		t.Fatalf("Expected %d to equal 2", res.Size)
 	}
-	result := res.writeBuffer.String()
+	result := res.WriteBuffer.String()
 	if result != value {
 		t.Fatalf("Expected `%s` to equal `%s`", result, value)
 	}
@@ -70,25 +72,25 @@ func TestApiV1MiddlewareWriteHeader(t *testing.T) {
 
 	code := http.StatusNotFound
 	res.WriteHeader(code)
-	if res.statusCode != code {
-		t.Fatalf("Expected %d to equal %d", res.statusCode, code)
+	if res.StatusCode != code {
+		t.Fatalf("Expected %d to equal %d", res.StatusCode, code)
 	}
 }
 
 func TestApiV1MiddlewareHrwWriteError(t *testing.T) {
 	res := getDefaultResponseWriter(t)
-	value := &detailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
+	value := &detailederror.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 	res.WriteError(value)
-	if res.err == nil {
+	if res.Err == nil {
 		t.Fatalf("Expected err to be not nil")
 	}
-	if res.err.Code != value.Code {
-		t.Fatalf("Expected `%s` to equal `%s`", res.err.Code, value.Code)
+	if res.Err.Code != value.Code {
+		t.Fatalf("Expected `%s` to equal `%s`", res.Err.Code, value.Code)
 	}
-	if res.statusCode != value.Status {
-		t.Fatalf("Expected %d to equal %d", res.statusCode, value.Status)
+	if res.StatusCode != value.Status {
+		t.Fatalf("Expected %d to equal %d", res.StatusCode, value.Status)
 	}
-	result := res.writeBuffer.String()
+	result := res.WriteBuffer.String()
 	valueString := fmt.Sprintf("{\"status\":%d,\"id\":\"%s\",\"code\":\"data_not_found\",\"message\":\"no data for specified user\"}", value.Status, res.TraceID)
 	if result != valueString {
 		t.Fatalf("Expected `%s` to equal `%s`", result, valueString)
@@ -97,7 +99,7 @@ func TestApiV1MiddlewareHrwWriteError(t *testing.T) {
 
 func TestApiV1MiddlewareNoError(t *testing.T) {
 	value := "[\"OK\"]"
-	handlerFunc := func(ctx context.Context, res *httpResponseWriter) error {
+	handlerFunc := func(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
 		res.WriteString(value)
 		return nil
 	}
@@ -131,8 +133,8 @@ func TestApiV1MiddlewareNoError(t *testing.T) {
 }
 
 func TestApiV1MiddlewareErrorResponse(t *testing.T) {
-	value := &detailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
-	handlerFunc := func(ctx context.Context, res *httpResponseWriter) error {
+	value := &detailederror.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
+	handlerFunc := func(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
 		res.WriteError(value)
 		return nil
 	}
@@ -173,7 +175,7 @@ func TestApiV1MiddlewareNoErrorWithUserID(t *testing.T) {
 	}
 	handlerFuncCalled := false
 
-	handlerFunc := func(ctx context.Context, res *httpResponseWriter) error {
+	handlerFunc := func(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
 		res.WriteString(value)
 		handlerFuncCalled = true
 		return nil
@@ -221,7 +223,7 @@ func TestApiV1MiddlewareNotAuthorizedWithUserID(t *testing.T) {
 	}
 	handlerFuncCalled := false
 
-	handlerFunc := func(ctx context.Context, res *httpResponseWriter) error {
+	handlerFunc := func(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
 		fmt.Println("You should not see me")
 		res.WriteString(value)
 		handlerFuncCalled = true

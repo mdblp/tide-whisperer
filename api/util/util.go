@@ -1,4 +1,4 @@
-package api
+package util
 
 import (
 	"context"
@@ -10,15 +10,15 @@ import (
 	"github.com/google/uuid"
 )
 
-type timeItKey int
-type timerAddValue struct {
+type TimeItKey int
+type TimerAddValue struct {
 	start        time.Time
 	microSeconds int64
 	num          int
 }
-type timeItType struct {
+type TimeItType struct {
 	timers    map[string]time.Time
-	timersAdd map[string]*timerAddValue
+	timersAdd map[string]*TimerAddValue
 	results   string
 }
 
@@ -39,7 +39,7 @@ const (
 // - param: unit The unit of the passed value
 //
 // - return: The converted value in the opposite unit
-func convertBG(value float64, unit string) (float64, error) {
+func ConvertBG(value float64, unit string) (float64, error) {
 	if value < 0 {
 		return 0, errors.New("Invalid glycemia value")
 	}
@@ -53,7 +53,7 @@ func convertBG(value float64, unit string) (float64, error) {
 }
 
 // IsValidUUID check if the uuid is valid
-func isValidUUID(u string) bool {
+func IsValidUUID(u string) bool {
 	_, err := uuid.Parse(u)
 	return err == nil
 }
@@ -61,7 +61,7 @@ func isValidUUID(u string) bool {
 // contains search an element in an array
 //
 // go seems to not have this helper in the base API
-func contains(a []string, x string) bool {
+func Contains(a []string, x string) bool {
 	for _, n := range a {
 		if x == n {
 			return true
@@ -69,7 +69,7 @@ func contains(a []string, x string) bool {
 	}
 	return false
 }
-func containsInt(a []int, x int) bool {
+func ContainsInt(a []int, x int) bool {
 	for _, n := range a {
 		if x == n {
 			return true
@@ -78,16 +78,16 @@ func containsInt(a []int, x int) bool {
 	return false
 }
 
-func timeItContext(ctx context.Context) context.Context {
-	value := &timeItType{
+func TimeItContext(ctx context.Context) context.Context {
+	value := &TimeItType{
 		timers:    make(map[string]time.Time),
-		timersAdd: make(map[string]*timerAddValue),
+		timersAdd: make(map[string]*TimerAddValue),
 	}
-	return context.WithValue(ctx, timeItKey(0), value)
+	return context.WithValue(ctx, TimeItKey(0), value)
 }
 
-func timeIt(ctx context.Context, name string) {
-	ctxValue := ctx.Value(timeItKey(0)).(*timeItType)
+func TimeIt(ctx context.Context, name string) {
+	ctxValue := ctx.Value(TimeItKey(0)).(*TimeItType)
 	if ctxValue == nil {
 		fmt.Printf("timeIt: Invalid context")
 		return
@@ -100,8 +100,8 @@ func timeIt(ctx context.Context, name string) {
 	timerValues[name] = time.Now()
 }
 
-func timeEnd(ctx context.Context, name string) int64 {
-	ctxValue := ctx.Value(timeItKey(0)).(*timeItType)
+func TimeEnd(ctx context.Context, name string) int64 {
+	ctxValue := ctx.Value(TimeItKey(0)).(*TimeItType)
 	if ctxValue == nil {
 		return 0
 	}
@@ -122,8 +122,8 @@ func timeEnd(ctx context.Context, name string) int64 {
 	return dur
 }
 
-func timeResults(ctx context.Context) string {
-	ctxValue := ctx.Value(timeItKey(0)).(*timeItType)
+func TimeResults(ctx context.Context) string {
+	ctxValue := ctx.Value(TimeItKey(0)).(*TimeItType)
 	if ctxValue == nil {
 		return ""
 	}

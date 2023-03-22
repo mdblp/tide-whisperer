@@ -1,11 +1,12 @@
-package api
+package usecase
 
 import (
-	orcaSchema "github.com/mdblp/orca/schema"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
+
+	orcaSchema "github.com/mdblp/orca/schema"
 )
 
 var (
