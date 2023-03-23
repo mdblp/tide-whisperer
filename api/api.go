@@ -14,9 +14,7 @@ import (
 	tideV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/status"
-	"github.com/tidepool-org/tide-whisperer/api/detailederror"
-	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
-	"github.com/tidepool-org/tide-whisperer/schema"
+	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
@@ -27,7 +25,7 @@ type (
 		databaseAdapter usecase.DatabaseAdapter
 		authClient      auth.ClientInterface
 		perms           opa.Client
-		schemaVersion   schema.SchemaVersion
+		schemaVersion   common.SchemaVersion
 		logger          *log.Logger
 		tideV2Client    tideV2Client.ClientInterface
 		readBasalBucket bool
@@ -47,17 +45,17 @@ const (
 )
 
 var (
-	errorStatusCheck       = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_status_check", Message: "checking of the status endpoint showed an error"}
-	errorNoViewPermission  = detailederror.DetailedError{Status: http.StatusForbidden, Code: "data_cant_view", Message: "user is not authorized to view data"}
-	errorNoPermissions     = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_perms_error", Message: "error finding permissions for user"}
-	errorRunningQuery      = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
-	errorLoadingEvents     = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "json_marshal_error", Message: "internal server error"}
-	errorTideV2Http        = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
-	errorInvalidParameters = detailederror.DetailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
-	errorNotfound          = detailederror.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
+	errorStatusCheck       = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_status_check", Message: "checking of the status endpoint showed an error"}
+	errorNoViewPermission  = common.DetailedError{Status: http.StatusForbidden, Code: "data_cant_view", Message: "user is not authorized to view data"}
+	errorNoPermissions     = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_perms_error", Message: "error finding permissions for user"}
+	errorRunningQuery      = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
+	errorLoadingEvents     = common.DetailedError{Status: http.StatusInternalServerError, Code: "json_marshal_error", Message: "internal server error"}
+	errorTideV2Http        = common.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
+	errorInvalidParameters = common.DetailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
+	errorNotfound          = common.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 )
 
-func InitAPI(patientDataUC PatientDataUseCase, dbAdapter usecase.DatabaseAdapter, auth auth.ClientInterface, permsClient opa.Client, schemaV schema.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
+func InitAPI(patientDataUC PatientDataUseCase, dbAdapter usecase.DatabaseAdapter, auth auth.ClientInterface, permsClient opa.Client, schemaV common.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
 	return &API{
 		patientData:     patientDataUC,
 		databaseAdapter: dbAdapter,
@@ -99,7 +97,7 @@ func (a *API) get501(res http.ResponseWriter, req *http.Request) {
 }
 
 // getNotFound should it be version free?
-func (a *API) getNotFound(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
+func (a *API) getNotFound(ctx context.Context, res *common.HttpResponseWriter) error {
 	res.WriteHeader(http.StatusNotFound)
 	return nil
 }
@@ -132,7 +130,7 @@ func (a *API) getStatus(res http.ResponseWriter, req *http.Request) {
 }
 
 // log error detail and write as application/json
-func (a *API) jsonError(res http.ResponseWriter, err detailederror.DetailedError, startedAt time.Time) {
+func (a *API) jsonError(res http.ResponseWriter, err common.DetailedError, startedAt time.Time) {
 	a.logError(&err, startedAt)
 	jsonErr, _ := json.Marshal(err)
 
@@ -141,7 +139,7 @@ func (a *API) jsonError(res http.ResponseWriter, err detailederror.DetailedError
 	res.Write(jsonErr)
 }
 
-func (a *API) logError(err *detailederror.DetailedError, startedAt time.Time) {
+func (a *API) logError(err *common.DetailedError, startedAt time.Time) {
 	err.ID = uuid.New().String()
 	a.logger.Println(DataAPIPrefix, fmt.Sprintf("[%s][%s] failed after [%.3f]secs with error [%s][%s] ", err.ID, err.Code, time.Now().Sub(startedAt).Seconds(), err.Message, err.InternalMessage))
 }

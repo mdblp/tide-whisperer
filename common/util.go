@@ -1,4 +1,4 @@
-package util
+package common
 
 import (
 	"context"
@@ -28,8 +28,6 @@ const (
 	unitMgdL             = "mg/dL"
 	unitMmolL            = "mmol/L"
 )
-
-// Utility functions:
 
 // convertBG is a common util function to convert bg values
 // to/from "mg/dL" and "mmol/L"

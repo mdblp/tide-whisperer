@@ -26,8 +26,8 @@ import (
 	"syscall"
 
 	"github.com/tidepool-org/tide-whisperer/api"
+	common2 "github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/infrastructure"
-	"github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/usecase"
 
 	"github.com/gorilla/handlers"
@@ -48,9 +48,9 @@ type (
 	// Config holds the configuration for the `tide-whisperer` service
 	Config struct {
 		clients.Config
-		Service              disc.ServiceListing `json:"service"`
-		Mongo                mongo.Config        `json:"mongo"`
-		schema.SchemaVersion `json:"schemaVersion"`
+		Service               disc.ServiceListing `json:"service"`
+		Mongo                 mongo.Config        `json:"mongo"`
+		common2.SchemaVersion `json:"schemaVersion"`
 	}
 )
 

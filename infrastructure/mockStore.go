@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
+	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/schema"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -79,9 +80,9 @@ func (c *MockStoreClient) WaitUntilStarted() {}
 func (c *MockStoreClient) Start()            {}
 
 // GetDataRangeV1 mock func, return nil,nil
-func (c *MockStoreClient) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*schema.Date, error) {
+func (c *MockStoreClient) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*common.Date, error) {
 	if c.DataRangeV1 != nil && len(c.DataRangeV1) == 2 {
-		return &schema.Date{
+		return &common.Date{
 			Start: c.DataRangeV1[0],
 			End:   c.DataRangeV1[1],
 		}, nil
@@ -90,7 +91,7 @@ func (c *MockStoreClient) GetDataRangeV1(ctx context.Context, traceID string, us
 }
 
 // GetDataV1 v1 api mock call to fetch diabetes data
-func (c *MockStoreClient) GetDataV1(ctx context.Context, traceID string, userID string, dates *schema.Date, excludedType []string) (goComMgo.StorageIterator, error) {
+func (c *MockStoreClient) GetDataV1(ctx context.Context, traceID string, userID string, dates *common.Date, excludedType []string) (goComMgo.StorageIterator, error) {
 	if c.DataV1 != nil {
 		return &MockStoreIterator{
 			numIter: -1,
@@ -132,7 +133,7 @@ func (c *MockStoreClient) GetCbgForSummaryV1(ctx context.Context, traceID string
 	return nil, fmt.Errorf("{%s} - No data", traceID)
 }
 
-func (c *MockStoreClient) GetLoopMode(ctx context.Context, traceID string, userID string, dates *schema.Date) ([]schema.LoopModeEvent, error) {
+func (c *MockStoreClient) GetLoopMode(ctx context.Context, traceID string, userID string, dates *common.Date) ([]schema.LoopModeEvent, error) {
 	if c.LoopModeEvents != nil {
 		return c.LoopModeEvents, nil
 	}

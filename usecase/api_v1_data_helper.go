@@ -13,16 +13,14 @@ import (
 	orcaSchema "github.com/mdblp/orca/schema"
 	schemaV2 "github.com/mdblp/tide-whisperer-v2/v2/schema"
 	"github.com/tidepool-org/go-common/clients/mongo"
-	"github.com/tidepool-org/tide-whisperer/api/detailederror"
 	internalSchema "github.com/tidepool-org/tide-whisperer/api/dto"
-	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
-	"github.com/tidepool-org/tide-whisperer/api/util"
+	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/schema"
 )
 
 type (
 	apiDataParams struct {
-		dates               schema.Date
+		dates               common.Date
 		user                string
 		traceID             string
 		includePumpSettings bool
@@ -31,7 +29,7 @@ type (
 	}
 )
 
-func (p *PatientData) getDataV1Params(readBasalBucket bool, res *httpreswriter.HttpResponseWriter) (*apiDataParams, *detailederror.DetailedError) {
+func (p *PatientData) getDataV1Params(readBasalBucket bool, res *common.HttpResponseWriter) (*apiDataParams, *common.DetailedError) {
 	var err error
 	// Mongo iterators
 	userID := res.VARS["userID"]
@@ -49,7 +47,7 @@ func (p *PatientData) getDataV1Params(readBasalBucket bool, res *httpreswriter.H
 
 	// Check startDate & endDate parameter
 	if startDate != "" || endDate != "" {
-		var logError *detailederror.DetailedError
+		var logError *common.DetailedError
 		var startTime time.Time
 		var endTime time.Time
 		var timeRange int64 = 1 // endDate - startDate in seconds, initialized to 1 to avoid trigger an error, see below
@@ -76,7 +74,7 @@ func (p *PatientData) getDataV1Params(readBasalBucket bool, res *httpreswriter.H
 		}
 
 		if err != nil {
-			logError = &detailederror.DetailedError{
+			logError = &common.DetailedError{
 				Status:          errorInvalidParameters.Status,
 				Code:            errorInvalidParameters.Code,
 				Message:         errorInvalidParameters.Message,
@@ -86,7 +84,7 @@ func (p *PatientData) getDataV1Params(readBasalBucket bool, res *httpreswriter.H
 		}
 	}
 	params := apiDataParams{
-		dates: schema.Date{
+		dates: common.Date{
 			Start: startDate,
 			End:   endDate,
 		},
@@ -103,11 +101,11 @@ func (p *PatientData) getDataV1Params(readBasalBucket bool, res *httpreswriter.H
 
 }
 
-func (p *PatientData) getLatestPumpSettings(ctx context.Context, traceID string, userID string, writer *writeFromIter, token string) (*schemaV2.SettingsResult, *detailederror.DetailedError) {
-	util.TimeIt(ctx, "getLastPumpSettings")
+func (p *PatientData) getLatestPumpSettings(ctx context.Context, traceID string, userID string, writer *writeFromIter, token string) (*schemaV2.SettingsResult, *common.DetailedError) {
+	common.TimeIt(ctx, "getLastPumpSettings")
 	settings, err := p.tideV2Client.GetSettings(ctx, userID, token, true)
 	if err != nil {
-		logError := &detailederror.DetailedError{
+		logError := &common.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
@@ -118,26 +116,26 @@ func (p *PatientData) getLatestPumpSettings(ctx context.Context, traceID string,
 		case *status.StatusError:
 			if v.Code != http.StatusNotFound {
 				p.logger.Printf("{%s}", err.Error())
-				util.TimeEnd(ctx, "getLastPumpSettings")
+				common.TimeEnd(ctx, "getLastPumpSettings")
 				return nil, logError
 			}
 			p.logger.Printf("{%s} - {getLatestPumpSettings: no pump settings found for user \"%s\"}", traceID, userID)
 		default:
 			p.logger.Printf("{%s}", err.Error())
-			util.TimeEnd(ctx, "getLastPumpSettings")
+			common.TimeEnd(ctx, "getLastPumpSettings")
 			return nil, logError
 		}
 	}
-	util.TimeEnd(ctx, "getLastPumpSettings")
+	common.TimeEnd(ctx, "getLastPumpSettings")
 
-	util.TimeIt(ctx, "getLatestBasalSecurityProfile")
+	common.TimeIt(ctx, "getLatestBasalSecurityProfile")
 	lastestProfile, err := p.patientDataRepository.GetLatestBasalSecurityProfile(ctx, traceID, userID)
 	if err != nil {
 		writer.basalSecurityProfile = nil
 		p.logger.Printf("{%s} - {GetLatestBasalSecurityProfile:\"%s\"}", traceID, err)
 	}
 	writer.basalSecurityProfile = TransformToExposedModel(lastestProfile)
-	util.TimeEnd(ctx, "getLatestBasalSecurityProfile")
+	common.TimeEnd(ctx, "getLatestBasalSecurityProfile")
 
 	return settings, nil
 }
@@ -171,7 +169,7 @@ func TransformToExposedModel(lastestProfile *schema.DbProfile) *internalSchema.P
 
 func (p *PatientData) writeDataV1(
 	ctx context.Context,
-	res *httpreswriter.HttpResponseWriter,
+	res *common.HttpResponseWriter,
 	includePumpSettings bool,
 	pumpSettings *schemaV2.SettingsResult,
 	iterUploads mongo.StorageIterator,
@@ -180,8 +178,8 @@ func (p *PatientData) writeDataV1(
 	Basals []schemaV2.BasalBucket,
 	writeParams *writeFromIter,
 ) error {
-	util.TimeIt(ctx, "writeData")
-	defer util.TimeEnd(ctx, "writeData")
+	common.TimeIt(ctx, "writeData")
+	defer common.TimeEnd(ctx, "writeData")
 	// We return a JSON array, first character is: '['
 	err := res.WriteString("[\n")
 	if err != nil {
@@ -200,37 +198,37 @@ func (p *PatientData) writeDataV1(
 		}
 	}
 
-	util.TimeIt(ctx, "writeDataMain")
+	common.TimeIt(ctx, "writeDataMain")
 	writeParams.iter = iterData
 	err = writeFromIterV1(ctx, writeParams)
 	if err != nil {
 		return err
 	}
-	util.TimeEnd(ctx, "writeDataMain")
+	common.TimeEnd(ctx, "writeDataMain")
 
 	if len(Cbgs) > 0 {
-		util.TimeIt(ctx, "WriteCbgs")
+		common.TimeIt(ctx, "WriteCbgs")
 		writeParams.cbgs = Cbgs
 		err = writeCbgs(ctx, writeParams)
 		if err != nil {
 			return err
 		}
-		util.TimeEnd(ctx, "WriteCbgs")
+		common.TimeEnd(ctx, "WriteCbgs")
 	}
 
 	if len(Basals) > 0 {
-		util.TimeIt(ctx, "writeBasals")
+		common.TimeIt(ctx, "writeBasals")
 		writeParams.basals = Basals
 		err = writeBasals(ctx, writeParams)
 		if err != nil {
 			return err
 		}
-		util.TimeEnd(ctx, "writeBasals")
+		common.TimeEnd(ctx, "writeBasals")
 	}
 
 	// Fetch uploads
 	if len(writeParams.uploadIDs) > 0 {
-		util.TimeIt(ctx, "getUploads")
+		common.TimeIt(ctx, "getUploads")
 		iterUploads, err = p.patientDataRepository.GetUploadDataV1(ctx, res.TraceID, writeParams.uploadIDs)
 		if err != nil {
 			// Just log the problem, don't crash the query
@@ -241,11 +239,11 @@ func (p *PatientData) writeDataV1(
 			writeParams.iter = iterUploads
 			err = writeFromIterV1(ctx, writeParams)
 			if err != nil {
-				util.TimeEnd(ctx, "getUploads")
+				common.TimeEnd(ctx, "getUploads")
 				return err
 			}
 		}
-		util.TimeEnd(ctx, "getUploads")
+		common.TimeEnd(ctx, "getUploads")
 	}
 
 	// Silently failed theses error to the client, but record them to the log

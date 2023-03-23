@@ -16,11 +16,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tidepool-org/go-common/clients/mongo"
-	"github.com/tidepool-org/tide-whisperer/api/detailederror"
-	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
-	"github.com/tidepool-org/tide-whisperer/api/util"
-	"github.com/tidepool-org/tide-whisperer/data/basal"
+	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/schema"
+	"github.com/tidepool-org/tide-whisperer/usecase/basal"
 )
 
 type (
@@ -37,14 +35,14 @@ const (
 )
 
 var (
-	errorStatusCheck       = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_status_check", Message: "checking of the status endpoint showed an error"}
-	errorNoViewPermission  = detailederror.DetailedError{Status: http.StatusForbidden, Code: "data_cant_view", Message: "user is not authorized to view data"}
-	errorNoPermissions     = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_perms_error", Message: "error finding permissions for user"}
-	errorRunningQuery      = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
-	errorLoadingEvents     = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "json_marshal_error", Message: "internal server error"}
-	errorTideV2Http        = detailederror.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
-	errorInvalidParameters = detailederror.DetailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
-	errorNotfound          = detailederror.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
+	errorStatusCheck       = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_status_check", Message: "checking of the status endpoint showed an error"}
+	errorNoViewPermission  = common.DetailedError{Status: http.StatusForbidden, Code: "data_cant_view", Message: "user is not authorized to view data"}
+	errorNoPermissions     = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_perms_error", Message: "error finding permissions for user"}
+	errorRunningQuery      = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
+	errorLoadingEvents     = common.DetailedError{Status: http.StatusInternalServerError, Code: "json_marshal_error", Message: "internal server error"}
+	errorTideV2Http        = common.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
+	errorInvalidParameters = common.DetailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
+	errorNotfound          = common.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 )
 
 type (
@@ -55,7 +53,7 @@ type (
 	}
 	// writeFromIter struct to pass to the function which write the http result from the mongo iterator for diabetes data
 	writeFromIter struct {
-		res      *httpreswriter.HttpResponseWriter
+		res      *common.HttpResponseWriter
 		iter     mongo.StorageIterator
 		settings *schemaV2.SettingsResult
 		cbgs     []schemaV2.CbgBucket
@@ -155,12 +153,12 @@ func NewPatientDataUseCase(logger *log.Logger, tideV2Client tideV2Client.ClientI
 	}
 }
 
-func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *schema.Date, tideV2Data chan []schemaV2.CbgBucket, logErrorDataV2 chan *detailederror.DetailedError) {
+func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, tideV2Data chan []schemaV2.CbgBucket, logErrorDataV2 chan *common.DetailedError) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.tideV2Client.GetCbgV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
 	if err != nil {
-		logErrorDataV2 <- &detailederror.DetailedError{
+		logErrorDataV2 <- &common.DetailedError{
 			Status:          errorTideV2Http.Status,
 			Code:            errorTideV2Http.Code,
 			Message:         errorTideV2Http.Message,
@@ -175,12 +173,12 @@ func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, 
 	dataFromTideV2Timer.Observe(float64(elapsed_time))
 }
 
-func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *schema.Date, v2Data chan []schemaV2.BasalBucket, logErrorDataV2 chan *detailederror.DetailedError) {
+func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, v2Data chan []schemaV2.BasalBucket, logErrorDataV2 chan *common.DetailedError) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.tideV2Client.GetBasalV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
 	if err != nil {
-		logErrorDataV2 <- &detailederror.DetailedError{
+		logErrorDataV2 <- &common.DetailedError{
 			Status:          errorTideV2Http.Status,
 			Code:            errorTideV2Http.Code,
 			Message:         errorTideV2Http.Message,
@@ -195,12 +193,12 @@ func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup
 	dataFromTideV2Timer.Observe(float64(elapsed_time))
 }
 
-func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *schema.Date, loopModeData chan []schema.LoopModeEvent, logError chan *detailederror.DetailedError) {
+func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, loopModeData chan []schema.LoopModeEvent, logError chan *common.DetailedError) {
 	defer wg.Done()
 	start := time.Now()
 	loopModes, err := p.patientDataRepository.GetLoopMode(ctx, traceID, userID, dates)
 	if err != nil {
-		logError <- &detailederror.DetailedError{
+		logError <- &common.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
@@ -215,11 +213,11 @@ func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, t
 	dataFromStoreTimer.Observe(float64(elapsed_time))
 }
 
-func (p *PatientData) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*schema.Date, error) {
+func (p *PatientData) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*common.Date, error) {
 	return p.patientDataRepository.GetDataRangeV1(ctx, traceID, userID)
 }
 
-func (p *PatientData) GetData(ctx context.Context, res *httpreswriter.HttpResponseWriter, readBasalBucket bool) error {
+func (p *PatientData) GetData(ctx context.Context, res *common.HttpResponseWriter, readBasalBucket bool) error {
 
 	params, logError := p.getDataV1Params(readBasalBucket, res)
 	if logError != nil {
@@ -232,8 +230,8 @@ func (p *PatientData) GetData(ctx context.Context, res *httpreswriter.HttpRespon
 	var chanApiBasals chan []schemaV2.BasalBucket
 	var chanLoopMode chan []schema.LoopModeEvent
 
-	var chanApiCbgError, chanApiBasalError chan *detailederror.DetailedError
-	var logErrorDataV2 *detailederror.DetailedError
+	var chanApiCbgError, chanApiBasalError chan *common.DetailedError
+	var logErrorDataV2 *common.DetailedError
 	var wg sync.WaitGroup
 
 	var exclusions = map[string]string{
@@ -268,7 +266,7 @@ func (p *PatientData) GetData(ctx context.Context, res *httpreswriter.HttpRespon
 	}
 
 	// Fetch data from patientData and V2 API (for cbg)
-	chanStoreError := make(chan *detailederror.DetailedError, 1)
+	chanStoreError := make(chan *common.DetailedError, 1)
 	chanMongoIter := make(chan mongo.StorageIterator, 1)
 
 	// Parallel routines
@@ -277,12 +275,12 @@ func (p *PatientData) GetData(ctx context.Context, res *httpreswriter.HttpRespon
 
 	if params.source["cbgBucket"] {
 		chanApiCbgs = make(chan []schemaV2.CbgBucket, 1)
-		chanApiCbgError = make(chan *detailederror.DetailedError, 1)
+		chanApiCbgError = make(chan *common.DetailedError, 1)
 		go p.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiCbgError)
 	}
 	if params.source["basalBucket"] {
 		chanApiBasals = make(chan []schemaV2.BasalBucket, 1)
-		chanApiBasalError = make(chan *detailederror.DetailedError, 1)
+		chanApiBasalError = make(chan *common.DetailedError, 1)
 		go p.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
 		chanLoopMode = make(chan []schema.LoopModeEvent, 1)
 		go p.getLoopModeData(ctx, &wg, res.TraceID, params.user, dates, chanLoopMode, chanStoreError)
@@ -348,12 +346,12 @@ func (p *PatientData) GetData(ctx context.Context, res *httpreswriter.HttpRespon
 	)
 }
 
-func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *schema.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *detailederror.DetailedError) {
+func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *common.DetailedError) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.patientDataRepository.GetDataV1(ctx, traceID, userID, dates, excludes)
 	if err != nil {
-		logError <- &detailederror.DetailedError{
+		logError <- &common.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
@@ -370,7 +368,7 @@ func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, 
 
 // get session token (for history the header is found in the response and not in the request because of the v1 middelware)
 // to be change of course, but for now keep it
-func getSessionToken(res *httpreswriter.HttpResponseWriter) string {
+func getSessionToken(res *common.HttpResponseWriter) string {
 	// first look if old token are provided in the request
 	sessionToken := res.Header.Get("x-tidepool-session-token")
 	if sessionToken != "" {
@@ -433,7 +431,7 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 					datumLevel, haveLevel := datum["level"]
 					if haveLevel {
 						intLevel, err := strconv.Atoi(fmt.Sprintf("%v", datumLevel))
-						if err == nil && !util.ContainsInt(parameterLevelFilter[:], intLevel) {
+						if err == nil && !common.ContainsInt(parameterLevelFilter[:], intLevel) {
 							continue
 						}
 					}
@@ -441,7 +439,7 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 			}
 			// Record the uploadID
 			if !(datumType == "upload" && uploadID == datumID) {
-				if !util.Contains(p.uploadIDs, uploadID) {
+				if !common.Contains(p.uploadIDs, uploadID) {
 					p.uploadIDs = append(p.uploadIDs, uploadID)
 				}
 			}

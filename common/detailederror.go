@@ -1,5 +1,6 @@
-package detailederror
+package common
 
+/*TODO : remove from common once it will not be used by api and usecase*/
 type DetailedError struct {
 	Status          int    `json:"status"`  // Http status code
 	ID              string `json:"id"`      // provided to user so that we can better track down issues

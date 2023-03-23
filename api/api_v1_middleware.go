@@ -9,13 +9,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/tidepool-org/tide-whisperer/api/detailederror"
-	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
-	"github.com/tidepool-org/tide-whisperer/api/util"
+	"github.com/tidepool-org/tide-whisperer/common"
 )
 
 // HandlerLoggerFunc expose our httpResponseWriter API
-type HandlerLoggerFunc func(context.Context, *httpreswriter.HttpResponseWriter) error
+type HandlerLoggerFunc func(context.Context, *common.HttpResponseWriter) error
 
 // RequestLoggerFunc type to simplify func signatures
 type RequestLoggerFunc func(HandlerLoggerFunc) HandlerLoggerFunc
@@ -38,16 +36,16 @@ func (a *API) middlewareV1(fn HandlerLoggerFunc, checkPermissions bool, params .
 		// TODO: use x-client-trace-id ?
 		// https://docs.solo.io/gloo-edge/latest/guides/observability/tracing/
 		traceID := r.Header.Get("x-tidepool-trace-session")
-		if !util.IsValidUUID(traceID) {
+		if !common.IsValidUUID(traceID) {
 			// We want a trace id, but for now we do not enforce it
 			logErrors = append(logErrors, fmt.Sprintf("no-trace:\"%s\"", traceID))
 			traceID = uuid.New().String()
 		}
 
 		// Make our context
-		ctx := util.TimeItContext(r.Context())
+		ctx := common.TimeItContext(r.Context())
 
-		res := httpreswriter.HttpResponseWriter{
+		res := common.HttpResponseWriter{
 			Header:     r.Header.Clone(), // Clone the header, to be sure
 			URL:        r.URL,
 			VARS:       nil,
@@ -61,7 +59,7 @@ func (a *API) middlewareV1(fn HandlerLoggerFunc, checkPermissions bool, params .
 		if len(params) > 0 {
 			res.VARS = mux.Vars(r) // Decode route parameter
 
-			if util.Contains(params, "userID") {
+			if common.Contains(params, "userID") {
 				// userID is a commonly used parameter
 				// See if we can view the data
 				userID := res.VARS["userID"]
@@ -71,7 +69,7 @@ func (a *API) middlewareV1(fn HandlerLoggerFunc, checkPermissions bool, params .
 					// Quick verification on the userID for security reason
 					// Partial but may help without beeing a burden
 					// 64 characters is probably a good compromise
-					res.WriteError(&detailederror.DetailedError{
+					res.WriteError(&common.DetailedError{
 						Status:          http.StatusBadRequest,
 						Code:            "invalid_userid",
 						Message:         "Invalid parameter userId",
@@ -122,7 +120,7 @@ func (a *API) middlewareV1(fn HandlerLoggerFunc, checkPermissions bool, params .
 			logError = fmt.Sprintf("{%s} - ", strings.Join(logErrors, ","))
 		}
 
-		timerResults := util.TimeResults(ctx)
+		timerResults := common.TimeResults(ctx)
 		if len(timerResults) > 0 {
 			timerResults = fmt.Sprintf("{%s} %d ms", timerResults, dur)
 		} else {

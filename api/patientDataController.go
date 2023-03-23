@@ -5,8 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/tidepool-org/tide-whisperer/api/detailederror"
-	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
+	"github.com/tidepool-org/tide-whisperer/common"
 )
 
 // @Summary Get the data for a specific patient using new bucket api
@@ -39,7 +38,7 @@ import (
 //
 // @Router /v1/dataV2/{userID} [get]
 // @Router /v1/data/{userID} [get]
-func (a *API) getData(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
+func (a *API) getData(ctx context.Context, res *common.HttpResponseWriter) error {
 	return a.patientData.GetData(ctx, res, a.readBasalBucket)
 }
 
@@ -59,12 +58,12 @@ func (a *API) getData(ctx context.Context, res *httpreswriter.HttpResponseWriter
 // @Security TidepoolAuth
 // @Router /v1/range/{userID} [get]
 // Deprecated: not removed for backward compatibility but should not be used
-func (a *API) getRange(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
+func (a *API) getRange(ctx context.Context, res *common.HttpResponseWriter) error {
 	userID := res.VARS["userID"]
 
 	dates, err := a.patientData.GetDataRangeV1(ctx, res.TraceID, userID)
 	if err != nil {
-		logError := &detailederror.DetailedError{
+		logError := &common.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
@@ -83,7 +82,7 @@ func (a *API) getRange(ctx context.Context, res *httpreswriter.HttpResponseWrite
 
 	jsonResult, err := json.Marshal(result)
 	if err != nil {
-		logError := &detailederror.DetailedError{
+		logError := &common.DetailedError{
 			Status:          http.StatusInternalServerError,
 			Code:            "json_marshall_error",
 			Message:         "internal server error",

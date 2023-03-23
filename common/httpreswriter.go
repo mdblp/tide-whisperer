@@ -1,14 +1,13 @@
-package httpreswriter
+package common
 
 import (
 	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"github.com/tidepool-org/tide-whisperer/api/detailederror"
 )
 
+/*TODO : remove from common once it will not be used by api and usecase*/
 type (
 	// HttpResponseWriter used for middleware api functions.
 	//
@@ -25,7 +24,7 @@ type (
 		Header      http.Header
 		WriteBuffer strings.Builder
 		StatusCode  int
-		Err         *detailederror.DetailedError
+		Err         *DetailedError
 		Size        int
 	}
 )
@@ -34,7 +33,7 @@ func (res *HttpResponseWriter) Grow(n int) {
 	if n > 0 { // Avoid Grow panic()
 		res.WriteBuffer.Grow(n)
 	} else {
-		res.Err = &detailederror.DetailedError{
+		res.Err = &DetailedError{
 			Status:          http.StatusInternalServerError,
 			Code:            "write_error",
 			Message:         "Internal Server Error",
@@ -57,9 +56,9 @@ func (res *HttpResponseWriter) WriteString(s string) error {
 }
 
 // WriteError final writing to the response
-func (res *HttpResponseWriter) WriteError(err *detailederror.DetailedError) error {
+func (res *HttpResponseWriter) WriteError(err *DetailedError) error {
 	if err == nil {
-		err = &detailederror.DetailedError{
+		err = &DetailedError{
 			Status:          http.StatusInternalServerError,
 			Code:            "unknown_error",
 			Message:         "Unknown error",

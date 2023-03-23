@@ -8,6 +8,7 @@ import (
 	"time"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
+	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/schema"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -111,7 +112,7 @@ func dataCollection(p *PatientDataMongoRepository) *mongo.Collection {
 // to retrieve objects from the Tidepool database. It is used by the router.Add("GET", "/{userID}"
 // endpoint, which implements the Tide-whisperer API. See that function for further documentation
 // on parameters
-func generateMongoQuery(p *schema.Params) bson.M {
+func generateMongoQuery(p *common.Params) bson.M {
 
 	finalQuery := bson.M{}
 	skipParamsQuery := false
@@ -218,12 +219,12 @@ func generateMongoQuery(p *schema.Params) bson.M {
 // GetDataRangeV1 returns the time data range
 //
 // If no data for the requested user, return nil or empty string dates
-func (p *PatientDataMongoRepository) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*schema.Date, error) {
+func (p *PatientDataMongoRepository) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*common.Date, error) {
 	if userID == "" {
 		return nil, errors.New("user id is missing")
 	}
 
-	dateRange := &schema.Date{
+	dateRange := &common.Date{
 		Start: "",
 		End:   "",
 	}
@@ -264,7 +265,7 @@ func (p *PatientDataMongoRepository) GetDataRangeV1(ctx context.Context, traceID
 
 // GetDataV1 v1 api call to fetch diabetes data, excludes "upload" and "pumpSettings"
 // and potentially other types
-func (p *PatientDataMongoRepository) GetDataV1(ctx context.Context, traceID string, userID string, dates *schema.Date, excludeTypes []string) (goComMgo.StorageIterator, error) {
+func (p *PatientDataMongoRepository) GetDataV1(ctx context.Context, traceID string, userID string, dates *common.Date, excludeTypes []string) (goComMgo.StorageIterator, error) {
 	if !InArray("upload", excludeTypes) {
 		excludeTypes = append(excludeTypes, "upload")
 	}
@@ -294,7 +295,7 @@ func (p *PatientDataMongoRepository) GetDataV1(ctx context.Context, traceID stri
 
 // GetLoopMode v1 api call to fetch Loop Mode objects
 // and potentially other types
-func (p *PatientDataMongoRepository) GetLoopMode(ctx context.Context, traceID string, userID string, dates *schema.Date) ([]schema.LoopModeEvent, error) {
+func (p *PatientDataMongoRepository) GetLoopMode(ctx context.Context, traceID string, userID string, dates *common.Date) ([]schema.LoopModeEvent, error) {
 	matchUserType := bson.M{
 		"$match": bson.M{
 			"_userId": userID,

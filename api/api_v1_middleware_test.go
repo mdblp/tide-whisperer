@@ -12,16 +12,15 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mdblp/shoreline/token"
 	"github.com/stretchr/testify/mock"
-	"github.com/tidepool-org/tide-whisperer/api/detailederror"
-	"github.com/tidepool-org/tide-whisperer/api/httpreswriter"
+	"github.com/tidepool-org/tide-whisperer/common"
 )
 
-func getDefaultResponseWriter(t *testing.T) *httpreswriter.HttpResponseWriter {
+func getDefaultResponseWriter(t *testing.T) *common.HttpResponseWriter {
 	testURL, err := url.Parse("https://localhost/")
 	if err != nil {
 		t.Fatal("Invalid test URL")
 	}
-	res := &httpreswriter.HttpResponseWriter{
+	res := &common.HttpResponseWriter{
 		Header:     http.Header{},
 		URL:        testURL,
 		VARS:       nil,
@@ -79,7 +78,7 @@ func TestApiV1MiddlewareWriteHeader(t *testing.T) {
 
 func TestApiV1MiddlewareHrwWriteError(t *testing.T) {
 	res := getDefaultResponseWriter(t)
-	value := &detailederror.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
+	value := &common.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 	res.WriteError(value)
 	if res.Err == nil {
 		t.Fatalf("Expected err to be not nil")
@@ -99,7 +98,7 @@ func TestApiV1MiddlewareHrwWriteError(t *testing.T) {
 
 func TestApiV1MiddlewareNoError(t *testing.T) {
 	value := "[\"OK\"]"
-	handlerFunc := func(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
+	handlerFunc := func(ctx context.Context, res *common.HttpResponseWriter) error {
 		res.WriteString(value)
 		return nil
 	}
@@ -133,8 +132,8 @@ func TestApiV1MiddlewareNoError(t *testing.T) {
 }
 
 func TestApiV1MiddlewareErrorResponse(t *testing.T) {
-	value := &detailederror.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
-	handlerFunc := func(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
+	value := &common.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
+	handlerFunc := func(ctx context.Context, res *common.HttpResponseWriter) error {
 		res.WriteError(value)
 		return nil
 	}
@@ -175,7 +174,7 @@ func TestApiV1MiddlewareNoErrorWithUserID(t *testing.T) {
 	}
 	handlerFuncCalled := false
 
-	handlerFunc := func(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
+	handlerFunc := func(ctx context.Context, res *common.HttpResponseWriter) error {
 		res.WriteString(value)
 		handlerFuncCalled = true
 		return nil
@@ -223,7 +222,7 @@ func TestApiV1MiddlewareNotAuthorizedWithUserID(t *testing.T) {
 	}
 	handlerFuncCalled := false
 
-	handlerFunc := func(ctx context.Context, res *httpreswriter.HttpResponseWriter) error {
+	handlerFunc := func(ctx context.Context, res *common.HttpResponseWriter) error {
 		fmt.Println("You should not see me")
 		res.WriteString(value)
 		handlerFuncCalled = true

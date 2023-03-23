@@ -18,12 +18,12 @@ import (
 	"github.com/tidepool-org/go-common/clients/opa"
 	"github.com/tidepool-org/go-common/clients/status"
 	"github.com/tidepool-org/go-common/clients/version"
+	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/infrastructure"
-	"github.com/tidepool-org/tide-whisperer/schema"
 )
 
 var (
-	schemaVersions = schema.SchemaVersion{
+	schemaVersions = common.SchemaVersion{
 		Maximum: 99,
 		Minimum: 1,
 	}
