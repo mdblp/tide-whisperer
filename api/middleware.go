@@ -20,8 +20,8 @@ type RequestLoggerFunc func(HandlerLoggerFunc) HandlerLoggerFunc
 
 var emptyUserIDs = []string{}
 
-// middlewareV1 middleware to log received requests
-func (a *API) middlewareV1(fn HandlerLoggerFunc, checkPermissions bool, params ...string) http.HandlerFunc {
+// middleware middleware to log received requests
+func (a *API) middleware(fn HandlerLoggerFunc, checkPermissions bool, params ...string) http.HandlerFunc {
 	// The mux handler func:
 	return func(w http.ResponseWriter, r *http.Request) {
 		var err error

@@ -50,7 +50,7 @@ func assertRequest(apiParams map[string]string, urlParams map[string]string, exp
 	traceID := uuid.New().String()
 	userID := apiParams["userID"]
 
-	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getData, true, "userID")
+	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getData, true, "userID")
 	request, _ := http.NewRequest("GET", "/v1/dataV2/"+userID, nil)
 	request.Header.Set("x-tidepool-trace-session", traceID)
 	request.Header.Set("Authorization", "Bearer "+userID)
@@ -272,7 +272,7 @@ func TestAPI_GetRangeV1(t *testing.T) {
 		storage.DataRangeV1 = nil
 	})
 	expectedValue := "[\"" + storage.DataRangeV1[0] + "\",\"" + storage.DataRangeV1[1] + "\"]"
-	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getRange, true, "userID")
+	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getRange, true, "userID")
 
 	request, _ := http.NewRequest("GET", "/v1/range/"+userID, nil)
 	request.Header.Set("x-tidepool-trace-session", traceID)
