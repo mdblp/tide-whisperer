@@ -21,28 +21,10 @@ import (
 	"github.com/tidepool-org/tide-whisperer/usecase/basal"
 )
 
-type (
-
-	//generic type as device data can be comprised of many things
-	deviceData map[string]interface{}
-)
-
-const (
-	// DataAPIPrefix logging prefix
-	DataAPIPrefix             = "api/data "
-	medtronicLoopBoundaryDate = "2017-09-01"
-	slowQueryDuration         = 0.1 // seconds
-)
-
 var (
-	errorStatusCheck       = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_status_check", Message: "checking of the status endpoint showed an error"}
-	errorNoViewPermission  = common.DetailedError{Status: http.StatusForbidden, Code: "data_cant_view", Message: "user is not authorized to view data"}
-	errorNoPermissions     = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_perms_error", Message: "error finding permissions for user"}
 	errorRunningQuery      = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
-	errorLoadingEvents     = common.DetailedError{Status: http.StatusInternalServerError, Code: "json_marshal_error", Message: "internal server error"}
 	errorTideV2Http        = common.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
 	errorInvalidParameters = common.DetailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
-	errorNotfound          = common.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 )
 
 type (

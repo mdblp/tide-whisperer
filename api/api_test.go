@@ -27,14 +27,14 @@ var (
 		Maximum: 99,
 		Minimum: 1,
 	}
-	logger     = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
-	storage    = infrastructure.NewMockStoreClient()
-	mockAuth   = auth.NewMock()
-	mockPerms  = opa.NewMock()
-	mockTideV2 = twV2Client.NewMock()
-	/*TODO replace nil by mock*/
-	tidewhisperer = InitAPI(nil, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
-	rtr           = mux.NewRouter()
+	logger                = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
+	dbAdapter             = infrastructure.NewMockDbAdapter()
+	patientDataRepository = infrastructure.NewMockPatientDataRepository()
+	mockAuth              = auth.NewMock()
+	mockPerms             = opa.NewMock()
+	mockTideV2            = twV2Client.NewMock()
+	tidewhisperer         = InitAPI(nil, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	rtr                   = mux.NewRouter()
 )
 
 // Utility function to reset all mocks to default value
@@ -66,7 +66,7 @@ func getStatusParseResponse(response *httptest.ResponseRecorder) status.ApiStatu
 }
 
 // Testing GetStatus route
-// TestGetStatus_StatusOk calling GetStatus route with an enabled storage
+// TestGetStatus_StatusOk calling GetStatus route with an enabled dbAdapter
 func TestGetStatus_StatusOk(t *testing.T) {
 	resetMocks()
 	mockAuth.On("Authenticate", mock.Anything).Return(&token.TokenData{UserId: "patient", IsServer: false})
@@ -88,11 +88,11 @@ func TestGetStatus_StatusOk(t *testing.T) {
 
 }
 
-// TestGetStatus_StatusKo calling GetStatus route with a disabled storage
+// TestGetStatus_StatusKo calling GetStatus route with a disabled dbAdapter
 func TestGetStatus_StatusKo(t *testing.T) {
 	resetMocks()
 	mockAuth.On("Authenticate", mock.Anything).Return(&token.TokenData{UserId: "patient", IsServer: false})
-	storage.EnablePingError()
+	dbAdapter.EnablePingError()
 
 	request, response := getStatusPrepareRequest()
 	tidewhisperer.getStatus(response, request)

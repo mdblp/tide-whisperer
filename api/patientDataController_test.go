@@ -81,14 +81,14 @@ func assertRequest(apiParams map[string]string, urlParams map[string]string, exp
 func TestAPI_GetDataV2(t *testing.T) {
 	userID := "abcdef"
 
-	storage.DataV1 = []string{
+	patientDataRepository.DataV1 = []string{
 		"{\"id\":\"01\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"basal\",\"value\":10}",
 		"{\"id\":\"02\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:01.000Z\",\"type\":\"basal\",\"value\":11}",
 		"{\"id\":\"03\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:02.000Z\",\"type\":\"basal\",\"value\":12}",
 		"{\"id\":\"04\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:03.000Z\",\"type\":\"basal\",\"value\":13}",
 		"{\"id\":\"05\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:04.000Z\",\"type\":\"basal\",\"value\":14}",
 	}
-	storage.DataIDV1 = []string{
+	patientDataRepository.DataIDV1 = []string{
 		"{\"id\":\"00\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"upload\"}",
 	}
 
@@ -179,8 +179,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 		},
 	}
 	t.Cleanup(func() {
-		storage.DataV1 = nil
-		storage.DataIDV1 = nil
+		patientDataRepository.DataV1 = nil
+		patientDataRepository.DataIDV1 = nil
 		mockTideV2.MockedCbg = []schema.CbgBucket{}
 		mockTideV2.MockedBasal = []schema.BasalBucket{}
 	})
@@ -193,8 +193,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 	urlParams := map[string]string{}
 
-	patientDataUseCase := usecase.NewPatientDataUseCase(logger, mockTideV2, storage)
-	tidewhisperer = InitAPI(patientDataUseCase, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	patientDataUseCase := usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
+	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBody := "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -208,7 +208,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 
 	// testing with cbg only, required to set basal to false
-	tidewhisperer = InitAPI(patientDataUseCase, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -222,11 +222,11 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 
 	// testing with basal buckets + loopMode objects
-	storage.LoopModeEvents = []schemaV1.LoopModeEvent{
+	patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{
 		schemaV1.NewLoopModeEvent(day1, &day2, "automated"),
 	}
-	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, storage)
-	tidewhisperer = InitAPI(patientDataUseCase, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
+	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBasalBucketWithLoopModes := `{"deliveryType":"automated","duration":1000,"id":"basal_bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"UTC","type":"basal"}`
 	expectedBody = "[" + strings.Join(
 		[]string{
@@ -252,7 +252,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 //		Status: status.NewStatus(http.StatusNotFound, "GetSettings: no settings found"),
 //	}
 //	writer := writeFromIter{}
-//	tidewhispererAPI := InitAPI(nil, storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+//	tidewhispererAPI := InitAPI(nil, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 //	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
 //	res, err := tidewhispererAPI.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
 //	assert.Equal(t, err, nil)
@@ -267,11 +267,11 @@ func TestAPI_GetRangeV1(t *testing.T) {
 	}
 
 	resetOPAMockRouteV1(true, "/v1/range", userID)
-	storage.DataRangeV1 = []string{"2021-01-01T00:00:00.000Z", "2021-01-03T00:00:00.000Z"}
+	patientDataRepository.DataRangeV1 = []string{"2021-01-01T00:00:00.000Z", "2021-01-03T00:00:00.000Z"}
 	t.Cleanup(func() {
-		storage.DataRangeV1 = nil
+		patientDataRepository.DataRangeV1 = nil
 	})
-	expectedValue := "[\"" + storage.DataRangeV1[0] + "\",\"" + storage.DataRangeV1[1] + "\"]"
+	expectedValue := "[\"" + patientDataRepository.DataRangeV1[0] + "\",\"" + patientDataRepository.DataRangeV1[1] + "\"]"
 	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getRange, true, "userID")
 
 	request, _ := http.NewRequest("GET", "/v1/range/"+userID, nil)

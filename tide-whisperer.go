@@ -113,8 +113,8 @@ func main() {
 
 	dataUseCase := usecase.NewPatientDataUseCase(logger, tideV2Client, patientDataMongoRepository)
 
-	dataapi := api.InitAPI(dataUseCase, patientDataMongoRepository, authClient, permsClient, config.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
-	dataapi.SetHandlers("", rtr)
+	api := api.InitAPI(dataUseCase, patientDataMongoRepository, authClient, permsClient, config.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
+	api.SetHandlers("", rtr)
 
 	// ability to return compressed (gzip/deflate) responses if client browser accepts it
 	// this is interesting to minimise network traffic especially if we expect to have long
