@@ -216,7 +216,7 @@ func generateMongoQuery(p *common.Params) bson.M {
 	return finalQuery
 }
 
-// GetDataRangeV1 returns the time data range
+// GetDataRangeLegacy returns the time data range
 //
 // If no data for the requested user, return nil or empty string dates
 func (p *PatientDataMongoRepository) GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error) {

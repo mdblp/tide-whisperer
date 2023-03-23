@@ -31,7 +31,7 @@ func NewMockPatientDataRepository() *MockPatientDataRepository {
 	}
 }
 
-// GetDataRangeV1 mock func, return nil,nil
+// GetDataRangeLegacy mock func, return nil,nil
 func (c *MockPatientDataRepository) GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error) {
 	if c.DataRangeV1 != nil && len(c.DataRangeV1) == 2 {
 		return &common.Date{

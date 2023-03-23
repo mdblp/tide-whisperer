@@ -196,7 +196,7 @@ func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, t
 	dataFromStoreTimer.Observe(float64(elapsed_time))
 }
 
-func (p *PatientData) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*common.Date, error) {
+func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error) {
 	if userID == "" {
 		return nil, errors.New("user id is missing")
 	}

@@ -16,10 +16,10 @@ import (
 // @Produce json
 //
 // @Success 200 {array} string "Array of objects"
-// @Failure 400 {object} api.DetailedError
-// @Failure 403 {object} api.DetailedError
-// @Failure 404 {object} api.DetailedError
-// @Failure 500 {object} api.DetailedError
+// @Failure 400 {object} common.DetailedError
+// @Failure 403 {object} common.DetailedError
+// @Failure 404 {object} common.DetailedError
+// @Failure 500 {object} common.DetailedError
 //
 // @Param userID path string true "The ID of the user to search data for"
 //
@@ -49,19 +49,19 @@ func (a *API) getData(ctx context.Context, res *common.HttpResponseWriter) error
 // @ID tide-whisperer-api-v1-getrange
 // @Produce json
 // @Success 200 {array} string "Array of two ISO 8601 datetime"
-// @Failure 400 {object} api.DetailedError
-// @Failure 403 {object} api.DetailedError
-// @Failure 404 {object} api.DetailedError
-// @Failure 500 {object} api.DetailedError
+// @Failure 400 {object} common.DetailedError
+// @Failure 403 {object} common.DetailedError
+// @Failure 404 {object} common.DetailedError
+// @Failure 500 {object} common.DetailedError
 // @Param userID path string true "The ID of the user to search data for"
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security TidepoolAuth
 // @Router /v1/range/{userID} [get]
 // Deprecated: not removed for backward compatibility but should not be used
-func (a *API) getRange(ctx context.Context, res *common.HttpResponseWriter) error {
+func (a *API) getRangeLegacy(ctx context.Context, res *common.HttpResponseWriter) error {
 	userID := res.VARS["userID"]
 
-	dates, err := a.patientData.GetDataRangeV1(ctx, res.TraceID, userID)
+	dates, err := a.patientData.GetDataRangeLegacy(ctx, res.TraceID, userID)
 	if err != nil {
 		logError := &common.DetailedError{
 			Status:          errorRunningQuery.Status,

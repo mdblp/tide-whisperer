@@ -272,7 +272,7 @@ func TestAPI_GetRangeV1(t *testing.T) {
 		patientDataRepository.DataRangeV1 = nil
 	})
 	expectedValue := "[\"" + patientDataRepository.DataRangeV1[0] + "\",\"" + patientDataRepository.DataRangeV1[1] + "\"]"
-	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getRange, true, "userID")
+	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getRangeLegacy, true, "userID")
 
 	request, _ := http.NewRequest("GET", "/v1/range/"+userID, nil)
 	request.Header.Set("x-tidepool-trace-session", traceID)
