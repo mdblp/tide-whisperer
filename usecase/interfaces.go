@@ -9,11 +9,10 @@ import (
 )
 
 type PatientDataRepository interface {
-	GetDataRangeV1(ctx context.Context, traceID string, userID string) (*common.Date, error)
-	GetDataV1(ctx context.Context, traceID string, userID string, dates *common.Date, excludeTypes []string) (goComMgo.StorageIterator, error)
+	GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error)
+	GetDataInDeviceData(ctx context.Context, traceID string, userID string, dates *common.Date, excludeTypes []string) (goComMgo.StorageIterator, error)
 	GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*schema.DbProfile, error)
-	GetUploadDataV1(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error)
-	GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error)
+	GetUploadData(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error)
 	GetLoopMode(ctx context.Context, traceID string, userID string, dates *common.Date) ([]schema.LoopModeEvent, error)
 }
 

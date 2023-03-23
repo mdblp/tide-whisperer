@@ -219,10 +219,7 @@ func generateMongoQuery(p *common.Params) bson.M {
 // GetDataRangeV1 returns the time data range
 //
 // If no data for the requested user, return nil or empty string dates
-func (p *PatientDataMongoRepository) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*common.Date, error) {
-	if userID == "" {
-		return nil, errors.New("user id is missing")
-	}
+func (p *PatientDataMongoRepository) GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error) {
 
 	dateRange := &common.Date{
 		Start: "",
@@ -265,7 +262,7 @@ func (p *PatientDataMongoRepository) GetDataRangeV1(ctx context.Context, traceID
 
 // GetDataV1 v1 api call to fetch diabetes data, excludes "upload" and "pumpSettings"
 // and potentially other types
-func (p *PatientDataMongoRepository) GetDataV1(ctx context.Context, traceID string, userID string, dates *common.Date, excludeTypes []string) (goComMgo.StorageIterator, error) {
+func (p *PatientDataMongoRepository) GetDataInDeviceData(ctx context.Context, traceID string, userID string, dates *common.Date, excludeTypes []string) (goComMgo.StorageIterator, error) {
 	if !InArray("upload", excludeTypes) {
 		excludeTypes = append(excludeTypes, "upload")
 	}
@@ -453,7 +450,7 @@ func (p *PatientDataMongoRepository) GetLatestBasalSecurityProfile(ctx context.C
 }
 
 // GetUploadDataV1 Fetch upload data from theirs upload ids, using the $in query parameter
-func (p *PatientDataMongoRepository) GetUploadDataV1(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error) {
+func (p *PatientDataMongoRepository) GetUploadData(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error) {
 	query := bson.M{
 		"uploadId": bson.M{"$in": uploadIds},
 		"type":     "upload",
@@ -462,20 +459,5 @@ func (p *PatientDataMongoRepository) GetUploadDataV1(ctx context.Context, traceI
 	opts := options.Find()
 	opts.SetProjection(unwantedFields)
 	opts.SetComment(traceID)
-	return dataCollection(p).Find(ctx, query, opts)
-}
-
-// GetCbgForSummaryV1 return the cbg/smbg values for the given user starting at startDate
-func (p *PatientDataMongoRepository) GetCbgForSummaryV1(ctx context.Context, traceID string, userID string, startDate string) (goComMgo.StorageIterator, error) {
-	query := bson.M{
-		"_userId": userID,
-		"type":    "cbg",
-		"time":    bson.M{"$gt": startDate},
-	}
-
-	opts := options.Find()
-	opts.SetProjection(wantedBgFields)
-	opts.SetComment(traceID)
-	opts.SetHint(idxUserIDTypeTime)
 	return dataCollection(p).Find(ctx, query, opts)
 }

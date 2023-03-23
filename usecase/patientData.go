@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -196,7 +197,10 @@ func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, t
 }
 
 func (p *PatientData) GetDataRangeV1(ctx context.Context, traceID string, userID string) (*common.Date, error) {
-	return p.patientDataRepository.GetDataRangeV1(ctx, traceID, userID)
+	if userID == "" {
+		return nil, errors.New("user id is missing")
+	}
+	return p.patientDataRepository.GetDataRangeLegacy(ctx, traceID, userID)
 }
 
 func (p *PatientData) GetData(ctx context.Context, res *common.HttpResponseWriter, readBasalBucket bool) error {
@@ -331,7 +335,7 @@ func (p *PatientData) GetData(ctx context.Context, res *common.HttpResponseWrite
 func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *common.DetailedError) {
 	defer wg.Done()
 	start := time.Now()
-	data, err := p.patientDataRepository.GetDataV1(ctx, traceID, userID, dates, excludes)
+	data, err := p.patientDataRepository.GetDataInDeviceData(ctx, traceID, userID, dates, excludes)
 	if err != nil {
 		logError <- &common.DetailedError{
 			Status:          errorRunningQuery.Status,

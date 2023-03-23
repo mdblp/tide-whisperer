@@ -229,11 +229,11 @@ func (p *PatientData) writeDataV1(
 	// Fetch uploads
 	if len(writeParams.uploadIDs) > 0 {
 		common.TimeIt(ctx, "getUploads")
-		iterUploads, err = p.patientDataRepository.GetUploadDataV1(ctx, res.TraceID, writeParams.uploadIDs)
+		iterUploads, err = p.patientDataRepository.GetUploadData(ctx, res.TraceID, writeParams.uploadIDs)
 		if err != nil {
 			// Just log the problem, don't crash the query
 			writeParams.parametersHistory = nil
-			p.logger.Printf("{%s} - {GetUploadDataV1:\"%s\"}", res.TraceID, err)
+			p.logger.Printf("{%s} - {GetUploadData:\"%s\"}", res.TraceID, err)
 		} else {
 			defer iterUploads.Close(ctx)
 			writeParams.iter = iterUploads
