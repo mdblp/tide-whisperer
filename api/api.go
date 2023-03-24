@@ -72,7 +72,7 @@ func (a *API) SetHandlers(prefix string, rtr *mux.Router) {
 func (a *API) setHandlers(prefix string, rtr *mux.Router) {
 	rtr.HandleFunc(prefix+"/range/{userID}", a.middleware(a.getRangeLegacy, true, "userID")).Methods("GET")
 	rtr.HandleFunc(prefix+"/data/{userID}", a.middleware(a.getData, true, "userID")).Methods("GET")
-	rtr.HandleFunc(prefix+"/dataV2/{userID}", a.middleware(a.getData, true, "userID")).Methods("GET")
+	rtr.HandleFunc(prefix+"/dataV2/{userID}", a.middleware(a.getDataV2, true, "userID")).Methods("GET")
 	rtr.HandleFunc(prefix+"/{.*}", a.middleware(a.getNotFound, false)).Methods("GET")
 }
 

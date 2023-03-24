@@ -9,37 +9,48 @@ import (
 )
 
 // @Summary Get the data for a specific patient using new bucket api
-//
 // @Description Get the data for a specific patient, returning a JSON array of objects
-//
 // @ID tide-whisperer-api-v1V2-getdata
 // @Produce json
-//
 // @Success 200 {array} string "Array of objects"
 // @Failure 400 {object} common.DetailedError
 // @Failure 403 {object} common.DetailedError
 // @Failure 404 {object} common.DetailedError
 // @Failure 500 {object} common.DetailedError
-//
 // @Param userID path string true "The ID of the user to search data for"
-//
 // @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
-//
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
-//
 // @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
-//
 // @Param cbgBucket query string false "no parameter or not equal to true to get cbg from buckets" format(boolean)
-//
 // @Param basalBucket query string false "true to get basals from buckets, if the parameter is not there or not equal to true the basals are from deviceData" format(boolean)
-//
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security TidepoolAuth
-//
 // @Router /v1/dataV2/{userID} [get]
+func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) error {
+	return a.patientData.GetData(ctx, res, a.readBasalBucket)
+}
+
+// @Summary Get the data for a specific patient. Deprecated, this route will be deleted in the future and be replaced
+// by tide-whisperer-api-v1V2-getdata
+// @Description Get the data for a specific patient, returning a JSON array of objects
+// @ID tide-whisperer-api-v1-getdata
+// @Produce json
+// @Success 200 {array} string "Array of objects"
+// @Failure 400 {object} common.DetailedError
+// @Failure 403 {object} common.DetailedError
+// @Failure 404 {object} common.DetailedError
+// @Failure 500 {object} common.DetailedError
+// @Param userID path string true "The ID of the user to search data for"
+// @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
+// @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
+// @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
+// @Param cbgBucket query string false "no parameter or not equal to true to get cbg from buckets" format(boolean)
+// @Param basalBucket query string false "true to get basals from buckets, if the parameter is not there or not equal to true the basals are from deviceData" format(boolean)
+// @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
+// @Security TidepoolAuth
 // @Router /v1/data/{userID} [get]
 func (a *API) getData(ctx context.Context, res *common.HttpResponseWriter) error {
-	return a.patientData.GetData(ctx, res, a.readBasalBucket)
+	return a.getDataV2(ctx, res)
 }
 
 // @Summary Get the data dates range for a specific patient
