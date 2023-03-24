@@ -241,24 +241,6 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 }
 
-/*When no settings are found, we should not raise an error in getLatestPumpSettings*/
-/*TODO move to the right place*/
-//func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
-//	token := "TestAPI_getLatestPumpSettings_token"
-//	userId := "TestAPI_getLatestPumpSettings_userId"
-//	ctx := context.Background()
-//	timeContext := timeItContext(ctx)
-//	clientError := status.StatusError{
-//		Status: status.NewStatus(http.StatusNotFound, "GetSettings: no settings found"),
-//	}
-//	writer := writeFromIter{}
-//	tidewhispererAPI := InitAPI(nil, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
-//	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
-//	res, err := tidewhispererAPI.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
-//	assert.Equal(t, err, nil)
-//	assert.Equal(t, res, nil)
-//}
-
 func TestAPI_GetRangeV1(t *testing.T) {
 	traceID := uuid.New().String()
 	userID := "abcdef"

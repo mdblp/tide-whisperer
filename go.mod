@@ -16,6 +16,7 @@ require (
 )
 
 require (
+	github.com/go-playground/assert/v2 v2.2.0
 	github.com/mdblp/go-common v1.7.0
 	github.com/mdblp/orca v0.6.0
 	github.com/mdblp/shoreline v1.11.0
