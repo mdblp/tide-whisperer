@@ -209,7 +209,6 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	if logError != nil {
 		return res.WriteError(logError)
 	}
-	// Mongo iterators
 	var pumpSettings *schemaV2.SettingsResult
 	var iterUploads mongo.StorageIterator
 	var chanApiCbgs chan []schemaV2.CbgBucket
