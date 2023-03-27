@@ -155,7 +155,7 @@ func TransformToExposedModel(lastestProfile *schema.DbProfile) *internalSchema.P
 
 func (p *PatientData) writeDataToBuff(
 	ctx context.Context,
-	res *bytes.Buffer,
+	buff *bytes.Buffer,
 	traceID string,
 	includePumpSettings bool,
 	pumpSettings *schemaV2.SettingsResult,
@@ -168,18 +168,18 @@ func (p *PatientData) writeDataToBuff(
 	common.TimeIt(ctx, "writeData")
 	defer common.TimeEnd(ctx, "writeData")
 	// We return a JSON array, first character is: '['
-	_, err := res.WriteString("[\n")
+	_, err := buff.WriteString("[\n")
 	if err != nil {
 		return err
 	}
 
 	if includePumpSettings && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writePumpSettings(res, writeParams)
+		err = writePumpSettings(buff, writeParams)
 		if err != nil {
 			return err
 		}
-		err = writeDeviceParameterChanges(res, writeParams)
+		err = writeDeviceParameterChanges(buff, writeParams)
 		if err != nil {
 			return err
 		}
@@ -187,7 +187,7 @@ func (p *PatientData) writeDataToBuff(
 
 	common.TimeIt(ctx, "writeDataMain")
 	writeParams.iter = iterData
-	err = writeFromIterV1(ctx, res, writeParams)
+	err = writeFromIterV1(ctx, buff, writeParams)
 	if err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func (p *PatientData) writeDataToBuff(
 	if len(Cbgs) > 0 {
 		common.TimeIt(ctx, "WriteCbgs")
 		writeParams.cbgs = Cbgs
-		err = writeCbgs(ctx, res, writeParams)
+		err = writeCbgs(ctx, buff, writeParams)
 		if err != nil {
 			return err
 		}
@@ -206,7 +206,7 @@ func (p *PatientData) writeDataToBuff(
 	if len(Basals) > 0 {
 		common.TimeIt(ctx, "writeBasals")
 		writeParams.basals = Basals
-		err = writeBasals(ctx, res, writeParams)
+		err = writeBasals(ctx, buff, writeParams)
 		if err != nil {
 			return err
 		}
@@ -224,7 +224,7 @@ func (p *PatientData) writeDataToBuff(
 		} else {
 			defer iterUploads.Close(ctx)
 			writeParams.iter = iterUploads
-			err = writeFromIterV1(ctx, res, writeParams)
+			err = writeFromIterV1(ctx, buff, writeParams)
 			if err != nil {
 				common.TimeEnd(ctx, "getUploads")
 				return err
@@ -242,7 +242,7 @@ func (p *PatientData) writeDataToBuff(
 	}
 
 	// Last JSON array character:
-	_, err = res.WriteString("[\n")
+	_, err = buff.WriteString("]\n")
 	if err != nil {
 		return err
 	}

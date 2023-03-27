@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -203,8 +202,7 @@ func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, us
 	return p.patientDataRepository.GetDataRangeLegacy(ctx, traceID, userID)
 }
 
-func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool, buff *bytes.Buffer, res *common.HttpResponseWriter) error {
-
+func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool, sessionToken string, buff *bytes.Buffer, res *common.HttpResponseWriter) error {
 	params, logError := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, readBasalBucket)
 	if logError != nil {
 		return res.WriteError(logError)
@@ -241,10 +239,8 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 
 	writeParams := &params.writer
 
-	sessionToken := getSessionToken(res)
-
 	if params.includePumpSettings {
-		pumpSettings, logError = p.getLatestPumpSettings(ctx, res.TraceID, params.user, writeParams, sessionToken)
+		pumpSettings, logError = p.getLatestPumpSettings(ctx, traceID, params.user, writeParams, sessionToken)
 		if logError != nil {
 			return res.WriteError(logError)
 		}
@@ -256,7 +252,7 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 
 	// Parallel routines
 	wg.Add(groups)
-	go p.getDataFromStore(ctx, &wg, res.TraceID, params.user, dates, exclusionList, chanMongoIter, chanStoreError)
+	go p.getDataFromStore(ctx, &wg, traceID, params.user, dates, exclusionList, chanMongoIter, chanStoreError)
 
 	if params.source["cbgBucket"] {
 		chanApiCbgs = make(chan []schemaV2.CbgBucket, 1)
@@ -268,7 +264,7 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 		chanApiBasalError = make(chan *common.DetailedError, 1)
 		go p.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
 		chanLoopMode = make(chan []schema.LoopModeEvent, 1)
-		go p.getLoopModeData(ctx, &wg, res.TraceID, params.user, dates, chanLoopMode, chanStoreError)
+		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, chanLoopMode, chanStoreError)
 	}
 	go func() {
 		wg.Wait()
@@ -350,23 +346,6 @@ func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, 
 	}
 	elapsed_time := time.Now().Sub(start).Milliseconds()
 	dataFromStoreTimer.Observe(float64(elapsed_time))
-}
-
-// get session token (for history the header is found in the response and not in the request because of the v1 middelware)
-// to be change of course, but for now keep it
-func getSessionToken(res *common.HttpResponseWriter) string {
-	// first look if old token are provided in the request
-	sessionToken := res.Header.Get("x-tidepool-session-token")
-	if sessionToken != "" {
-		return sessionToken
-	}
-	// if not then
-	sessionToken = strings.Trim(res.Header.Get("Authorization"), " ")
-	if sessionToken != "" && strings.HasPrefix(sessionToken, "Bearer ") {
-		tokenParts := strings.Split(sessionToken, " ")
-		sessionToken = tokenParts[1]
-	}
-	return sessionToken
 }
 
 // writeFromIterV1 Common code to write

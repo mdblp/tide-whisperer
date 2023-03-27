@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/tidepool-org/tide-whisperer/common"
 )
@@ -36,11 +37,29 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	startDate := query.Get("startDate")
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
-	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, a.readBasalBucket, &buffer, res)
+	sessionToken := getSessionToken(res)
+	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, a.readBasalBucket, sessionToken, &buffer, res)
 	if err == nil {
 		res.Write(buffer.Bytes())
 	}
 	return err
+}
+
+// get session token (for history the header is found in the response and not in the request because of the v1 middelware)
+// to be change of course, but for now keep it
+func getSessionToken(res *common.HttpResponseWriter) string {
+	// first look if old token are provided in the request
+	sessionToken := res.Header.Get("x-tidepool-session-token")
+	if sessionToken != "" {
+		return sessionToken
+	}
+	// if not then
+	sessionToken = strings.Trim(res.Header.Get("Authorization"), " ")
+	if sessionToken != "" && strings.HasPrefix(sessionToken, "Bearer ") {
+		tokenParts := strings.Split(sessionToken, " ")
+		sessionToken = tokenParts[1]
+	}
+	return sessionToken
 }
 
 // @Summary Get the data for a specific patient. Deprecated, this route will be deleted in the future and be replaced
