@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -36,7 +37,6 @@ type (
 	}
 	// writeFromIter struct to pass to the function which write the http result from the mongo iterator for diabetes data
 	writeFromIter struct {
-		res      *common.HttpResponseWriter
 		iter     mongo.StorageIterator
 		settings *schemaV2.SettingsResult
 		cbgs     []schemaV2.CbgBucket
@@ -203,9 +203,9 @@ func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, us
 	return p.patientDataRepository.GetDataRangeLegacy(ctx, traceID, userID)
 }
 
-func (p *PatientData) GetData(ctx context.Context, res *common.HttpResponseWriter, readBasalBucket bool) error {
+func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool, buff *bytes.Buffer, res *common.HttpResponseWriter) error {
 
-	params, logError := p.getDataV1Params(readBasalBucket, res)
+	params, logError := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, readBasalBucket)
 	if logError != nil {
 		return res.WriteError(logError)
 	}
@@ -319,9 +319,10 @@ func (p *PatientData) GetData(ctx context.Context, res *common.HttpResponseWrite
 
 	defer iterData.Close(ctx)
 
-	return p.writeDataV1(
+	return p.writeDataToBuff(
 		ctx,
-		res,
+		buff,
+		res.TraceID,
 		params.includePumpSettings,
 		pumpSettings,
 		iterUploads,
@@ -370,7 +371,7 @@ func getSessionToken(res *common.HttpResponseWriter) string {
 }
 
 // writeFromIterV1 Common code to write
-func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
+func writeFromIterV1(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
 	var err error
 
 	iter := p.iter
@@ -457,12 +458,12 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 
 			if p.writeCount > 0 {
 				// Add the coma and line return (for readability)
-				err = p.res.WriteString(",\n")
+				_, err = res.WriteString(",\n")
 				if err != nil {
 					return err
 				}
 			}
-			err = p.res.Write(jsonDatum)
+			_, err = res.Write(jsonDatum)
 			if err != nil {
 				return err
 			}

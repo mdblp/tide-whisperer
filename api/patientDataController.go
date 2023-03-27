@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -27,7 +28,19 @@ import (
 // @Security TidepoolAuth
 // @Router /v1/dataV2/{userID} [get]
 func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) error {
-	return a.patientData.GetData(ctx, res, a.readBasalBucket)
+	var buffer bytes.Buffer
+	// Mongo iterators
+	userID := res.VARS["userID"]
+
+	query := res.URL.Query()
+	startDate := query.Get("startDate")
+	endDate := query.Get("endDate")
+	withPumpSettings := query.Get("withPumpSettings") == "true"
+	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, a.readBasalBucket, &buffer, res)
+	if err == nil {
+		res.Write(buffer.Bytes())
+	}
+	return err
 }
 
 // @Summary Get the data for a specific patient. Deprecated, this route will be deleted in the future and be replaced
