@@ -20,6 +20,7 @@ import (
 	"github.com/tidepool-org/go-common/clients/version"
 	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/infrastructure"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
 var (
@@ -33,7 +34,8 @@ var (
 	mockAuth              = auth.NewMock()
 	mockPerms             = opa.NewMock()
 	mockTideV2            = twV2Client.NewMock()
-	tidewhisperer         = InitAPI(nil, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	patientDataUC         = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
+	api                   = InitAPI(patientDataUC, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
 	rtr                   = mux.NewRouter()
 )
 
@@ -50,7 +52,7 @@ func resetMocks() {
 func getStatusPrepareRequest() (*http.Request, *httptest.ResponseRecorder) {
 	version.ReleaseNumber = "1.2.3"
 	version.FullCommit = "e0c73b95646559e9a3696d41711e918398d557fb"
-	tidewhisperer.SetHandlers("", rtr)
+	api.SetHandlers("", rtr)
 	request, _ := http.NewRequest("GET", "/status", nil)
 	response := httptest.NewRecorder()
 	return request, response
@@ -71,7 +73,7 @@ func TestGetStatus_StatusOk(t *testing.T) {
 	resetMocks()
 	mockAuth.On("Authenticate", mock.Anything).Return(&token.TokenData{UserId: "patient", IsServer: false})
 	request, response := getStatusPrepareRequest()
-	tidewhisperer.getStatus(response, request)
+	api.getStatus(response, request)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("Resp given [%d] expected [%d] ", response.Code, http.StatusOK)
@@ -95,7 +97,7 @@ func TestGetStatus_StatusKo(t *testing.T) {
 	dbAdapter.EnablePingError()
 
 	request, response := getStatusPrepareRequest()
-	tidewhisperer.getStatus(response, request)
+	api.getStatus(response, request)
 
 	if response.Code != http.StatusInternalServerError {
 		t.Fatalf("Resp given [%d] expected [%d] ", response.Code, http.StatusInternalServerError)
@@ -116,8 +118,8 @@ func TestGetStatus_StatusKo(t *testing.T) {
 func TestGet501(t *testing.T) {
 	request, _ := http.NewRequest("GET", "/swagger", nil)
 	response := httptest.NewRecorder()
-	tidewhisperer.SetHandlers("", rtr)
-	tidewhisperer.get501(response, request)
+	api.SetHandlers("", rtr)
+	api.get501(response, request)
 	if response.Code != http.StatusNotImplemented {
 		t.Fatalf("Resp given [%d] expected [%d] ", response.Code, http.StatusNotImplemented)
 	}
