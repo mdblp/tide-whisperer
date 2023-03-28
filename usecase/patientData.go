@@ -253,12 +253,15 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	}
 
 	/*To stop the range loop reading channels once all data are read from it*/
+	/*This is due to the fact that writing into a channel will terminate once a read is done
+	with unbuffered channels.*/
 	go func() {
 		wg.Wait()
 		close(channel)
 	}()
 
 	var iterData goComMgo.StorageIterator
+	defer iterData.Close(ctx)
 	var cbgs []schemaV2.CbgBucket
 	var basals []schemaV2.BasalBucket
 	var loopModes []schema.LoopModeEvent
@@ -281,8 +284,6 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 			}
 		}
 	}
-
-	defer iterData.Close(ctx)
 
 	return p.writeDataToBuffer(
 		ctx,
