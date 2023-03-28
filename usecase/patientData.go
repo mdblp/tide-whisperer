@@ -261,7 +261,6 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	}()
 
 	var iterData goComMgo.StorageIterator
-	defer iterData.Close(ctx)
 	var cbgs []schemaV2.CbgBucket
 	var basals []schemaV2.BasalBucket
 	var loopModes []schema.LoopModeEvent
@@ -284,6 +283,8 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 			}
 		}
 	}
+
+	defer iterData.Close(ctx)
 
 	return p.writeDataToBuffer(
 		ctx,
