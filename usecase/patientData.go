@@ -25,6 +25,7 @@ import (
 var (
 	errorRunningQuery      = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
 	errorTideV2Http        = common.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
+	errorWriteBuffer       = common.DetailedError{Status: http.StatusInternalServerError, Code: "write_error", Message: "internal server error"}
 	errorInvalidParameters = common.DetailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
 )
 
@@ -202,10 +203,10 @@ func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, us
 	return p.patientDataRepository.GetDataRangeLegacy(ctx, traceID, userID)
 }
 
-func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool, sessionToken string, buff *bytes.Buffer, res *common.HttpResponseWriter) error {
-	params, logError := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, readBasalBucket)
-	if logError != nil {
-		return res.WriteError(logError)
+func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool, sessionToken string, buff *bytes.Buffer) *common.DetailedError {
+	params, err := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, readBasalBucket)
+	if err != nil {
+		return err
 	}
 	var pumpSettings *schemaV2.SettingsResult
 	var iterUploads mongo.StorageIterator
@@ -214,7 +215,7 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	var chanLoopMode chan []schema.LoopModeEvent
 
 	var chanApiCbgError, chanApiBasalError chan *common.DetailedError
-	var logErrorDataV2 *common.DetailedError
+	var errTideV2 *common.DetailedError
 	var wg sync.WaitGroup
 
 	var exclusions = map[string]string{
@@ -240,9 +241,9 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	writeParams := &params.writer
 
 	if params.includePumpSettings {
-		pumpSettings, logError = p.getLatestPumpSettings(ctx, traceID, params.user, writeParams, sessionToken)
-		if logError != nil {
-			return res.WriteError(logError)
+		pumpSettings, err = p.getLatestPumpSettings(ctx, traceID, params.user, writeParams, sessionToken)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -281,20 +282,20 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 		}
 	}()
 
-	logErrorStore := <-chanStoreError
-	if logErrorStore != nil {
-		return res.WriteError(logErrorStore)
+	errStore := <-chanStoreError
+	if errStore != nil {
+		return errStore
 	}
 	if params.source["cbgBucket"] {
-		logErrorDataV2 = <-chanApiCbgError
-		if logErrorDataV2 != nil {
-			return res.WriteError(logErrorDataV2)
+		errTideV2 = <-chanApiCbgError
+		if errTideV2 != nil {
+			return errTideV2
 		}
 	}
 	if params.source["basalBucket"] {
-		logErrorDataV2 = <-chanApiBasalError
-		if logErrorDataV2 != nil {
-			return res.WriteError(logErrorDataV2)
+		errTideV2 = <-chanApiBasalError
+		if errTideV2 != nil {
+			return errTideV2
 		}
 	}
 	iterData := <-chanMongoIter
@@ -314,10 +315,10 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 
 	defer iterData.Close(ctx)
 
-	return p.writeDataToBuff(
+	return p.writeDataToBuffer(
 		ctx,
 		buff,
-		res.TraceID,
+		traceID,
 		params.includePumpSettings,
 		pumpSettings,
 		iterUploads,

@@ -38,11 +38,11 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 	sessionToken := getSessionToken(res)
-	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, a.readBasalBucket, sessionToken, &buffer, res)
-	if err == nil {
-		res.Write(buffer.Bytes())
+	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, a.readBasalBucket, sessionToken, &buffer)
+	if err != nil {
+		return res.WriteError(err)
 	}
-	return err
+	return res.Write(buffer.Bytes())
 }
 
 // get session token (for history the header is found in the response and not in the request because of the v1 middelware)
