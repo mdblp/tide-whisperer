@@ -91,6 +91,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	patientDataRepository.DataIDV1 = []string{
 		"{\"id\":\"00\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"upload\"}",
 	}
+	patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{}
 
 	creationTime1, _ := time.Parse(time.RFC3339, "2021-01-01T08:00:00Z")
 	day1, _ := time.Parse(dayTimeFormat, "2021-01-01")
@@ -183,6 +184,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 		patientDataRepository.DataIDV1 = nil
 		mockTideV2.MockedCbg = []schema.CbgBucket{}
 		mockTideV2.MockedBasal = []schema.BasalBucket{}
+		patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{}
 	})
 
 	resetOPAMockRouteV1(true, "/v1/dataV2", userID)

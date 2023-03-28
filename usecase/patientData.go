@@ -152,8 +152,8 @@ func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, 
 		tideV2Data <- data
 		logErrorDataV2 <- nil
 	}
-	elapsed_time := time.Now().Sub(start).Milliseconds()
-	dataFromTideV2Timer.Observe(float64(elapsed_time))
+	elapsedTime := time.Now().Sub(start).Milliseconds()
+	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
 func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, v2Data chan []schemaV2.BasalBucket, logErrorDataV2 chan *common.DetailedError) {
@@ -172,8 +172,8 @@ func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup
 		v2Data <- data
 		logErrorDataV2 <- nil
 	}
-	elapsed_time := time.Now().Sub(start).Milliseconds()
-	dataFromTideV2Timer.Observe(float64(elapsed_time))
+	elapsedTime := time.Now().Sub(start).Milliseconds()
+	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
 func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, loopModeData chan []schema.LoopModeEvent, logError chan *common.DetailedError) {
@@ -192,8 +192,8 @@ func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, t
 		loopModeData <- loopModes
 		logError <- nil
 	}
-	elapsed_time := time.Since(start).Milliseconds()
-	dataFromStoreTimer.Observe(float64(elapsed_time))
+	elapsedTime := time.Since(start).Milliseconds()
+	dataFromStoreTimer.Observe(float64(elapsedTime))
 }
 
 func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error) {
@@ -248,8 +248,12 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	}
 
 	// Fetch data from patientData and V2 API (for cbg)
-	chanStoreError := make(chan *common.DetailedError, 1)
+	chanStoreError := make(chan *common.DetailedError)
+	defer close(chanStoreError)
+	chanStoreErrorLoop := make(chan *common.DetailedError, 1)
+	defer close(chanStoreErrorLoop)
 	chanMongoIter := make(chan mongo.StorageIterator, 1)
+	defer close(chanMongoIter)
 
 	// Parallel routines
 	wg.Add(groups)
@@ -257,30 +261,21 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 
 	if params.source["cbgBucket"] {
 		chanApiCbgs = make(chan []schemaV2.CbgBucket, 1)
+		defer close(chanApiCbgs)
 		chanApiCbgError = make(chan *common.DetailedError, 1)
+		defer close(chanApiCbgError)
 		go p.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiCbgError)
 	}
 	if params.source["basalBucket"] {
 		chanApiBasals = make(chan []schemaV2.BasalBucket, 1)
+		defer close(chanApiBasals)
 		chanApiBasalError = make(chan *common.DetailedError, 1)
+		defer close(chanApiBasalError)
 		go p.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
 		chanLoopMode = make(chan []schema.LoopModeEvent, 1)
-		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, chanLoopMode, chanStoreError)
+		defer close(chanLoopMode)
+		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, chanLoopMode, chanStoreErrorLoop)
 	}
-	go func() {
-		wg.Wait()
-		close(chanStoreError)
-		close(chanMongoIter)
-		if params.source["cbgBucket"] {
-			close(chanApiCbgs)
-			close(chanApiCbgError)
-		}
-		if params.source["basalBucket"] {
-			close(chanApiBasals)
-			close(chanApiBasalError)
-			close(chanLoopMode)
-		}
-	}()
 
 	errStore := <-chanStoreError
 	if errStore != nil {
@@ -305,6 +300,10 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	}
 	var Basals []schemaV2.BasalBucket
 	if params.source["basalBucket"] {
+		errStore = <-chanStoreErrorLoop
+		if errStore != nil {
+			return errStore
+		}
 		Basals = <-chanApiBasals
 		loopModes := <-chanLoopMode
 		if len(loopModes) > 0 {
@@ -345,8 +344,8 @@ func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, 
 		logError <- nil
 		iterData <- data
 	}
-	elapsed_time := time.Now().Sub(start).Milliseconds()
-	dataFromStoreTimer.Observe(float64(elapsed_time))
+	elapsedTime := time.Now().Sub(start).Milliseconds()
+	dataFromStoreTimer.Observe(float64(elapsedTime))
 }
 
 // writeFromIterV1 Common code to write
