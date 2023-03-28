@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tidepool-org/go-common/clients/mongo"
+	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
 	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/usecase/basal"
@@ -136,61 +137,55 @@ func NewPatientDataUseCase(logger *log.Logger, tideV2Client tideV2Client.ClientI
 	}
 }
 
-func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, tideV2Data chan []schemaV2.CbgBucket, logErrorDataV2 chan *common.DetailedError) {
+func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.tideV2Client.GetCbgV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
 	if err != nil {
-		logErrorDataV2 <- &common.DetailedError{
+		channel <- &common.DetailedError{
 			Status:          errorTideV2Http.Status,
 			Code:            errorTideV2Http.Code,
 			Message:         errorTideV2Http.Message,
 			InternalMessage: err.Error(),
 		}
-		tideV2Data <- nil
 	} else {
-		tideV2Data <- data
-		logErrorDataV2 <- nil
+		channel <- data
 	}
 	elapsedTime := time.Now().Sub(start).Milliseconds()
 	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
-func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, v2Data chan []schemaV2.BasalBucket, logErrorDataV2 chan *common.DetailedError) {
+func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.tideV2Client.GetBasalV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
 	if err != nil {
-		logErrorDataV2 <- &common.DetailedError{
+		channel <- &common.DetailedError{
 			Status:          errorTideV2Http.Status,
 			Code:            errorTideV2Http.Code,
 			Message:         errorTideV2Http.Message,
 			InternalMessage: err.Error(),
 		}
-		v2Data <- nil
 	} else {
-		v2Data <- data
-		logErrorDataV2 <- nil
+		channel <- data
 	}
 	elapsedTime := time.Now().Sub(start).Milliseconds()
 	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
-func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, loopModeData chan []schema.LoopModeEvent, logError chan *common.DetailedError) {
+func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	loopModes, err := p.patientDataRepository.GetLoopMode(ctx, traceID, userID, dates)
 	if err != nil {
-		logError <- &common.DetailedError{
+		channel <- &common.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
 			InternalMessage: err.Error(),
 		}
-		loopModeData <- loopModes
 	} else {
-		loopModeData <- loopModes
-		logError <- nil
+		channel <- loopModes
 	}
 	elapsedTime := time.Since(start).Milliseconds()
 	dataFromStoreTimer.Observe(float64(elapsedTime))
@@ -210,12 +205,7 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	}
 	var pumpSettings *schemaV2.SettingsResult
 	var iterUploads mongo.StorageIterator
-	var chanApiCbgs chan []schemaV2.CbgBucket
-	var chanApiBasals chan []schemaV2.BasalBucket
-	var chanLoopMode chan []schema.LoopModeEvent
 
-	var chanApiCbgError, chanApiBasalError chan *common.DetailedError
-	var errTideV2 *common.DetailedError
 	var wg sync.WaitGroup
 
 	var exclusions = map[string]string{
@@ -248,67 +238,47 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	}
 
 	// Fetch data from patientData and V2 API (for cbg)
-	chanStoreError := make(chan *common.DetailedError)
-	defer close(chanStoreError)
-	chanStoreErrorLoop := make(chan *common.DetailedError, 1)
-	defer close(chanStoreErrorLoop)
-	chanMongoIter := make(chan mongo.StorageIterator, 1)
-	defer close(chanMongoIter)
+	channel := make(chan interface{})
 
 	// Parallel routines
 	wg.Add(groups)
-	go p.getDataFromStore(ctx, &wg, traceID, params.user, dates, exclusionList, chanMongoIter, chanStoreError)
+	go p.getDataFromStore(ctx, &wg, traceID, params.user, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
-		chanApiCbgs = make(chan []schemaV2.CbgBucket, 1)
-		defer close(chanApiCbgs)
-		chanApiCbgError = make(chan *common.DetailedError, 1)
-		defer close(chanApiCbgError)
-		go p.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiCbgError)
+		go p.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
-		chanApiBasals = make(chan []schemaV2.BasalBucket, 1)
-		defer close(chanApiBasals)
-		chanApiBasalError = make(chan *common.DetailedError, 1)
-		defer close(chanApiBasalError)
-		go p.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
-		chanLoopMode = make(chan []schema.LoopModeEvent, 1)
-		defer close(chanLoopMode)
-		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, chanLoopMode, chanStoreErrorLoop)
+		go p.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, channel)
+		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, channel)
 	}
 
-	errStore := <-chanStoreError
-	if errStore != nil {
-		return errStore
-	}
-	if params.source["cbgBucket"] {
-		errTideV2 = <-chanApiCbgError
-		if errTideV2 != nil {
-			return errTideV2
-		}
-	}
-	if params.source["basalBucket"] {
-		errTideV2 = <-chanApiBasalError
-		if errTideV2 != nil {
-			return errTideV2
-		}
-	}
-	iterData := <-chanMongoIter
-	var Cbgs []schemaV2.CbgBucket
-	if params.source["cbgBucket"] {
-		Cbgs = <-chanApiCbgs
-	}
-	var Basals []schemaV2.BasalBucket
-	if params.source["basalBucket"] {
-		errStore = <-chanStoreErrorLoop
-		if errStore != nil {
-			return errStore
-		}
-		Basals = <-chanApiBasals
-		loopModes := <-chanLoopMode
-		if len(loopModes) > 0 {
-			loopModes = schema.FillLoopModeEvents(loopModes)
-			Basals = basal.CleanUpBasals(Basals, loopModes)
+	/*To stop the range loop reading channels once all data are read from it*/
+	go func() {
+		wg.Wait()
+		close(channel)
+	}()
+
+	var iterData goComMgo.StorageIterator
+	var cbgs []schemaV2.CbgBucket
+	var basals []schemaV2.BasalBucket
+	var loopModes []schema.LoopModeEvent
+
+	for chanData := range channel {
+		switch d := chanData.(type) {
+		case *common.DetailedError:
+			return d
+		case goComMgo.StorageIterator:
+			iterData = d
+		case []schemaV2.CbgBucket:
+			cbgs = d
+		case []schemaV2.BasalBucket:
+			basals = d
+		case []schema.LoopModeEvent:
+			loopModes = d
+			if len(loopModes) > 0 {
+				loopModes = schema.FillLoopModeEvents(loopModes)
+				basals = basal.CleanUpBasals(basals, loopModes)
+			}
 		}
 	}
 
@@ -322,27 +292,25 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 		pumpSettings,
 		iterUploads,
 		iterData,
-		Cbgs,
-		Basals,
+		cbgs,
+		basals,
 		writeParams,
 	)
 }
 
-func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *common.DetailedError) {
+func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, excludes []string, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.patientDataRepository.GetDataInDeviceData(ctx, traceID, userID, dates, excludes)
 	if err != nil {
-		logError <- &common.DetailedError{
+		channel <- &common.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
 			InternalMessage: err.Error(),
 		}
-		iterData <- nil
 	} else {
-		logError <- nil
-		iterData <- data
+		channel <- data
 	}
 	elapsedTime := time.Now().Sub(start).Milliseconds()
 	dataFromStoreTimer.Observe(float64(elapsedTime))
