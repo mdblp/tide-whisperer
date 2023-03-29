@@ -23,10 +23,8 @@ import (
 // @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
 // @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
-// @Param cbgBucket query string false "no parameter or not equal to true to get cbg from buckets" format(boolean)
-// @Param basalBucket query string false "true to get basals from buckets, if the parameter is not there or not equal to true the basals are from deviceData" format(boolean)
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
-// @Security TidepoolAuth
+// @Security Auth0
 // @Router /v1/dataV2/{userID} [get]
 func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) error {
 	var buffer bytes.Buffer
@@ -79,7 +77,7 @@ func getSessionToken(res *common.HttpResponseWriter) string {
 // @Param cbgBucket query string false "no parameter or not equal to true to get cbg from buckets" format(boolean)
 // @Param basalBucket query string false "true to get basals from buckets, if the parameter is not there or not equal to true the basals are from deviceData" format(boolean)
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
-// @Security TidepoolAuth
+// @Security Auth0
 // @Router /v1/data/{userID} [get]
 func (a *API) getData(ctx context.Context, res *common.HttpResponseWriter) error {
 	return a.getDataV2(ctx, res)
@@ -98,7 +96,7 @@ func (a *API) getData(ctx context.Context, res *common.HttpResponseWriter) error
 // @Failure 500 {object} common.DetailedError
 // @Param userID path string true "The ID of the user to search data for"
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
-// @Security TidepoolAuth
+// @Security Auth0
 // @Router /v1/range/{userID} [get]
 // Deprecated: not removed for backward compatibility but should not be used
 func (a *API) getRangeLegacy(ctx context.Context, res *common.HttpResponseWriter) error {

@@ -196,7 +196,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	urlParams := map[string]string{}
 
 	patientDataUseCase := usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
-	api = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	api = InitAPI(ExportController{}, patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBody := "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -210,7 +210,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 
 	// testing with cbg only, required to set basal to false
-	api = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	api = InitAPI(ExportController{}, patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -228,7 +228,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 		schemaV1.NewLoopModeEvent(day1, &day2, "automated"),
 	}
 	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
-	api = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	api = InitAPI(ExportController{}, patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBasalBucketWithLoopModes := `{"deliveryType":"automated","duration":1000,"id":"basal_bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"UTC","type":"basal"}`
 	expectedBody = "[" + strings.Join(
 		[]string{

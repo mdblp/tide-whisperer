@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"log"
 	"net/http"
@@ -25,6 +26,9 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/tidepool-org/tide-whisperer/api"
 	common2 "github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/infrastructure"
@@ -45,8 +49,8 @@ import (
 )
 
 type (
-	// Config holds the configuration for the `tide-whisperer` service
-	Config struct {
+	// TWConfig holds the configuration for the `tide-whisperer` service
+	TWConfig struct {
 		clients.Config
 		Service               disc.ServiceListing `json:"service"`
 		Mongo                 mongo.Config        `json:"mongo"`
@@ -55,21 +59,54 @@ type (
 )
 
 func main() {
-	var config Config
+	var twconfig TWConfig
 	logger := log.New(os.Stdout, api.DataAPIPrefix, log.LstdFlags|log.Lshortfile)
 
 	if err := common.LoadEnvironmentConfig(
 		[]string{"TIDEPOOL_TIDE_WHISPERER_SERVICE", "TIDEPOOL_TIDE_WHISPERER_ENV"},
-		&config,
+		&twconfig,
 	); err != nil {
 		logger.Fatal("Problem loading config: ", err)
 	}
-	authSecret, found := os.LookupEnv("API_SECRET")
-	if !found || authSecret == "" {
+	authSecret := os.Getenv("API_SECRET")
+	if authSecret == "" {
 		logger.Fatal("Env var API_SECRET is not provided or empty")
 	}
+
+	// AWS part configuration
+	bucketSuffix := os.Getenv("BUCKET_SUFFIX")
+	if bucketSuffix == "" {
+		logger.Fatal("Env var BUCKET_SUFFIX is not provided or empty")
+	}
+	region := os.Getenv("REGION")
+	if region == "" {
+		region = "eu-west-1"
+		logger.Println("Using default aws region: ", region)
+	}
+
+	url := os.Getenv("S3_ENDPOINT_URL")
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		if url != "" {
+			logger.Println("Using custom s3 endpoint: ", url)
+			return aws.Endpoint{
+				PartitionID:       "aws",
+				URL:               url,
+				SigningRegion:     region,
+				HostnameImmutable: true,
+			}, nil
+		}
+		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+	})
+
+	awsconfig, err := config.LoadDefaultConfig(context.TODO(), config.WithEndpointResolverWithOptions(customResolver), config.WithRegion(region))
+	if err != nil {
+		logger.Fatal(err)
+	}
+	s3Client := s3.NewFromConfig(awsconfig)
+	uploader, err := usecase.NewUploader(s3Client, bucketSuffix)
+
 	authClient, err := auth.NewClient(authSecret)
-	config.Mongo.FromEnv()
+	twconfig.Mongo.FromEnv()
 
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -89,7 +126,7 @@ func main() {
 	 */
 	instrumentation := muxprom.NewCustomInstrumentation(true, "dblp", "tidewhisperer", prometheus.DefBuckets, nil, prometheus.DefaultRegisterer)
 
-	patientDataMongoRepository, err := infrastructure.NewPatientDataMongoRepository(&config.Mongo, logger)
+	patientDataMongoRepository, err := infrastructure.NewPatientDataMongoRepository(&twconfig.Mongo, logger)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -112,8 +149,9 @@ func main() {
 	}
 
 	dataUseCase := usecase.NewPatientDataUseCase(logger, tideV2Client, patientDataMongoRepository)
+	exportController := api.NewExportController(logger, uploader, dataUseCase, envReadBasalBucket)
 
-	api := api.InitAPI(dataUseCase, patientDataMongoRepository, authClient, permsClient, config.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
+	api := api.InitAPI(exportController, dataUseCase, patientDataMongoRepository, authClient, permsClient, twconfig.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
 	api.SetHandlers("", rtr)
 
 	// ability to return compressed (gzip/deflate) responses if client browser accepts it
@@ -123,13 +161,13 @@ func main() {
 
 	done := make(chan bool)
 	server := common.NewServer(&http.Server{
-		Addr:    config.Service.GetPort(),
+		Addr:    twconfig.Service.GetPort(),
 		Handler: gzipHandler,
 	})
 
 	var start func() error
-	if config.Service.Scheme == "https" {
-		sslSpec := config.Service.GetSSLSpec()
+	if twconfig.Service.Scheme == "https" {
+		sslSpec := twconfig.Service.GetSSLSpec()
 		start = func() error { return server.ListenAndServeTLS(sslSpec.CertFile, sslSpec.KeyFile) }
 	} else {
 		start = func() error { return server.ListenAndServe() }
