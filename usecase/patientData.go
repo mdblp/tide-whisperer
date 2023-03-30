@@ -137,7 +137,7 @@ func NewPatientDataUseCase(logger *log.Logger, tideV2Client tideV2Client.ClientI
 	}
 }
 
-func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
+func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.tideV2Client.GetCbgV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
@@ -146,7 +146,7 @@ func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, 
 			Status:          errorTideV2Http.Status,
 			Code:            errorTideV2Http.Code,
 			Message:         errorTideV2Http.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getCbgFromTideV2", userID, traceID, err.Error()),
 		}
 	} else {
 		channel <- data
@@ -155,7 +155,7 @@ func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, 
 	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
-func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
+func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.tideV2Client.GetBasalV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
@@ -164,7 +164,7 @@ func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup
 			Status:          errorTideV2Http.Status,
 			Code:            errorTideV2Http.Code,
 			Message:         errorTideV2Http.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getBasalFromTideV2", userID, traceID, err.Error()),
 		}
 	} else {
 		channel <- data
@@ -182,7 +182,7 @@ func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, t
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getBasalFromTideV2", userID, traceID, err.Error()),
 		}
 	} else {
 		channel <- loopModes
@@ -196,6 +196,14 @@ func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, us
 		return nil, errors.New("user id is missing")
 	}
 	return p.patientDataRepository.GetDataRangeLegacy(ctx, traceID, userID)
+}
+
+/*Temporary hack until we remove DetailedError
+TODO : refactor DetailedError to stop using it and use go-common v2 errors
+By doing this we will use the error interface and we will be able to wrap errors with additional
+context using fmt.Errorf("context: %w", err) */
+func addContextToMessage(methodName string, userID string, traceID string, message string) string {
+	return fmt.Sprintf("%s failed: user=[%s], traceID=[%s] : %v", methodName, userID, traceID, message)
 }
 
 func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool, sessionToken string, buff *bytes.Buffer) *common.DetailedError {
@@ -231,7 +239,7 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	writeParams := &params.writer
 
 	if params.includePumpSettings {
-		pumpSettings, err = p.getLatestPumpSettings(ctx, traceID, params.user, writeParams, sessionToken)
+		pumpSettings, err = p.getLatestPumpSettings(ctx, traceID, userID, writeParams, sessionToken)
 		if err != nil {
 			return err
 		}
@@ -245,10 +253,10 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	go p.getDataFromStore(ctx, &wg, traceID, params.user, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
-		go p.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, channel)
+		go p.getCbgFromTideV2(ctx, &wg, traceID, params.user, sessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
-		go p.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, channel)
+		go p.getBasalFromTideV2(ctx, &wg, traceID, params.user, sessionToken, dates, channel)
 		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, channel)
 	}
 
@@ -309,7 +317,7 @@ func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, 
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getDataFromStore", userID, traceID, err.Error()),
 		}
 	} else {
 		channel <- data

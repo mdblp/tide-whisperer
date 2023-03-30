@@ -65,7 +65,7 @@ func (p *PatientData) getDataV1Params(userID string, traceID string, startDate s
 				Status:          errorInvalidParameters.Status,
 				Code:            errorInvalidParameters.Code,
 				Message:         errorInvalidParameters.Message,
-				InternalMessage: err.Error(),
+				InternalMessage: addContextToMessage("getDataV1Params", userID, traceID, err.Error()),
 			}
 			return nil, logError
 		}
@@ -95,7 +95,7 @@ func (p *PatientData) getLatestPumpSettings(ctx context.Context, traceID string,
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getLatestPumpSettings", userID, traceID, err.Error()),
 		}
 
 		switch v := err.(type) {
