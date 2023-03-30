@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.31.0
 	github.com/mdblp/go-common v1.7.0
 	github.com/mdblp/orca v0.6.0
-	github.com/mdblp/shoreline v1.11.0
+	github.com/mdblp/shoreline v1.9.2
 	github.com/mdblp/tide-whisperer-v2/v2 v2.9.0
 	github.com/stretchr/testify v1.8.1
 )
@@ -71,8 +71,8 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a // indirect
 	golang.org/x/crypto v0.3.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.2.0 // indirect
-	golang.org/x/text v0.4.0 // indirect
+	golang.org/x/sys v0.6.0 // indirect
+	golang.org/x/text v0.8.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect

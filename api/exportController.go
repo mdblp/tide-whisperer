@@ -59,13 +59,13 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 		c.logger.Println("launching export process")
 		//TODO update status to ongoing
 		startExportTime := time.Now().UTC().Round(time.Second).String()
-		err := c.useCase.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, c.readBasalBucket, sessionToken, buffer)
+		err := c.useCase.GetData(context.Background(), userID, res.TraceID, startDate, endDate, withPumpSettings, c.readBasalBucket, sessionToken, buffer)
 		if err != nil {
 			c.logger.Printf("get patient data failed: %v \n", err)
 			//TODO update status to fail with getData error details
 		}
 		filename := strings.Join([]string{userID, startExportTime}, "_")
-		errUpload := c.uploader.Upload(ctx, filename, buffer)
+		errUpload := c.uploader.Upload(context.Background(), filename, buffer)
 		if errUpload != nil {
 			//TODO update status to fail with s3 error details
 			c.logger.Printf("S3 upload failed: %v \n", errUpload)
