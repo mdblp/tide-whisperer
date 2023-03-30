@@ -33,6 +33,8 @@ func NewExportController(logger *log.Logger, uploader UploaderUseCase, useCase P
 // @ID tide-whisperer-export
 // @Produce json
 // @Success 200
+// @Failure 403 {object} common.DetailedError
+// @Failure 404 {object} common.DetailedError
 // @Param userID path string true "The ID of the user to search data for"
 // @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
