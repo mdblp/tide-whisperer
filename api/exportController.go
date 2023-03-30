@@ -43,7 +43,7 @@ func NewExportController(logger *log.Logger, uploader UploaderUseCase, useCase P
 // @Security Auth0
 // @Router /export/{userID} [get]
 func (c ExportController) ExportData(ctx context.Context, res *common.HttpResponseWriter) error {
-	var buffer bytes.Buffer
+	var exportBuffer bytes.Buffer
 	// Mongo iterators
 	userID := res.VARS["userID"]
 
@@ -60,13 +60,13 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 		c.logger.Println("launching export process")
 		//TODO update status to ongoing
 		startExportTime := time.Now().UTC().Round(time.Second).String()
-		err := c.useCase.GetData(backgroundCtx, userID, res.TraceID, startDate, endDate, withPumpSettings, c.readBasalBucket, sessionToken, &buffer)
+		err := c.useCase.GetData(backgroundCtx, userID, res.TraceID, startDate, endDate, withPumpSettings, c.readBasalBucket, sessionToken, &exportBuffer)
 		if err != nil {
 			c.logger.Printf("get patient data failed: %v \n", err)
 			//TODO update status to fail with getData error details
 		}
 		filename := strings.Join([]string{userID, startExportTime}, "_")
-		errUpload := c.uploader.Upload(backgroundCtx, filename, &buffer)
+		errUpload := c.uploader.Upload(backgroundCtx, filename, &exportBuffer)
 		if errUpload != nil {
 			//TODO update status to fail with s3 error details
 			c.logger.Printf("S3 upload failed: %v \n", errUpload)
