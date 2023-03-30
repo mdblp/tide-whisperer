@@ -56,16 +56,17 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 	// if export is already ongoing just skip everything and return
 	// if nothing is ongoing run a new export as go func
 	go func() {
+		backgroundCtx := common.TimeItContext(context.Background())
 		c.logger.Println("launching export process")
 		//TODO update status to ongoing
 		startExportTime := time.Now().UTC().Round(time.Second).String()
-		err := c.useCase.GetData(context.Background(), userID, res.TraceID, startDate, endDate, withPumpSettings, c.readBasalBucket, sessionToken, buffer)
+		err := c.useCase.GetData(backgroundCtx, userID, res.TraceID, startDate, endDate, withPumpSettings, c.readBasalBucket, sessionToken, buffer)
 		if err != nil {
 			c.logger.Printf("get patient data failed: %v \n", err)
 			//TODO update status to fail with getData error details
 		}
 		filename := strings.Join([]string{userID, startExportTime}, "_")
-		errUpload := c.uploader.Upload(context.Background(), filename, buffer)
+		errUpload := c.uploader.Upload(backgroundCtx, filename, buffer)
 		if errUpload != nil {
 			//TODO update status to fail with s3 error details
 			c.logger.Printf("S3 upload failed: %v \n", errUpload)
