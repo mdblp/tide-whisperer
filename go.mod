@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.31.0
 	github.com/mdblp/go-common v1.7.0
 	github.com/mdblp/orca v0.6.0
-	github.com/mdblp/shoreline v1.9.2
+	github.com/mdblp/shoreline v1.11.0
 	github.com/mdblp/tide-whisperer-v2/v2 v2.9.0
 	github.com/stretchr/testify v1.8.1
 )

@@ -341,8 +341,8 @@ github.com/mdblp/go-common v1.7.0 h1:3S3VnEtkPcUBeie+jouynrAprce+2Q8M3S6q8Zd5jkc
 github.com/mdblp/go-common v1.7.0/go.mod h1:L/wh2qPytBNJLMQINZ4iVmyHo74aTA8q3A1h9LZ2Tz0=
 github.com/mdblp/orca v0.6.0 h1:5PEIOqmNlw5xovaYyouGaAVqz4468zwKJRsw0XxIUh8=
 github.com/mdblp/orca v0.6.0/go.mod h1:WFU2sc7GydwUOGeCDK2a/mYaVIkIa4gCcSAr0hEob1I=
-github.com/mdblp/shoreline v1.9.2 h1:J5hlsjBbz+kZAMOr27O2FlenQB1Ii/P4dMkCbMePvsY=
-github.com/mdblp/shoreline v1.9.2/go.mod h1:EYinTIltyPSR+ytfKyaTtKEXsetKwLY/r+glEbnmrqk=
+github.com/mdblp/shoreline v1.11.0 h1:h54qAHEqKnwGl4Pj5JQSB96/m9wSaZsHtUCYEPkdzFE=
+github.com/mdblp/shoreline v1.11.0/go.mod h1:glQwa+xEjMtE66SIHvNqQnEHWV04EwcxqB/6juF+hTQ=
 github.com/mdblp/tide-whisperer-v2/v2 v2.9.0 h1:1ADqy8yfFW0Oz3ATcS77GihJIgOZa7P3wqX3LXpvhlU=
 github.com/mdblp/tide-whisperer-v2/v2 v2.9.0/go.mod h1:nlII9OUzg4gpAkCRoZqVcPVdwP4+W2lWQFKJapnHdxA=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
