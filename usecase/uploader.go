@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
@@ -19,10 +20,10 @@ type Uploader struct {
 
 func NewUploader(s3UploadClient manager.UploadAPIClient, bucketSuffix string) (Uploader, error) {
 	if s3UploadClient == nil {
-		return Uploader{}, errors.New("invalid s3 upload client")
+		return Uploader{}, errors.New("s3 upload client nil")
 	}
 	if bucketSuffix == "" {
-		return Uploader{}, errors.New("invalid bucket suffix")
+		return Uploader{}, errors.New("bucket suffix is empty")
 	}
 	return Uploader{
 		uploader:     manager.NewUploader(s3UploadClient),
@@ -37,7 +38,7 @@ func (u Uploader) Upload(ctx context.Context, filename string, buffer *bytes.Buf
 		Body:   buffer,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("upload failed filename=[%s], bucketPrefix=[%s], bucketSuffix=[%s]: %w", filename, bucketPrefix, u.bucketSuffix, err)
 	}
 	return nil
 }
