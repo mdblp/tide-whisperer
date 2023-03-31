@@ -285,11 +285,12 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 			basals = d
 		case []schema.LoopModeEvent:
 			loopModes = d
-			if len(loopModes) > 0 {
-				loopModes = schema.FillLoopModeEvents(loopModes)
-				basals = basal.CleanUpBasals(basals, loopModes)
-			}
 		}
+	}
+
+	if len(loopModes) > 0 {
+		loopModes = schema.FillLoopModeEvents(loopModes)
+		basals = basal.CleanUpBasals(basals, loopModes)
 	}
 
 	defer iterData.Close(ctx)
