@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-const bucketPrefix = "com.diabeloop.yourloops.export."
+const bucketPrefix = "com.diabeloop.yourloops.exports."
 
 type Uploader struct {
 	uploader     *manager.Uploader
