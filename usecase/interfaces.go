@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
@@ -18,4 +19,11 @@ type PatientDataRepository interface {
 
 type DatabaseAdapter interface {
 	goComMgo.Storage
+}
+
+type PatientDataUseCase interface {
+	GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, sessionToken string, buff *bytes.Buffer) *common.DetailedError
+}
+type UploaderUseCase interface {
+	Upload(ctx context.Context, filename string, buffer *bytes.Buffer) error
 }

@@ -36,7 +36,7 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 	sessionToken := getSessionToken(res)
-	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, a.readBasalBucket, sessionToken, &buffer)
+	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, sessionToken, &buffer)
 	if err != nil {
 		return res.WriteError(err)
 	}

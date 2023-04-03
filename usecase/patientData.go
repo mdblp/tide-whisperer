@@ -127,13 +127,15 @@ type PatientData struct {
 	patientDataRepository PatientDataRepository
 	tideV2Client          tideV2Client.ClientInterface
 	logger                *log.Logger
+	readBasalBucket       bool
 }
 
-func NewPatientDataUseCase(logger *log.Logger, tideV2Client tideV2Client.ClientInterface, patientDataRepository PatientDataRepository) *PatientData {
+func NewPatientDataUseCase(logger *log.Logger, tideV2Client tideV2Client.ClientInterface, patientDataRepository PatientDataRepository, readBasalBucket bool) *PatientData {
 	return &PatientData{
 		patientDataRepository: patientDataRepository,
 		logger:                logger,
 		tideV2Client:          tideV2Client,
+		readBasalBucket:       readBasalBucket,
 	}
 }
 
@@ -206,8 +208,8 @@ func addContextToMessage(methodName string, userID string, traceID string, messa
 	return fmt.Sprintf("%s failed: user=[%s], traceID=[%s] : %v", methodName, userID, traceID, message)
 }
 
-func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool, sessionToken string, buff *bytes.Buffer) *common.DetailedError {
-	params, err := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, readBasalBucket)
+func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, sessionToken string, buff *bytes.Buffer) *common.DetailedError {
+	params, err := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, p.readBasalBucket)
 	if err != nil {
 		return err
 	}

@@ -148,10 +148,11 @@ func main() {
 		logger.Print("environment variable READ_BASAL_BUCKET not exported, started with false")
 	}
 
-	dataUseCase := usecase.NewPatientDataUseCase(logger, tideV2Client, patientDataMongoRepository)
-	exportController := api.NewExportController(logger, uploader, dataUseCase, envReadBasalBucket)
+	dataUseCase := usecase.NewPatientDataUseCase(logger, tideV2Client, patientDataMongoRepository, envReadBasalBucket)
+	exportUseCase := usecase.NewExporter(logger, dataUseCase, uploader)
+	exportController := api.NewExportController(logger, exportUseCase)
 
-	api := api.InitAPI(exportController, dataUseCase, patientDataMongoRepository, authClient, permsClient, twconfig.SchemaVersion, logger, tideV2Client, envReadBasalBucket)
+	api := api.InitAPI(exportController, dataUseCase, patientDataMongoRepository, authClient, permsClient, twconfig.SchemaVersion, logger, tideV2Client)
 	api.SetHandlers("", rtr)
 
 	// ability to return compressed (gzip/deflate) responses if client browser accepts it

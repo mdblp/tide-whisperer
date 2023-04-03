@@ -46,7 +46,7 @@ var (
 	errorNotfound         = common.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 )
 
-func InitAPI(exportController ExportController, patientDataUC PatientDataUseCase, dbAdapter usecase.DatabaseAdapter, auth auth.ClientInterface, permsClient opa.Client, schemaV common.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
+func InitAPI(exportController ExportController, patientDataUC PatientDataUseCase, dbAdapter usecase.DatabaseAdapter, auth auth.ClientInterface, permsClient opa.Client, schemaV common.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface) *API {
 	return &API{
 		exportController: exportController,
 		patientData:      patientDataUC,
@@ -56,7 +56,6 @@ func InitAPI(exportController ExportController, patientDataUC PatientDataUseCase
 		schemaVersion:    schemaV,
 		logger:           logger,
 		tideV2Client:     V2Client,
-		readBasalBucket:  envReadBasalBucket,
 	}
 }
 

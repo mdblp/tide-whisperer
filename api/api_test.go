@@ -34,8 +34,8 @@ var (
 	mockAuth              = auth.NewMock()
 	mockPerms             = opa.NewMock()
 	mockTideV2            = twV2Client.NewMock()
-	patientDataUC         = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
-	api                   = InitAPI(ExportController{}, patientDataUC, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	patientDataUC         = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository, false)
+	api                   = InitAPI(ExportController{}, patientDataUC, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
 	rtr                   = mux.NewRouter()
 )
 
