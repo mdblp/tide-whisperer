@@ -1,10 +1,7 @@
-package data
+package api
 
 import (
-	"context"
 	"fmt"
-	"github.com/go-playground/assert/v2"
-	"github.com/mdblp/go-common/clients/status"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/mdblp/tide-whisperer-v2/v2/schema"
 	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
 const (
@@ -52,7 +50,7 @@ func assertRequest(apiParams map[string]string, urlParams map[string]string, exp
 	traceID := uuid.New().String()
 	userID := apiParams["userID"]
 
-	handlerLogFunc := tidewhisperer.middlewareV1(tidewhisperer.getDataV2, true, "userID")
+	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getData, true, "userID")
 	request, _ := http.NewRequest("GET", "/v1/dataV2/"+userID, nil)
 	request.Header.Set("x-tidepool-trace-session", traceID)
 	request.Header.Set("Authorization", "Bearer "+userID)
@@ -83,14 +81,14 @@ func assertRequest(apiParams map[string]string, urlParams map[string]string, exp
 func TestAPI_GetDataV2(t *testing.T) {
 	userID := "abcdef"
 
-	storage.DataV1 = []string{
+	patientDataRepository.DataV1 = []string{
 		"{\"id\":\"01\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"basal\",\"value\":10}",
 		"{\"id\":\"02\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:01.000Z\",\"type\":\"basal\",\"value\":11}",
 		"{\"id\":\"03\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:02.000Z\",\"type\":\"basal\",\"value\":12}",
 		"{\"id\":\"04\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:03.000Z\",\"type\":\"basal\",\"value\":13}",
 		"{\"id\":\"05\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:04.000Z\",\"type\":\"basal\",\"value\":14}",
 	}
-	storage.DataIDV1 = []string{
+	patientDataRepository.DataIDV1 = []string{
 		"{\"id\":\"00\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"upload\"}",
 	}
 
@@ -181,8 +179,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 		},
 	}
 	t.Cleanup(func() {
-		storage.DataV1 = nil
-		storage.DataIDV1 = nil
+		patientDataRepository.DataV1 = nil
+		patientDataRepository.DataIDV1 = nil
 		mockTideV2.MockedCbg = []schema.CbgBucket{}
 		mockTideV2.MockedBasal = []schema.BasalBucket{}
 	})
@@ -194,7 +192,9 @@ func TestAPI_GetDataV2(t *testing.T) {
 		"userID": userID,
 	}
 	urlParams := map[string]string{}
-	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+
+	patientDataUseCase := usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
+	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBody := "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -208,7 +208,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 
 	// testing with cbg only, required to set basal to false
-	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -222,10 +222,11 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 
 	// testing with basal buckets + loopMode objects
-	storage.LoopModeEvents = []schemaV1.LoopModeEvent{
+	patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{
 		schemaV1.NewLoopModeEvent(day1, &day2, "automated"),
 	}
-	tidewhisperer = InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
+	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
 	expectedBasalBucketWithLoopModes := `{"deliveryType":"automated","duration":1000,"id":"basal_bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"UTC","type":"basal"}`
 	expectedBody = "[" + strings.Join(
 		[]string{
@@ -240,19 +241,39 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 }
 
-/*When no settings are found, we should not raise an error in getLatestPumpSettings*/
-func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
-	token := "TestAPI_getLatestPumpSettings_token"
-	userId := "TestAPI_getLatestPumpSettings_userId"
-	ctx := context.Background()
-	timeContext := timeItContext(ctx)
-	clientError := status.StatusError{
-		Status: status.NewStatus(http.StatusNotFound, "GetSettings: no settings found"),
+func TestAPI_GetRangeV1(t *testing.T) {
+	traceID := uuid.New().String()
+	userID := "abcdef"
+	urlParams := map[string]string{
+		"userID": userID,
 	}
-	writer := writeFromIter{}
-	tidewhispererAPI := InitAPI(storage, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
-	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
-	res, err := tidewhispererAPI.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
-	assert.Equal(t, err, nil)
-	assert.Equal(t, res, nil)
+
+	resetOPAMockRouteV1(true, "/v1/range", userID)
+	patientDataRepository.DataRangeV1 = []string{"2021-01-01T00:00:00.000Z", "2021-01-03T00:00:00.000Z"}
+	t.Cleanup(func() {
+		patientDataRepository.DataRangeV1 = nil
+	})
+	expectedValue := "[\"" + patientDataRepository.DataRangeV1[0] + "\",\"" + patientDataRepository.DataRangeV1[1] + "\"]"
+	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getRangeLegacy, true, "userID")
+
+	request, _ := http.NewRequest("GET", "/v1/range/"+userID, nil)
+	request.Header.Set("x-tidepool-trace-session", traceID)
+	request.Header.Set("Authorization", "Bearer "+userID)
+	request = mux.SetURLVars(request, urlParams)
+	response := httptest.NewRecorder()
+
+	handlerLogFunc(response, request)
+	result := response.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Fatalf("Expected %d to equal %d", response.Code, http.StatusOK)
+	}
+
+	body := make([]byte, 1024)
+	defer result.Body.Close()
+	n, _ := result.Body.Read(body)
+	bodyStr := string(body[:n])
+
+	if bodyStr != expectedValue {
+		t.Errorf("Expected '%s' to equal '%s'", bodyStr, expectedValue)
+	}
 }

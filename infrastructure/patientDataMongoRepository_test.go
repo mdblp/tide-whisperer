@@ -1,4 +1,4 @@
-package store
+package infrastructure
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidepool-org/tide-whisperer/common"
 	"go.mongodb.org/mongo-driver/bson"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
@@ -19,22 +20,24 @@ import (
 )
 
 var testingConfig = &goComMgo.Config{
-	Database:               "data_test",
 	Timeout:                2 * time.Second,
 	WaitConnectionInterval: 5 * time.Second,
 	MaxConnectionAttempts:  0,
 }
 
-func before(t *testing.T, docs ...interface{}) *Client {
+func before(t *testing.T, docs ...interface{}) *PatientDataMongoRepository {
 	var err error
 	var ctx = context.Background()
 
 	logger := log.New(os.Stdout, "mongo-test ", log.LstdFlags|log.LUTC|log.Lshortfile)
-	if _, exist := os.LookupEnv("TIDEPOOL_STORE_ADDRESSES"); exist {
-		// if mongo connexion information is provided via env var
-		testingConfig.FromEnv()
+
+	if _, exist := os.LookupEnv("TIDEPOOL_STORE_ADDRESSES"); !exist {
+		os.Setenv("TIDEPOOL_STORE_ADDRESSES", "localhost:27018")
+		os.Setenv("TIDEPOOL_STORE_DATABASE", "data_test")
 	}
-	store, err := NewStore(testingConfig, logger)
+	testingConfig.FromEnv()
+
+	store, err := NewPatientDataMongoRepository(testingConfig, logger)
 	if err != nil {
 		t.Fatalf("Unexpected error while creating store: %s", err)
 	}
@@ -89,9 +92,9 @@ func contains(s []string, e string) bool {
 }
 
 func basicQuery() bson.M {
-	qParams := &Params{
+	qParams := &common.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &common.SchemaVersion{Maximum: 2, Minimum: 0},
 		Dexcom:        true,
 		Medtronic:     true,
 	}
@@ -99,15 +102,15 @@ func basicQuery() bson.M {
 	return generateMongoQuery(qParams)
 }
 
-func allParams() *Params {
+func allParams() *common.Params {
 	earliestDataTime, _ := time.Parse(time.RFC3339, "2015-10-07T15:00:00Z")
 	latestDataTime, _ := time.Parse(time.RFC3339, "2016-12-13T02:00:00Z")
 
-	return &Params{
+	return &common.Params{
 		UserID:        "abc123",
 		DeviceID:      "device123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-10-11T15:00:00.000Z"},
+		SchemaVersion: &common.SchemaVersion{Maximum: 2, Minimum: 0},
+		Date:          common.Date{"2015-10-07T15:00:00.000Z", "2015-10-11T15:00:00.000Z"},
 		Types:         []string{"smbg", "cbg"},
 		SubTypes:      []string{"stuff"},
 		Carelink:      true,
@@ -136,9 +139,9 @@ func allParamsIncludingUploadIDQuery() bson.M {
 }
 
 func typeAndSubtypeQuery() bson.M {
-	qParams := &Params{
+	qParams := &common.Params{
 		UserID:             "abc123",
-		SchemaVersion:      &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion:      &common.SchemaVersion{Maximum: 2, Minimum: 0},
 		Types:              []string{"smbg", "cbg"},
 		SubTypes:           []string{"stuff"},
 		Dexcom:             true,
@@ -150,31 +153,31 @@ func typeAndSubtypeQuery() bson.M {
 }
 
 func uploadIDQuery() bson.M {
-	qParams := &Params{
+	qParams := &common.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &common.SchemaVersion{Maximum: 2, Minimum: 0},
 		UploadID:      "xyz123",
 	}
 	return generateMongoQuery(qParams)
 }
 
 func blipQuery() bson.M {
-	qParams := &Params{
+	qParams := &common.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &common.SchemaVersion{Maximum: 2, Minimum: 0},
 		LevelFilter:   []int{1, 2},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Date:          common.Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
 	}
 
 	return generateMongoQuery(qParams)
 }
 
 func typesWithDeviceEventQuery() bson.M {
-	qParams := &Params{
+	qParams := &common.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &common.SchemaVersion{Maximum: 2, Minimum: 0},
 		LevelFilter:   []int{1, 2},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Date:          common.Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
 		Types:         []string{"deviceEvent", "food"},
 	}
 
@@ -182,11 +185,11 @@ func typesWithDeviceEventQuery() bson.M {
 }
 
 func typesWithoutDeviceEventQuery() bson.M {
-	qParams := &Params{
+	qParams := &common.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &common.SchemaVersion{Maximum: 2, Minimum: 0},
 		LevelFilter:   []int{1, 2},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Date:          common.Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
 		Types:         []string{"food"},
 	}
 
@@ -194,11 +197,11 @@ func typesWithoutDeviceEventQuery() bson.M {
 }
 
 func typesWithDeviceEventAndSubTypeQuery() bson.M {
-	qParams := &Params{
+	qParams := &common.Params{
 		UserID:        "abc123",
-		SchemaVersion: &SchemaVersion{Maximum: 2, Minimum: 0},
+		SchemaVersion: &common.SchemaVersion{Maximum: 2, Minimum: 0},
 		LevelFilter:   []int{1, 2},
-		Date:          Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
+		Date:          common.Date{"2015-10-07T15:00:00.000Z", "2015-11-07T15:00:00.000Z"},
 		Types:         []string{"deviceEvent", "food"},
 		SubTypes:      []string{"reservoirChange"},
 	}
@@ -586,9 +589,9 @@ func TestStore_GetDataRangeV1(t *testing.T) {
 		},
 	)
 	traceID := uuid.New().String()
-	res, err := store.GetDataRangeV1(context.Background(), traceID, userID)
+	res, err := store.GetDataRangeLegacy(context.Background(), traceID, userID)
 	if err != nil {
-		t.Errorf("Unexpected error during GetDataRangeV1: %s", err)
+		t.Errorf("Unexpected error during GetDataRangeLegacy: %s", err)
 	}
 	if res.Start != startDate {
 		t.Errorf("Expected %s to equal %s", res.Start, startDate)
@@ -603,7 +606,7 @@ func TestStore_GetDataV1(t *testing.T) {
 	var iter goComMgo.StorageIterator
 	var data []map[string]interface{}
 	userID := "abcdef"
-	ddr := &Date{
+	ddr := &common.Date{
 		Start: "2020-05-01T00:00:00.000Z",
 		End:   "2021-01-02T00:00:00.000Z",
 	}
@@ -643,9 +646,9 @@ func TestStore_GetDataV1(t *testing.T) {
 	)
 	ctx := context.Background()
 	traceID := uuid.New().String()
-	iter, err = store.GetDataV1(ctx, traceID, userID, ddr, []string{})
+	iter, err = store.GetDataInDeviceData(ctx, traceID, userID, ddr, []string{})
 	if err != nil {
-		t.Fatalf("Unexpected error during GetDataRangeV1: %s", err)
+		t.Fatalf("Unexpected error during GetDataRangeLegacy: %s", err)
 	}
 	defer iter.Close(ctx)
 
@@ -709,9 +712,9 @@ func TestStore_GetUploadDataV1(t *testing.T) {
 	ctx := context.Background()
 	traceID := uuid.New().String()
 	ids := []string{"1", "2", "3", "4"}
-	iter, err = store.GetUploadDataV1(ctx, traceID, ids)
+	iter, err = store.GetUploadData(ctx, traceID, ids)
 	if err != nil {
-		t.Fatalf("Unexpected error during GetDataRangeV1: %s", err)
+		t.Fatalf("Unexpected error during GetDataRangeLegacy: %s", err)
 	}
 	defer iter.Close(ctx)
 
@@ -740,83 +743,6 @@ func TestStore_GetUploadDataV1(t *testing.T) {
 			t.Fatalf("Invalid datum type %s at %d", datumType, p)
 		}
 
-	}
-}
-
-func TestStore_GetCbgForSummaryV1(t *testing.T) {
-	var err error
-	var iter goComMgo.StorageIterator
-	var data []map[string]interface{}
-	userID := "abcdef"
-
-	store := before(t,
-		bson.M{
-			"_userId": userID,
-			"id":      "1",
-			"time":    "2020-01-01T00:00:00.000Z",
-			"type":    "cbg",
-			"units":   "mmol/L",
-			"value":   10,
-		},
-		bson.M{
-			"_userId": userID,
-			"id":      "2",
-			"time":    "2020-01-01T00:00:00.000Z",
-			"type":    "cbg",
-			"units":   "mmol/L",
-			"value":   11,
-		},
-		bson.M{
-			"_userId": userID,
-			"id":      "3",
-			"time":    "2020-11-02T10:00:00.000Z",
-			"type":    "cbg",
-			"units":   "mmol/L",
-			"value":   12,
-		},
-		bson.M{
-			"_userId": userID,
-			"id":      "4",
-			"time":    "2021-01-03T00:00:00.000Z",
-			"type":    "cbg",
-			"units":   "mmol/L",
-			"value":   13,
-		},
-	)
-	ctx := context.Background()
-	traceID := uuid.New().String()
-	iter, err = store.GetCbgForSummaryV1(ctx, traceID, userID, "2020-01-02T00:00:00.000Z")
-	if err != nil {
-		t.Fatalf("Unexpected error during GetCbgForSummaryV1: %s", err)
-	}
-	defer iter.Close(ctx)
-
-	if data, err = iteratorToAllData(ctx, iter); err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
-
-	if len(data) != 2 {
-		t.Fatalf("Expected a result of 2 data having %d", len(data))
-	}
-
-	have12 := false
-	have13 := false
-	for p, datum := range data {
-		units := datum["units"].(string)
-		if units != "mmol/L" {
-			t.Fatalf("Unexpected unit %s expected mmol/L", units)
-		}
-		value := datum["value"].(int32)
-		if value == 12 {
-			have12 = true
-		} else if value == 13 {
-			have13 = true
-		} else if p > 1 {
-			t.Fatalf("Unexpected number of result: %d", p)
-		}
-	}
-	if !(have12 && have13) {
-		t.Fatalf("Missing expected results: 12:%t 13:%t", have12, have13)
 	}
 }
 
@@ -927,7 +853,7 @@ func TestStore_GetLatestBasalSecurityProfile(t *testing.T) {
 
 func TestStore_GetLoopMode(t *testing.T) {
 	userID := "abcdef"
-	ddr := &Date{
+	ddr := &common.Date{
 		Start: "2020-01-01T07:00:00Z",
 		End:   "2020-01-01T08:20:01Z",
 	}

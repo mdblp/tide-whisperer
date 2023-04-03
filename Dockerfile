@@ -11,8 +11,8 @@ USER tidepool
 COPY --chown=tidepool . .
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
-RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \ 
-    ./build.sh $TARGETPLATFORM && \
+RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+    ./qa/build.sh $TARGETPLATFORM && \
     git config --global --unset url."https://${GITHUB_TOKEN}@github.com/".insteadOf
 CMD ["./dist/tide-whisperer"]
 

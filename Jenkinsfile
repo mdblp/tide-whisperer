@@ -28,7 +28,7 @@ pipeline {
             steps {
                 withCredentials ([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                     sh 'git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"'
-                    sh "$WORKSPACE/build.sh"
+                    sh "$WORKSPACE/qa/build.sh"
                     sh 'git config --global --unset url."https://${GITHUB_TOKEN}@github.com/".insteadOf'
                 }
             }
@@ -41,7 +41,7 @@ pipeline {
                     docker.image('docker.ci.diabeloop.eu/go-build:1.17').inside("--net=twtest${RUN_ID}") {
                         withCredentials ([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                             sh 'git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"'
-                            sh "TIDEPOOL_STORE_ADDRESSES=mongo4twtest${RUN_ID}:27017 TIDEPOOL_STORE_DATABASE=data_test $WORKSPACE/test.sh"
+                            sh "TIDEPOOL_STORE_ADDRESSES=mongo4twtest${RUN_ID}:27017 TIDEPOOL_STORE_DATABASE=data_test $WORKSPACE/qa/test.sh"
                             sh 'git config --global --unset url."https://${GITHUB_TOKEN}@github.com/".insteadOf'
                         }
                     }

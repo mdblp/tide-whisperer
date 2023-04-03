@@ -1,11 +1,21 @@
-package data
+package usecase
 
 import (
-	orcaSchema "github.com/mdblp/orca/schema"
+	"context"
+	"log"
+	"net/http"
+	"os"
 	"reflect"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/mdblp/go-common/clients/status"
+	orcaSchema "github.com/mdblp/orca/schema"
+	twV2Client "github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
+	"github.com/stretchr/testify/assert"
+	"github.com/tidepool-org/tide-whisperer/common"
+	"github.com/tidepool-org/tide-whisperer/infrastructure"
 )
 
 var (
@@ -138,4 +148,25 @@ func Test_groupByChangeDate(t *testing.T) {
 			}
 		})
 	}
+}
+
+/*When no settings are found, we should not raise an error in getLatestPumpSettings*/
+func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
+	token := "TestAPI_getLatestPumpSettings_token"
+	userId := "TestAPI_getLatestPumpSettings_userId"
+	ctx := context.Background()
+	testLogger := log.New(os.Stdout, "test", log.LstdFlags|log.Lshortfile)
+	timeContext := common.TimeItContext(ctx)
+	clientError := status.StatusError{
+		Status: status.NewStatus(http.StatusNotFound, "GetSettings: no settings found"),
+	}
+	writer := writeFromIter{}
+	mockRepository := infrastructure.NewMockPatientDataRepository()
+	mockTideV2 := twV2Client.NewMock()
+	usecase := NewPatientDataUseCase(testLogger, mockTideV2, mockRepository)
+
+	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
+	res, err := usecase.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
+	assert.Nil(t, err)
+	assert.Nil(t, res)
 }
