@@ -163,7 +163,7 @@ func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
 	writer := writeFromIter{}
 	mockRepository := infrastructure.NewMockPatientDataRepository()
 	mockTideV2 := twV2Client.NewMock()
-	usecase := NewPatientDataUseCase(testLogger, mockTideV2, mockRepository)
+	usecase := NewPatientDataUseCase(testLogger, mockTideV2, mockRepository, true)
 
 	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
 	res, err := usecase.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)

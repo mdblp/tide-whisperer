@@ -1,10 +1,10 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"time"
 
@@ -29,15 +29,8 @@ type (
 	}
 )
 
-func (p *PatientData) getDataV1Params(readBasalBucket bool, res *common.HttpResponseWriter) (*apiDataParams, *common.DetailedError) {
+func (p *PatientData) getDataV1Params(userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool) (*apiDataParams, *common.DetailedError) {
 	var err error
-	// Mongo iterators
-	userID := res.VARS["userID"]
-
-	query := res.URL.Query()
-	startDate := query.Get("startDate")
-	endDate := query.Get("endDate")
-	withPumpSettings := query.Get("withPumpSettings") == "true"
 
 	dataSource := map[string]bool{
 		"patientData": true,
@@ -63,13 +56,7 @@ func (p *PatientData) getDataV1Params(readBasalBucket bool, res *common.HttpResp
 			timeRange = endTime.Unix() - startTime.Unix()
 		}
 
-		if timeRange > 0 {
-			// Make an estimated guessed about the amount of data we need to send
-			// to help our buffer, since we may send ten or so megabytes of JSON
-			// I saw ~ 1.15 byte per second in my test
-			// fmt.Printf("Grow: %d * 1.15 -> %d\n", timeRange, int(math.Round(float64(timeRange)*1.15)))
-			res.Grow(int(math.Round(float64(timeRange) * 1.15)))
-		} else {
+		if timeRange <= 0 {
 			err = fmt.Errorf("startDate is after endDate")
 		}
 
@@ -78,7 +65,7 @@ func (p *PatientData) getDataV1Params(readBasalBucket bool, res *common.HttpResp
 				Status:          errorInvalidParameters.Status,
 				Code:            errorInvalidParameters.Code,
 				Message:         errorInvalidParameters.Message,
-				InternalMessage: err.Error(),
+				InternalMessage: addContextToMessage("getDataV1Params", userID, traceID, err.Error()),
 			}
 			return nil, logError
 		}
@@ -89,11 +76,10 @@ func (p *PatientData) getDataV1Params(readBasalBucket bool, res *common.HttpResp
 			End:   endDate,
 		},
 		user:                userID,
-		traceID:             res.TraceID,
+		traceID:             traceID,
 		includePumpSettings: withPumpSettings,
 		source:              dataSource,
 		writer: writeFromIter{
-			res:       res,
 			uploadIDs: make([]string, 0, 16),
 		},
 	}
@@ -109,7 +95,7 @@ func (p *PatientData) getLatestPumpSettings(ctx context.Context, traceID string,
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getLatestPumpSettings", userID, traceID, err.Error()),
 		}
 
 		switch v := err.(type) {
@@ -167,51 +153,60 @@ func TransformToExposedModel(lastestProfile *schema.DbProfile) *internalSchema.P
 	return result
 }
 
-func (p *PatientData) writeDataV1(
+func newWriteError(err error) *common.DetailedError {
+	return &common.DetailedError{
+		Status:          errorWriteBuffer.Status,
+		Code:            errorWriteBuffer.Code,
+		Message:         errorWriteBuffer.Message,
+		InternalMessage: err.Error(),
+	}
+}
+func (p *PatientData) writeDataToBuffer(
 	ctx context.Context,
-	res *common.HttpResponseWriter,
+	buff *bytes.Buffer,
+	traceID string,
 	includePumpSettings bool,
 	pumpSettings *schemaV2.SettingsResult,
-	iterUploads mongo.StorageIterator,
 	iterData mongo.StorageIterator,
 	Cbgs []schemaV2.CbgBucket,
 	Basals []schemaV2.BasalBucket,
 	writeParams *writeFromIter,
-) error {
+) *common.DetailedError {
+	var iterUploads mongo.StorageIterator
 	common.TimeIt(ctx, "writeData")
 	defer common.TimeEnd(ctx, "writeData")
 	// We return a JSON array, first character is: '['
-	err := res.WriteString("[\n")
+	_, err := buff.WriteString("[\n")
 	if err != nil {
-		return err
+		return newWriteError(err)
 	}
 
 	if includePumpSettings && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writePumpSettings(writeParams)
+		err = writePumpSettings(buff, writeParams)
 		if err != nil {
-			return err
+			return newWriteError(err)
 		}
-		err = writeDeviceParameterChanges(writeParams)
+		err = writeDeviceParameterChanges(buff, writeParams)
 		if err != nil {
-			return err
+			return newWriteError(err)
 		}
 	}
 
 	common.TimeIt(ctx, "writeDataMain")
 	writeParams.iter = iterData
-	err = writeFromIterV1(ctx, writeParams)
+	err = writeFromIterV1(ctx, buff, writeParams)
 	if err != nil {
-		return err
+		return newWriteError(err)
 	}
 	common.TimeEnd(ctx, "writeDataMain")
 
 	if len(Cbgs) > 0 {
 		common.TimeIt(ctx, "WriteCbgs")
 		writeParams.cbgs = Cbgs
-		err = writeCbgs(ctx, writeParams)
+		err = writeCbgs(ctx, buff, writeParams)
 		if err != nil {
-			return err
+			return newWriteError(err)
 		}
 		common.TimeEnd(ctx, "WriteCbgs")
 	}
@@ -219,9 +214,9 @@ func (p *PatientData) writeDataV1(
 	if len(Basals) > 0 {
 		common.TimeIt(ctx, "writeBasals")
 		writeParams.basals = Basals
-		err = writeBasals(ctx, writeParams)
+		err = writeBasals(ctx, buff, writeParams)
 		if err != nil {
-			return err
+			return newWriteError(err)
 		}
 		common.TimeEnd(ctx, "writeBasals")
 	}
@@ -229,18 +224,18 @@ func (p *PatientData) writeDataV1(
 	// Fetch uploads
 	if len(writeParams.uploadIDs) > 0 {
 		common.TimeIt(ctx, "getUploads")
-		iterUploads, err = p.patientDataRepository.GetUploadData(ctx, res.TraceID, writeParams.uploadIDs)
+		iterUploads, err = p.patientDataRepository.GetUploadData(ctx, traceID, writeParams.uploadIDs)
 		if err != nil {
 			// Just log the problem, don't crash the query
 			writeParams.parametersHistory = nil
-			p.logger.Printf("{%s} - {GetUploadData:\"%s\"}", res.TraceID, err)
+			p.logger.Printf("{%s} - {GetUploadData:\"%s\"}", traceID, err)
 		} else {
 			defer iterUploads.Close(ctx)
 			writeParams.iter = iterUploads
-			err = writeFromIterV1(ctx, writeParams)
+			err = writeFromIterV1(ctx, buff, writeParams)
 			if err != nil {
 				common.TimeEnd(ctx, "getUploads")
-				return err
+				return newWriteError(err)
 			}
 		}
 		common.TimeEnd(ctx, "getUploads")
@@ -248,17 +243,21 @@ func (p *PatientData) writeDataV1(
 
 	// Silently failed theses error to the client, but record them to the log
 	if writeParams.decode.firstError != nil {
-		p.logger.Printf("{%s} - {nErrors:%d,MongoDecode:\"%s\"}", res.TraceID, writeParams.decode.numErrors, writeParams.decode.firstError)
+		p.logger.Printf("{%s} - {nErrors:%d,MongoDecode:\"%s\"}", traceID, writeParams.decode.numErrors, writeParams.decode.firstError)
 	}
 	if writeParams.jsonError.firstError != nil {
-		p.logger.Printf("{%s} - {nErrors:%d,jsonMarshall:\"%s\"}", res.TraceID, writeParams.jsonError.numErrors, writeParams.jsonError.firstError)
+		p.logger.Printf("{%s} - {nErrors:%d,jsonMarshall:\"%s\"}", traceID, writeParams.jsonError.numErrors, writeParams.jsonError.firstError)
 	}
 
 	// Last JSON array character:
-	return res.WriteString("]\n")
+	_, err = buff.WriteString("]\n")
+	if err != nil {
+		return newWriteError(err)
+	}
+	return nil
 }
 
-func writeDeviceParameterChanges(p *writeFromIter) error {
+func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
 	settings := p.settings
 	for _, paramChange := range settings.HistoryParameters {
 		datum := make(map[string]interface{})
@@ -288,12 +287,12 @@ func writeDeviceParameterChanges(p *writeFromIter) error {
 		}
 		if p.writeCount > 0 {
 			// Add the coma and line return (for readability)
-			err = p.res.WriteString(",\n")
+			_, err = res.WriteString(",\n")
 			if err != nil {
 				return err
 			}
 		}
-		err = p.res.Write(jsonDatum)
+		_, err = res.Write(jsonDatum)
 		if err != nil {
 			return err
 		}
@@ -302,7 +301,7 @@ func writeDeviceParameterChanges(p *writeFromIter) error {
 	return nil
 }
 
-func writePumpSettings(p *writeFromIter) error {
+func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
 	settings := p.settings
 	datum := make(map[string]interface{})
 	datum["id"] = uuid.New().String()
@@ -333,12 +332,12 @@ func writePumpSettings(p *writeFromIter) error {
 	}
 	if p.writeCount > 0 {
 		// Add the coma and line return (for readability)
-		err = p.res.WriteString(",\n")
+		_, err = res.WriteString(",\n")
 		if err != nil {
 			return err
 		}
 	}
-	err = p.res.Write(jsonDatum)
+	_, err = res.Write(jsonDatum)
 	if err != nil {
 		return err
 	}
@@ -376,7 +375,7 @@ func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistor
 }
 
 // Mapping V2 Bucket schema to expected V1 schema + write to output
-func writeCbgs(ctx context.Context, p *writeFromIter) error {
+func writeCbgs(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
 	var err error
 	for _, bucket := range p.cbgs {
 		for i, sample := range bucket.Samples {
@@ -398,12 +397,12 @@ func writeCbgs(ctx context.Context, p *writeFromIter) error {
 			}
 			if p.writeCount > 0 {
 				// Add the coma and line return (for readability)
-				err = p.res.WriteString(",\n")
+				_, err = res.WriteString(",\n")
 				if err != nil {
 					return err
 				}
 			}
-			err = p.res.Write(jsonDatum)
+			_, err = res.Write(jsonDatum)
 			if err != nil {
 				return err
 			}
@@ -414,7 +413,7 @@ func writeCbgs(ctx context.Context, p *writeFromIter) error {
 }
 
 // Mapping V2 Bucket schema to expected V1 schema + write to output
-func writeBasals(ctx context.Context, p *writeFromIter) error {
+func writeBasals(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
 	var err error
 	for _, bucket := range p.basals {
 		for i, sample := range bucket.Samples {
@@ -437,12 +436,12 @@ func writeBasals(ctx context.Context, p *writeFromIter) error {
 			}
 			if p.writeCount > 0 {
 				// Add the coma and line return (for readability)
-				err = p.res.WriteString(",\n")
+				_, err = res.WriteString(",\n")
 				if err != nil {
 					return err
 				}
 			}
-			err = p.res.Write(jsonDatum)
+			_, err = res.Write(jsonDatum)
 			if err != nil {
 				return err
 			}

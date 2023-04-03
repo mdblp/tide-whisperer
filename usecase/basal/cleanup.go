@@ -12,7 +12,7 @@ import (
 func fillMissingBasal(currentBasal schema.BasalSample, previousEndBasalTime time.Time, countBasal int, loopModes []schemaV1.LoopModeEvent) (time.Time, int, []schema.BasalSample) {
 	sampleTime := previousEndBasalTime
 	previousEndBasalTime = currentBasal.Timestamp
-	fillSamples := []schema.BasalSample{}
+	var fillSamples []schema.BasalSample
 	for _, loopMode := range schemaV1.GetLoopModeEventsBetween(sampleTime, &previousEndBasalTime, loopModes) {
 		fmt.Printf("%v %v %v\n", sampleTime, previousEndBasalTime, loopMode)
 		currentSample := getSample(currentBasal.Guid, countBasal, 0, currentBasal.Timezone, previousEndBasalTime, loopMode)
@@ -38,11 +38,10 @@ func fixOverlappingBasal(previousSamples []schema.BasalSample, currentBasal sche
 	return previousSamples
 }
 
-
 func cutBasalWithLoopModes(currentBasal schema.BasalSample, countBasal int, loopModes []schemaV1.LoopModeEvent) (time.Time, int, []schema.BasalSample) {
 	duration := time.Duration(currentBasal.Duration) * time.Millisecond
 	endBasalTime := currentBasal.Timestamp.Add(duration)
-	cutSamples := []schema.BasalSample{}
+	var cutSamples []schema.BasalSample
 	for _, loopMode := range schemaV1.GetLoopModeEventsBetween(currentBasal.Timestamp, &endBasalTime, loopModes) {
 		currentSample := getSample(currentBasal.Guid, countBasal, currentBasal.Rate, currentBasal.Timezone, endBasalTime, loopMode)
 		cutSamples = append(cutSamples, currentSample)
@@ -51,19 +50,18 @@ func cutBasalWithLoopModes(currentBasal schema.BasalSample, countBasal int, loop
 	return endBasalTime, countBasal, cutSamples
 }
 
-
 func CleanUpBasals(basals []schema.BasalBucket, loopModes []schemaV1.LoopModeEvent) []schema.BasalBucket {
 	var endBasalTime time.Time
 	sort.SliceStable(basals, func(i, j int) bool {
 		return basals[i].Day.Before(basals[j].Day)
 	})
-	cleanBuckets := []schema.BasalBucket{}
+	var cleanBuckets []schema.BasalBucket
 	countBasal := 0
 	for _, basalDay := range basals {
 		sort.SliceStable(basalDay.Samples, func(i, j int) bool {
 			return basalDay.Samples[i].Timestamp.Before(basalDay.Samples[j].Timestamp)
 		})
-		cleanSamples := []schema.BasalSample{}
+		var cleanSamples []schema.BasalSample
 		for _, basal := range basalDay.Samples {
 			// Filling time holes with 0 rate basals...
 			if !endBasalTime.IsZero() && basal.Timestamp.Sub(endBasalTime) >= time.Second {

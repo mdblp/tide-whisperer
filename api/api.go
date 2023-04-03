@@ -21,14 +21,14 @@ import (
 type (
 	// API struct for tide-whisperer
 	API struct {
-		patientData     PatientDataUseCase
-		databaseAdapter usecase.DatabaseAdapter
-		authClient      auth.ClientInterface
-		perms           opa.Client
-		schemaVersion   common.SchemaVersion
-		logger          *log.Logger
-		tideV2Client    tideV2Client.ClientInterface
-		readBasalBucket bool
+		exportController ExportController
+		patientData      PatientDataUseCase
+		databaseAdapter  usecase.DatabaseAdapter
+		authClient       auth.ClientInterface
+		perms            opa.Client
+		schemaVersion    common.SchemaVersion
+		logger           *log.Logger
+		tideV2Client     tideV2Client.ClientInterface
 	}
 )
 
@@ -45,40 +45,35 @@ var (
 	errorNotfound         = common.DetailedError{Status: http.StatusNotFound, Code: "data_not_found", Message: "no data for specified user"}
 )
 
-func InitAPI(patientDataUC PatientDataUseCase, dbAdapter usecase.DatabaseAdapter, auth auth.ClientInterface, permsClient opa.Client, schemaV common.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface, envReadBasalBucket bool) *API {
+func InitAPI(exportController ExportController, patientDataUC PatientDataUseCase, dbAdapter usecase.DatabaseAdapter, auth auth.ClientInterface, permsClient opa.Client, schemaV common.SchemaVersion, logger *log.Logger, V2Client tideV2Client.ClientInterface) *API {
 	return &API{
-		patientData:     patientDataUC,
-		databaseAdapter: dbAdapter,
-		authClient:      auth,
-		perms:           permsClient,
-		schemaVersion:   schemaV,
-		logger:          logger,
-		tideV2Client:    V2Client,
-		readBasalBucket: envReadBasalBucket,
+		exportController: exportController,
+		patientData:      patientDataUC,
+		databaseAdapter:  dbAdapter,
+		authClient:       auth,
+		perms:            permsClient,
+		schemaVersion:    schemaV,
+		logger:           logger,
+		tideV2Client:     V2Client,
 	}
 }
 
 // SetHandlers set the API routes
 func (a *API) SetHandlers(prefix string, rtr *mux.Router) {
-	rtr.HandleFunc("/swagger", a.get501).Methods("GET")
 
 	a.setHandlers(prefix+"/v1", rtr)
-	rtr.HandleFunc("/v2", a.get501).Methods("GET")
+
+	rtr.HandleFunc("/export/{userID}", a.middleware(a.exportController.ExportData, true, "userID")).Methods(http.MethodGet)
 
 	// v0 routes:
-	rtr.HandleFunc("/status", a.getStatus).Methods("GET")
+	rtr.HandleFunc("/status", a.getStatus).Methods(http.MethodGet)
 }
 
 func (a *API) setHandlers(prefix string, rtr *mux.Router) {
-	rtr.HandleFunc(prefix+"/range/{userID}", a.middleware(a.getRangeLegacy, true, "userID")).Methods("GET")
-	rtr.HandleFunc(prefix+"/data/{userID}", a.middleware(a.getData, true, "userID")).Methods("GET")
-	rtr.HandleFunc(prefix+"/dataV2/{userID}", a.middleware(a.getDataV2, true, "userID")).Methods("GET")
-	rtr.HandleFunc(prefix+"/{.*}", a.middleware(a.getNotFound, false)).Methods("GET")
-}
-
-func (a *API) get501(res http.ResponseWriter, req *http.Request) {
-	res.WriteHeader(501)
-	return
+	rtr.HandleFunc(prefix+"/range/{userID}", a.middleware(a.getRangeLegacy, true, "userID")).Methods(http.MethodGet)
+	rtr.HandleFunc(prefix+"/data/{userID}", a.middleware(a.getData, true, "userID")).Methods(http.MethodGet)
+	rtr.HandleFunc(prefix+"/dataV2/{userID}", a.middleware(a.getDataV2, true, "userID")).Methods(http.MethodGet)
+	rtr.HandleFunc(prefix+"/{.*}", a.middleware(a.getNotFound, false)).Methods(http.MethodGet)
 }
 
 // getNotFound should it be version free?

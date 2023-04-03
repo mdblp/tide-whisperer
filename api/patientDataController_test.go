@@ -50,7 +50,7 @@ func assertRequest(apiParams map[string]string, urlParams map[string]string, exp
 	traceID := uuid.New().String()
 	userID := apiParams["userID"]
 
-	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getData, true, "userID")
+	handlerLogFunc := api.middleware(api.getData, true, "userID")
 	request, _ := http.NewRequest("GET", "/v1/dataV2/"+userID, nil)
 	request.Header.Set("x-tidepool-trace-session", traceID)
 	request.Header.Set("Authorization", "Bearer "+userID)
@@ -91,6 +91,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 	patientDataRepository.DataIDV1 = []string{
 		"{\"id\":\"00\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"upload\"}",
 	}
+	patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{}
 
 	creationTime1, _ := time.Parse(time.RFC3339, "2021-01-01T08:00:00Z")
 	day1, _ := time.Parse(dayTimeFormat, "2021-01-01")
@@ -183,6 +184,7 @@ func TestAPI_GetDataV2(t *testing.T) {
 		patientDataRepository.DataIDV1 = nil
 		mockTideV2.MockedCbg = []schema.CbgBucket{}
 		mockTideV2.MockedBasal = []schema.BasalBucket{}
+		patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{}
 	})
 
 	resetOPAMockRouteV1(true, "/v1/dataV2", userID)
@@ -193,8 +195,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 	urlParams := map[string]string{}
 
-	patientDataUseCase := usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
-	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	patientDataUseCase := usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository, true)
+	api = InitAPI(ExportController{}, patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
 	expectedBody := "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -208,7 +210,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 	}
 
 	// testing with cbg only, required to set basal to false
-	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, false)
+	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository, false)
+	api = InitAPI(ExportController{}, patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
@@ -225,8 +228,8 @@ func TestAPI_GetDataV2(t *testing.T) {
 	patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{
 		schemaV1.NewLoopModeEvent(day1, &day2, "automated"),
 	}
-	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository)
-	tidewhisperer = InitAPI(patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2, true)
+	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository, true)
+	api = InitAPI(ExportController{}, patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
 	expectedBasalBucketWithLoopModes := `{"deliveryType":"automated","duration":1000,"id":"basal_bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"UTC","type":"basal"}`
 	expectedBody = "[" + strings.Join(
 		[]string{
@@ -254,7 +257,7 @@ func TestAPI_GetRangeV1(t *testing.T) {
 		patientDataRepository.DataRangeV1 = nil
 	})
 	expectedValue := "[\"" + patientDataRepository.DataRangeV1[0] + "\",\"" + patientDataRepository.DataRangeV1[1] + "\"]"
-	handlerLogFunc := tidewhisperer.middleware(tidewhisperer.getRangeLegacy, true, "userID")
+	handlerLogFunc := api.middleware(api.getRangeLegacy, true, "userID")
 
 	request, _ := http.NewRequest("GET", "/v1/range/"+userID, nil)
 	request.Header.Set("x-tidepool-trace-session", traceID)
