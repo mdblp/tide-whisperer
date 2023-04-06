@@ -1,13 +1,13 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/tidepool-org/tide-whisperer/common"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
 // @Summary Get the data for a specific patient using new bucket api
@@ -27,7 +27,6 @@ import (
 // @Security Auth0
 // @Router /v1/dataV2/{userID} [get]
 func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) error {
-	var buffer bytes.Buffer
 	// Mongo iterators
 	userID := res.VARS["userID"]
 
@@ -36,11 +35,21 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 	sessionToken := getSessionToken(res)
-	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, sessionToken, &buffer)
+	getDataArgs := usecase.GetDataArgs{
+		Ctx:              ctx,
+		UserID:           userID,
+		TraceID:          res.TraceID,
+		StartDate:        startDate,
+		EndDate:          endDate,
+		WithPumpSettings: withPumpSettings,
+		SessionToken:     sessionToken,
+		ConvertToMgdl:    false,
+	}
+	buff, err := a.patientData.GetData(getDataArgs)
 	if err != nil {
 		return res.WriteError(err)
 	}
-	return res.Write(buffer.Bytes())
+	return res.Write(buff.Bytes())
 }
 
 // get session token (for history the header is found in the response and not in the request because of the v1 middelware)

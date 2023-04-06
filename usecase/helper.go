@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
@@ -163,7 +164,6 @@ func newWriteError(err error) *common.DetailedError {
 }
 func (p *PatientData) writeDataToBuffer(
 	ctx context.Context,
-	buff *bytes.Buffer,
 	traceID string,
 	includePumpSettings bool,
 	pumpSettings *schemaV2.SettingsResult,
@@ -171,42 +171,44 @@ func (p *PatientData) writeDataToBuffer(
 	Cbgs []schemaV2.CbgBucket,
 	Basals []schemaV2.BasalBucket,
 	writeParams *writeFromIter,
-) *common.DetailedError {
+	convertToMgdl bool,
+) (*bytes.Buffer, *common.DetailedError) {
+	buff := bytes.Buffer{}
 	var iterUploads mongo.StorageIterator
 	common.TimeIt(ctx, "writeData")
 	defer common.TimeEnd(ctx, "writeData")
 	// We return a JSON array, first character is: '['
 	_, err := buff.WriteString("[\n")
 	if err != nil {
-		return newWriteError(err)
+		return nil, newWriteError(err)
 	}
 
 	if includePumpSettings && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writePumpSettings(buff, writeParams)
+		err = writePumpSettings(&buff, writeParams)
 		if err != nil {
-			return newWriteError(err)
+			return nil, newWriteError(err)
 		}
-		err = writeDeviceParameterChanges(buff, writeParams)
+		err = writeDeviceParameterChanges(&buff, writeParams)
 		if err != nil {
-			return newWriteError(err)
+			return nil, newWriteError(err)
 		}
 	}
 
 	common.TimeIt(ctx, "writeDataMain")
 	writeParams.iter = iterData
-	err = writeFromIterV1(ctx, buff, writeParams)
+	err = writeFromIterV1(ctx, &buff, writeParams)
 	if err != nil {
-		return newWriteError(err)
+		return nil, newWriteError(err)
 	}
 	common.TimeEnd(ctx, "writeDataMain")
 
 	if len(Cbgs) > 0 {
 		common.TimeIt(ctx, "WriteCbgs")
 		writeParams.cbgs = Cbgs
-		err = writeCbgs(ctx, buff, writeParams)
+		err = writeCbgs(ctx, convertToMgdl, &buff, writeParams)
 		if err != nil {
-			return newWriteError(err)
+			return nil, newWriteError(err)
 		}
 		common.TimeEnd(ctx, "WriteCbgs")
 	}
@@ -214,9 +216,9 @@ func (p *PatientData) writeDataToBuffer(
 	if len(Basals) > 0 {
 		common.TimeIt(ctx, "writeBasals")
 		writeParams.basals = Basals
-		err = writeBasals(ctx, buff, writeParams)
+		err = writeBasals(ctx, &buff, writeParams)
 		if err != nil {
-			return newWriteError(err)
+			return nil, newWriteError(err)
 		}
 		common.TimeEnd(ctx, "writeBasals")
 	}
@@ -232,10 +234,10 @@ func (p *PatientData) writeDataToBuffer(
 		} else {
 			defer iterUploads.Close(ctx)
 			writeParams.iter = iterUploads
-			err = writeFromIterV1(ctx, buff, writeParams)
+			err = writeFromIterV1(ctx, &buff, writeParams)
 			if err != nil {
 				common.TimeEnd(ctx, "getUploads")
-				return newWriteError(err)
+				return nil, newWriteError(err)
 			}
 		}
 		common.TimeEnd(ctx, "getUploads")
@@ -252,9 +254,9 @@ func (p *PatientData) writeDataToBuffer(
 	// Last JSON array character:
 	_, err = buff.WriteString("]\n")
 	if err != nil {
-		return newWriteError(err)
+		return nil, newWriteError(err)
 	}
-	return nil
+	return &buff, nil
 }
 
 func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
@@ -374,8 +376,15 @@ func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistor
 	return finalArray
 }
 
+func getMgdl(unit string, value float64) (string, float64) {
+	if unit == MmolL {
+		return MgdL, math.Round(value / MmolLToMgdLConversionFactor * MmolLToMgdLPrecisionFactor)
+	}
+	return unit, value
+}
+
 // Mapping V2 Bucket schema to expected V1 schema + write to output
-func writeCbgs(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
+func writeCbgs(ctx context.Context, convertToMgdl bool, res *bytes.Buffer, p *writeFromIter) error {
 	var err error
 	for _, bucket := range p.cbgs {
 		for i, sample := range bucket.Samples {
@@ -387,6 +396,9 @@ func writeCbgs(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
 			datum["timezone"] = sample.Timezone
 			datum["units"] = sample.Units
 			datum["value"] = sample.Value
+			if convertToMgdl {
+				datum["units"], datum["value"] = getMgdl(sample.Units, sample.Value)
+			}
 			jsonDatum, err := json.Marshal(datum)
 			if err != nil {
 				if p.jsonError.firstError == nil {

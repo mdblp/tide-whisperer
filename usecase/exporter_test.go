@@ -1,13 +1,13 @@
 package usecase
 
 import (
+	"bytes"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/tidepool-org/tide-whisperer/common"
-	"github.com/tidepool-org/tide-whisperer/usecase/mocks"
 )
 
 func TestExporter_Export(t *testing.T) {
@@ -17,46 +17,46 @@ func TestExporter_Export(t *testing.T) {
 	endDate := "2023-04-05T09:00:00Z"
 	withPumpSettings := true
 	sessionToken := "sessiontoken123"
+	convertToMgdl := true
 	testLogger := log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
-	getDataErrUseCase := mocks.PatientDataUseCase{}
-	getDataErrUseCase.On("GetData", mock.Anything, userID, traceID, startDate, endDate, withPumpSettings, sessionToken, mock.Anything).Return(&common.DetailedError{})
-	getDataSuccessUseCase := mocks.PatientDataUseCase{}
-	getDataSuccessUseCase.On("GetData", mock.Anything, userID, traceID, startDate, endDate, withPumpSettings, sessionToken, mock.Anything).Return(nil)
-	uploadSuccess := mocks.Uploader{}
-	uploadSuccess.On("Upload", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	getDataErrUseCase := MockPatientDataUseCase{}
+	argsMatcher := mock.MatchedBy(func(args GetDataArgs) bool {
+		return args.UserID == userID && args.TraceID == traceID && args.SessionToken == sessionToken &&
+			args.WithPumpSettings == withPumpSettings && args.StartDate == startDate && args.EndDate == endDate &&
+			args.ConvertToMgdl == convertToMgdl
+	})
+	getDataErrUseCase.On("GetData", argsMatcher).Return(nil, &common.DetailedError{})
+	getDataSuccessUseCase := MockPatientDataUseCase{}
+	getDataSuccessUseCase.On("GetData", argsMatcher).Return(&bytes.Buffer{}, nil)
+	uploadSuccess := MockUploader{}
+	uploadSuccess.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
+	exportArgs := ExportArgs{
+		UserID:           userID,
+		TraceID:          traceID,
+		StartDate:        startDate,
+		EndDate:          endDate,
+		WithPumpSettings: withPumpSettings,
+		SessionToken:     sessionToken,
+		ConvertToMgdl:    convertToMgdl,
+	}
 	type fields struct {
 		logger      *log.Logger
-		uploader    mocks.Uploader
-		patientData mocks.PatientDataUseCase
-	}
-	type args struct {
-		userID           string
-		traceID          string
-		startDate        string
-		endDate          string
-		withPumpSettings bool
-		sessionToken     string
+		uploader    MockUploader
+		patientData MockPatientDataUseCase
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name       string
+		fields     fields
+		exportArgs ExportArgs
 	}{
 		{
-			name: "should not call uploader when FetData failed",
+			name: "should not call uploader when GetData failed",
 			fields: fields{
 				logger:      testLogger,
-				uploader:    mocks.Uploader{},
+				uploader:    MockUploader{},
 				patientData: getDataErrUseCase,
 			},
-			args: args{
-				userID:           userID,
-				traceID:          traceID,
-				startDate:        startDate,
-				endDate:          endDate,
-				withPumpSettings: withPumpSettings,
-				sessionToken:     sessionToken,
-			},
+			exportArgs: exportArgs,
 		},
 		{
 			name: "should not uploader when GetData succeeded",
@@ -65,14 +65,7 @@ func TestExporter_Export(t *testing.T) {
 				uploader:    uploadSuccess,
 				patientData: getDataSuccessUseCase,
 			},
-			args: args{
-				userID:           userID,
-				traceID:          traceID,
-				startDate:        startDate,
-				endDate:          endDate,
-				withPumpSettings: withPumpSettings,
-				sessionToken:     sessionToken,
-			},
+			exportArgs: exportArgs,
 		},
 	}
 	for _, tt := range tests {
@@ -82,7 +75,7 @@ func TestExporter_Export(t *testing.T) {
 				uploader:    &tt.fields.uploader,
 				patientData: &tt.fields.patientData,
 			}
-			e.Export(tt.args.userID, tt.args.traceID, tt.args.startDate, tt.args.endDate, tt.args.withPumpSettings, tt.args.sessionToken)
+			e.Export(tt.exportArgs)
 			tt.fields.patientData.AssertExpectations(t)
 			tt.fields.uploader.AssertExpectations(t)
 		})
