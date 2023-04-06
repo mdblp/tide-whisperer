@@ -23,6 +23,14 @@ import (
 	"github.com/tidepool-org/tide-whisperer/usecase/basal"
 )
 
+const (
+	MmolL = "mmol/L"
+	MgdL  = "mg/dL"
+
+	MmolLToMgdLConversionFactor float64 = 18.01577
+	MmolLToMgdLPrecisionFactor  float64 = 10.0
+)
+
 var (
 	errorRunningQuery      = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
 	errorTideV2Http        = common.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
@@ -208,8 +216,19 @@ func addContextToMessage(methodName string, userID string, traceID string, messa
 	return fmt.Sprintf("%s failed: user=[%s], traceID=[%s] : %v", methodName, userID, traceID, message)
 }
 
-func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, sessionToken string, buff *bytes.Buffer) *common.DetailedError {
-	params, err := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, p.readBasalBucket)
+type GetDataArgs struct {
+	Ctx              context.Context
+	UserID           string
+	TraceID          string
+	StartDate        string
+	EndDate          string
+	WithPumpSettings bool
+	SessionToken     string
+	Buff             *bytes.Buffer
+}
+
+func (p *PatientData) GetData(args GetDataArgs) *common.DetailedError {
+	params, err := p.getDataV1Params(args.UserID, args.TraceID, args.StartDate, args.EndDate, args.WithPumpSettings, p.readBasalBucket)
 	if err != nil {
 		return err
 	}
@@ -240,7 +259,7 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	writeParams := &params.writer
 
 	if params.includePumpSettings {
-		pumpSettings, err = p.getLatestPumpSettings(ctx, traceID, userID, writeParams, sessionToken)
+		pumpSettings, err = p.getLatestPumpSettings(args.Ctx, args.TraceID, args.UserID, writeParams, args.SessionToken)
 		if err != nil {
 			return err
 		}
@@ -251,14 +270,14 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 
 	// Parallel routines
 	wg.Add(groups)
-	go p.getDataFromStore(ctx, &wg, traceID, params.user, dates, exclusionList, channel)
+	go p.getDataFromStore(args.Ctx, &wg, args.TraceID, params.user, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
-		go p.getCbgFromTideV2(ctx, &wg, traceID, params.user, sessionToken, dates, channel)
+		go p.getCbgFromTideV2(args.Ctx, &wg, args.TraceID, params.user, args.SessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
-		go p.getBasalFromTideV2(ctx, &wg, traceID, params.user, sessionToken, dates, channel)
-		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, channel)
+		go p.getBasalFromTideV2(args.Ctx, &wg, args.TraceID, params.user, args.SessionToken, dates, channel)
+		go p.getLoopModeData(args.Ctx, &wg, args.TraceID, params.user, dates, channel)
 	}
 
 	/*To stop the range loop reading channels once all data are read from it*/
@@ -294,12 +313,12 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 		basals = basal.CleanUpBasals(basals, loopModes)
 	}
 
-	defer iterData.Close(ctx)
+	defer iterData.Close(args.Ctx)
 
 	return p.writeDataToBuffer(
-		ctx,
-		buff,
-		traceID,
+		args.Ctx,
+		args.Buff,
+		args.TraceID,
 		params.includePumpSettings,
 		pumpSettings,
 		iterData,

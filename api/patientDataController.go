@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/tidepool-org/tide-whisperer/common"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
 // @Summary Get the data for a specific patient using new bucket api
@@ -36,7 +37,17 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 	sessionToken := getSessionToken(res)
-	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, sessionToken, &buffer)
+	getDataArgs := usecase.GetDataArgs{
+		Ctx:              ctx,
+		UserID:           userID,
+		TraceID:          res.TraceID,
+		StartDate:        startDate,
+		EndDate:          endDate,
+		WithPumpSettings: withPumpSettings,
+		SessionToken:     sessionToken,
+		Buff:             &buffer,
+	}
+	err := a.patientData.GetData(getDataArgs)
 	if err != nil {
 		return res.WriteError(err)
 	}

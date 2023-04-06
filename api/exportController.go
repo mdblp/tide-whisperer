@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/tidepool-org/tide-whisperer/common"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
 type ExportController struct {
@@ -42,7 +43,16 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 	startDate := query.Get("startDate")
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
+
 	sessionToken := getSessionToken(res)
-	go c.exporter.Export(userID, res.TraceID, startDate, endDate, withPumpSettings, sessionToken)
+	exportArgs := usecase.ExportArgs{
+		UserID:           userID,
+		TraceID:          res.TraceID,
+		StartDate:        startDate,
+		EndDate:          endDate,
+		WithPumpSettings: withPumpSettings,
+		SessionToken:     sessionToken,
+	}
+	go c.exporter.Export(exportArgs)
 	return nil
 }

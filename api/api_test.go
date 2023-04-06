@@ -58,7 +58,7 @@ func getStatusPrepareRequest() (*http.Request, *httptest.ResponseRecorder) {
 	return request, response
 }
 
-// Utility function to prepare resposnes on GetStatus route
+// Utility function to prepare responses on GetStatus route
 func getStatusParseResponse(response *httptest.ResponseRecorder) status.ApiStatus {
 	body, _ := ioutil.ReadAll(response.Body)
 	// Checking body content
