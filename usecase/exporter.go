@@ -1,7 +1,6 @@
 package usecase
 
 import (
-	"bytes"
 	"context"
 	"log"
 	"strings"
@@ -31,33 +30,31 @@ type ExportArgs struct {
 	EndDate          string
 	WithPumpSettings bool
 	SessionToken     string
+	ConvertToMgdl    bool
 }
 
-func (e Exporter) Export(exportArgs ExportArgs) {
+func (e Exporter) Export(args ExportArgs) {
 	e.logger.Println("launching export process")
-	var buffer bytes.Buffer
 	backgroundCtx := common.TimeItContext(context.Background())
 	startExportTime := strings.ReplaceAll(time.Now().UTC().Round(time.Second).String(), " ", "_")
 	getDataArgs := GetDataArgs{
 		Ctx:              backgroundCtx,
-		UserID:           exportArgs.UserID,
-		TraceID:          exportArgs.TraceID,
-		StartDate:        exportArgs.StartDate,
-		EndDate:          exportArgs.EndDate,
-		WithPumpSettings: exportArgs.WithPumpSettings,
-		SessionToken:     exportArgs.SessionToken,
-		Buff:             &buffer,
+		UserID:           args.UserID,
+		TraceID:          args.TraceID,
+		StartDate:        args.StartDate,
+		EndDate:          args.EndDate,
+		WithPumpSettings: args.WithPumpSettings,
+		SessionToken:     args.SessionToken,
+		ConvertToMgdl:    args.ConvertToMgdl,
 	}
-	err := e.patientData.GetData(getDataArgs)
+	buffer, err := e.patientData.GetData(getDataArgs)
 	if err != nil {
 		e.logger.Printf("get patient data failed: %v \n", err)
 		return
 	}
 
-	/*convert data to mgdl if needed*/
-
-	filename := strings.Join([]string{exportArgs.UserID, startExportTime}, "_")
-	errUpload := e.uploader.Upload(backgroundCtx, filename, &buffer)
+	filename := strings.Join([]string{args.UserID, startExportTime}, "_")
+	errUpload := e.uploader.Upload(backgroundCtx, filename, buffer)
 	if errUpload != nil {
 		e.logger.Printf("S3 upload failed: %v \n", errUpload)
 	}

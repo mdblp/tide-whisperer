@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"bytes"
 	"log"
 	"os"
 	"testing"
@@ -16,17 +17,28 @@ func TestExporter_Export(t *testing.T) {
 	endDate := "2023-04-05T09:00:00Z"
 	withPumpSettings := true
 	sessionToken := "sessiontoken123"
+	convertToMgdl := true
 	testLogger := log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
 	getDataErrUseCase := MockPatientDataUseCase{}
 	argsMatcher := mock.MatchedBy(func(args GetDataArgs) bool {
 		return args.UserID == userID && args.TraceID == traceID && args.SessionToken == sessionToken &&
-			args.WithPumpSettings == withPumpSettings && args.StartDate == startDate && args.EndDate == endDate
+			args.WithPumpSettings == withPumpSettings && args.StartDate == startDate && args.EndDate == endDate &&
+			args.ConvertToMgdl == convertToMgdl
 	})
-	getDataErrUseCase.On("GetData", argsMatcher).Return(&common.DetailedError{})
+	getDataErrUseCase.On("GetData", argsMatcher).Return(nil, &common.DetailedError{})
 	getDataSuccessUseCase := MockPatientDataUseCase{}
-	getDataSuccessUseCase.On("GetData", argsMatcher).Return(nil)
+	getDataSuccessUseCase.On("GetData", argsMatcher).Return(&bytes.Buffer{}, nil)
 	uploadSuccess := MockUploader{}
 	uploadSuccess.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
+	exportArgs := ExportArgs{
+		UserID:           userID,
+		TraceID:          traceID,
+		StartDate:        startDate,
+		EndDate:          endDate,
+		WithPumpSettings: withPumpSettings,
+		SessionToken:     sessionToken,
+		ConvertToMgdl:    convertToMgdl,
+	}
 	type fields struct {
 		logger      *log.Logger
 		uploader    MockUploader
@@ -38,20 +50,13 @@ func TestExporter_Export(t *testing.T) {
 		exportArgs ExportArgs
 	}{
 		{
-			name: "should not call uploader when FetData failed",
+			name: "should not call uploader when GetData failed",
 			fields: fields{
 				logger:      testLogger,
 				uploader:    MockUploader{},
 				patientData: getDataErrUseCase,
 			},
-			exportArgs: ExportArgs{
-				UserID:           userID,
-				TraceID:          traceID,
-				StartDate:        startDate,
-				EndDate:          endDate,
-				WithPumpSettings: withPumpSettings,
-				SessionToken:     sessionToken,
-			},
+			exportArgs: exportArgs,
 		},
 		{
 			name: "should not uploader when GetData succeeded",
@@ -60,14 +65,7 @@ func TestExporter_Export(t *testing.T) {
 				uploader:    uploadSuccess,
 				patientData: getDataSuccessUseCase,
 			},
-			exportArgs: ExportArgs{
-				UserID:           userID,
-				TraceID:          traceID,
-				StartDate:        startDate,
-				EndDate:          endDate,
-				WithPumpSettings: withPumpSettings,
-				SessionToken:     sessionToken,
-			},
+			exportArgs: exportArgs,
 		},
 	}
 	for _, tt := range tests {

@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -28,7 +27,6 @@ import (
 // @Security Auth0
 // @Router /v1/dataV2/{userID} [get]
 func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) error {
-	var buffer bytes.Buffer
 	// Mongo iterators
 	userID := res.VARS["userID"]
 
@@ -45,13 +43,13 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 		EndDate:          endDate,
 		WithPumpSettings: withPumpSettings,
 		SessionToken:     sessionToken,
-		Buff:             &buffer,
+		ConvertToMgdl:    false,
 	}
-	err := a.patientData.GetData(getDataArgs)
+	buff, err := a.patientData.GetData(getDataArgs)
 	if err != nil {
 		return res.WriteError(err)
 	}
-	return res.Write(buffer.Bytes())
+	return res.Write(buff.Bytes())
 }
 
 // get session token (for history the header is found in the response and not in the request because of the v1 middelware)

@@ -8,6 +8,14 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+func NewEmptyMockDbAdapterIterator() *MockDbAdapterIterator {
+	return &MockDbAdapterIterator{
+		numIter: 0,
+		maxIter: 0,
+		data:    []string{},
+	}
+}
+
 type MockDbAdapterIterator struct {
 	numIter int
 	maxIter int

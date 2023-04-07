@@ -224,13 +224,13 @@ type GetDataArgs struct {
 	EndDate          string
 	WithPumpSettings bool
 	SessionToken     string
-	Buff             *bytes.Buffer
+	ConvertToMgdl    bool
 }
 
-func (p *PatientData) GetData(args GetDataArgs) *common.DetailedError {
+func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
 	params, err := p.getDataV1Params(args.UserID, args.TraceID, args.StartDate, args.EndDate, args.WithPumpSettings, p.readBasalBucket)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var pumpSettings *schemaV2.SettingsResult
 
@@ -261,7 +261,7 @@ func (p *PatientData) GetData(args GetDataArgs) *common.DetailedError {
 	if params.includePumpSettings {
 		pumpSettings, err = p.getLatestPumpSettings(args.Ctx, args.TraceID, args.UserID, writeParams, args.SessionToken)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -296,7 +296,7 @@ func (p *PatientData) GetData(args GetDataArgs) *common.DetailedError {
 	for chanData := range channel {
 		switch d := chanData.(type) {
 		case *common.DetailedError:
-			return d
+			return nil, d
 		case goComMgo.StorageIterator:
 			iterData = d
 		case []schemaV2.CbgBucket:
@@ -317,7 +317,6 @@ func (p *PatientData) GetData(args GetDataArgs) *common.DetailedError {
 
 	return p.writeDataToBuffer(
 		args.Ctx,
-		args.Buff,
 		args.TraceID,
 		params.includePumpSettings,
 		pumpSettings,
@@ -325,6 +324,7 @@ func (p *PatientData) GetData(args GetDataArgs) *common.DetailedError {
 		cbgs,
 		basals,
 		writeParams,
+		args.ConvertToMgdl,
 	)
 }
 
