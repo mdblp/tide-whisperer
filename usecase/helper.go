@@ -21,16 +21,13 @@ import (
 
 type (
 	apiDataParams struct {
-		dates               common.Date
-		user                string
-		traceID             string
-		includePumpSettings bool
-		source              map[string]bool
-		writer              writeFromIter
+		dates  common.Date
+		source map[string]bool
+		writer writeFromIter
 	}
 )
 
-func (p *PatientData) getDataV1Params(userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool) (*apiDataParams, *common.DetailedError) {
+func (p *PatientData) getDataV1Params(userID string, traceID string, startDate string, endDate string, readBasalBucket bool) (*apiDataParams, *common.DetailedError) {
 	var err error
 
 	dataSource := map[string]bool{
@@ -76,10 +73,7 @@ func (p *PatientData) getDataV1Params(userID string, traceID string, startDate s
 			Start: startDate,
 			End:   endDate,
 		},
-		user:                userID,
-		traceID:             traceID,
-		includePumpSettings: withPumpSettings,
-		source:              dataSource,
+		source: dataSource,
 		writer: writeFromIter{
 			uploadIDs: make([]string, 0, 16),
 		},
@@ -166,6 +160,7 @@ func (p *PatientData) writeDataToBuffer(
 	ctx context.Context,
 	traceID string,
 	includePumpSettings bool,
+	includeParameterChanges bool,
 	pumpSettings *schemaV2.SettingsResult,
 	iterData mongo.StorageIterator,
 	Cbgs []schemaV2.CbgBucket,
@@ -189,6 +184,14 @@ func (p *PatientData) writeDataToBuffer(
 		if err != nil {
 			return nil, newWriteError(err)
 		}
+		err = writeDeviceParameterChanges(&buff, writeParams)
+		if err != nil {
+			return nil, newWriteError(err)
+		}
+	}
+
+	if includeParameterChanges && pumpSettings != nil {
+		writeParams.settings = pumpSettings
 		err = writeDeviceParameterChanges(&buff, writeParams)
 		if err != nil {
 			return nil, newWriteError(err)
@@ -280,6 +283,10 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
 			datum["previousValue"] = paramChange.PreviousValue
 		}
 
+		if datum["units"] == MmolL {
+			datum["units"], datum["value"] = getMgdl(datum["units"].(string), datum["value"].(float64))
+		}
+
 		jsonDatum, err := json.Marshal(datum)
 		if err != nil {
 			if p.jsonError.firstError == nil {
@@ -324,6 +331,10 @@ func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
 		"history":              groupedHistoryParameters,
 	}
 	datum["payload"] = payload
+
+	if datum["units"] == MmolL {
+		datum["units"], datum["value"] = getMgdl(datum["units"].(string), datum["value"].(float64))
+	}
 
 	jsonDatum, err := json.Marshal(datum)
 	if err != nil {

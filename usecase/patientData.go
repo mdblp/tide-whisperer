@@ -213,18 +213,19 @@ func addContextToMessage(methodName string, userID string, traceID string, messa
 }
 
 type GetDataArgs struct {
-	Ctx              context.Context
-	UserID           string
-	TraceID          string
-	StartDate        string
-	EndDate          string
-	WithPumpSettings bool
-	SessionToken     string
-	ConvertToMgdl    bool
+	Ctx                   context.Context
+	UserID                string
+	TraceID               string
+	StartDate             string
+	EndDate               string
+	WithPumpSettings      bool
+	WithParametersChanges bool
+	SessionToken          string
+	ConvertToMgdl         bool
 }
 
 func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
-	params, err := p.getDataV1Params(args.UserID, args.TraceID, args.StartDate, args.EndDate, args.WithPumpSettings, p.readBasalBucket)
+	params, err := p.getDataV1Params(args.UserID, args.TraceID, args.StartDate, args.EndDate, p.readBasalBucket)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +255,7 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 
 	writeParams := &params.writer
 
-	if params.includePumpSettings {
+	if args.WithPumpSettings || args.WithParametersChanges {
 		pumpSettings, err = p.getLatestPumpSettings(args.Ctx, args.TraceID, args.UserID, writeParams, args.SessionToken)
 		if err != nil {
 			return nil, err
@@ -266,14 +267,14 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 
 	// Parallel routines
 	wg.Add(groups)
-	go p.getDataFromStore(args.Ctx, &wg, args.TraceID, params.user, dates, exclusionList, channel)
+	go p.getDataFromStore(args.Ctx, &wg, args.TraceID, args.UserID, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
-		go p.getCbgFromTideV2(args.Ctx, &wg, args.TraceID, params.user, args.SessionToken, dates, channel)
+		go p.getCbgFromTideV2(args.Ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
-		go p.getBasalFromTideV2(args.Ctx, &wg, args.TraceID, params.user, args.SessionToken, dates, channel)
-		go p.getLoopModeData(args.Ctx, &wg, args.TraceID, params.user, dates, channel)
+		go p.getBasalFromTideV2(args.Ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
+		go p.getLoopModeData(args.Ctx, &wg, args.TraceID, args.UserID, dates, channel)
 	}
 
 	/*To stop the range loop reading channels once all data are read from it*/
@@ -314,7 +315,8 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 	return p.writeDataToBuffer(
 		args.Ctx,
 		args.TraceID,
-		params.includePumpSettings,
+		args.WithPumpSettings,
+		args.WithParametersChanges,
 		pumpSettings,
 		iterData,
 		cbgs,
@@ -427,33 +429,11 @@ func writeFromIterV1(ctx context.Context, res *bytes.Buffer, p *writeFromIter) e
 					datum["units"], datum["value"] = getMgdl(datum["units"].(string), datum["value"].(float64))
 				}
 			case "wizard":
+				/*For wizard, we don't have anymore fields in mmol, so we're changing the unit but no conversion is done.
+				The associated bolus is separated and will be converted in another function.*/
 				if datum["units"] == MmolL {
-					datum["units"], datum["bgInput"] = getMgdl(datum["units"].(string), datum["bgInput"].(float64))
-					_, datum["insulinSensitivity"] = getMgdl(MmolL, datum["insulinSensitivity"].(float64))
-					datum["units"], datum["bgTarget"] = getMgdl(MmolL, datum["bgTarget"].(float64))
+					datum["units"] = MgdL
 				}
-
-				if datum["bgTarget"] != nil {
-					var bgTarget map[string]interface{}
-					//switch datum["bgTarget"].(type) {
-					//case string:
-					//	json.Unmarshal([]byte(datum["bgTarget"].(string)), &bgTarget)
-					//default:
-					bgTarget = datum["bgTarget"].(map[string]interface{})
-					//}
-					for key, value := range bgTarget {
-						switch key {
-						case "high", "low", "target", "range":
-							_, bgTarget[key] = getMgdl(MmolL, value.(float64))
-						}
-					}
-					datum["bgTarget"] = bgTarget
-					//if _, ok := datum["bgTarget"].(map[string]interface{}); ok {
-					//	bgTargetBytes, _ := json.Marshal(datum["bgTarget"])
-					//	datum["bgTarget"] = string(bgTargetBytes)
-					//}
-				}
-
 			}
 			// Create the JSON string for this datum
 			if jsonDatum, err = json.Marshal(datum); err != nil {

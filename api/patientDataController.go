@@ -36,14 +36,15 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 	sessionToken := getSessionToken(res)
 	getDataArgs := usecase.GetDataArgs{
-		Ctx:              ctx,
-		UserID:           userID,
-		TraceID:          res.TraceID,
-		StartDate:        startDate,
-		EndDate:          endDate,
-		WithPumpSettings: withPumpSettings,
-		SessionToken:     sessionToken,
-		ConvertToMgdl:    false,
+		Ctx:                   ctx,
+		UserID:                userID,
+		TraceID:               res.TraceID,
+		StartDate:             startDate,
+		EndDate:               endDate,
+		WithPumpSettings:      withPumpSettings,
+		WithParametersChanges: withPumpSettings,
+		SessionToken:          sessionToken,
+		ConvertToMgdl:         false,
 	}
 	buff, err := a.patientData.GetData(getDataArgs)
 	if err != nil {

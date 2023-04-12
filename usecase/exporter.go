@@ -24,13 +24,14 @@ func NewExporter(logger *log.Logger, patientData PatientDataUseCase, uploader Up
 }
 
 type ExportArgs struct {
-	UserID           string
-	TraceID          string
-	StartDate        string
-	EndDate          string
-	WithPumpSettings bool
-	SessionToken     string
-	ConvertToMgdl    bool
+	UserID                string
+	TraceID               string
+	StartDate             string
+	EndDate               string
+	WithPumpSettings      bool
+	WithParametersChanges bool
+	SessionToken          string
+	ConvertToMgdl         bool
 }
 
 func (e Exporter) Export(args ExportArgs) {
@@ -38,14 +39,15 @@ func (e Exporter) Export(args ExportArgs) {
 	backgroundCtx := common.TimeItContext(context.Background())
 	startExportTime := strings.ReplaceAll(time.Now().UTC().Round(time.Second).String(), " ", "_")
 	getDataArgs := GetDataArgs{
-		Ctx:              backgroundCtx,
-		UserID:           args.UserID,
-		TraceID:          args.TraceID,
-		StartDate:        args.StartDate,
-		EndDate:          args.EndDate,
-		WithPumpSettings: args.WithPumpSettings,
-		SessionToken:     args.SessionToken,
-		ConvertToMgdl:    args.ConvertToMgdl,
+		Ctx:                   backgroundCtx,
+		UserID:                args.UserID,
+		TraceID:               args.TraceID,
+		StartDate:             args.StartDate,
+		EndDate:               args.EndDate,
+		WithPumpSettings:      args.WithPumpSettings,
+		WithParametersChanges: args.WithParametersChanges,
+		SessionToken:          args.SessionToken,
+		ConvertToMgdl:         args.ConvertToMgdl,
 	}
 	buffer, err := e.patientData.GetData(getDataArgs)
 	if err != nil {

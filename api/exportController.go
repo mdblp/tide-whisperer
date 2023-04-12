@@ -43,18 +43,18 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 	query := res.URL.Query()
 	startDate := query.Get("startDate")
 	endDate := query.Get("endDate")
-	withPumpSettings := query.Get("withPumpSettings") == "true"
 	convertToMgdl := query.Get("convertToMgdl") == "true"
 
 	sessionToken := getSessionToken(res)
 	exportArgs := usecase.ExportArgs{
-		UserID:           userID,
-		TraceID:          res.TraceID,
-		StartDate:        startDate,
-		EndDate:          endDate,
-		WithPumpSettings: withPumpSettings,
-		SessionToken:     sessionToken,
-		ConvertToMgdl:    convertToMgdl,
+		UserID:                userID,
+		TraceID:               res.TraceID,
+		StartDate:             startDate,
+		EndDate:               endDate,
+		WithPumpSettings:      false,
+		WithParametersChanges: true,
+		SessionToken:          sessionToken,
+		ConvertToMgdl:         convertToMgdl,
 	}
 	go c.exporter.Export(exportArgs)
 	return nil
