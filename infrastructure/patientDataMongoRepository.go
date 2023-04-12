@@ -39,33 +39,9 @@ var unwantedFields = bson.M{
 	"source":             0,
 }
 
-var unwantedPumpSettingsFields = bson.M{
-	"_id":                  0,
-	"_userId":              0,
-	"_groupId":             0,
-	"_version":             0,
-	"_active":              0,
-	"_schemaVersion":       0,
-	"createdTime":          0,
-	"modifiedTime":         0,
-	"conversionOffset":     0,
-	"clockDriftOffset":     0,
-	"timezoneOffset":       0,
-	"basalSchedules":       0,
-	"bgTargets":            0,
-	"carbRatios":           0,
-	"insulinSensitivities": 0,
-}
-
 var wantedRangeFields = bson.M{
 	"_id":  0,
 	"time": 1,
-}
-
-var wantedBgFields = bson.M{
-	"_id":   0,
-	"value": 1,
-	"units": 1,
 }
 
 var tideWhispererIndexes = map[string][]mongo.IndexModel{

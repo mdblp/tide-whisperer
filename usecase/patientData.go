@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/tidepool-org/go-common/clients/mongo"
+	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
 	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/usecase/basal"
@@ -25,6 +26,7 @@ import (
 var (
 	errorRunningQuery      = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
 	errorTideV2Http        = common.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
+	errorWriteBuffer       = common.DetailedError{Status: http.StatusInternalServerError, Code: "write_error", Message: "internal server error"}
 	errorInvalidParameters = common.DetailedError{Status: http.StatusBadRequest, Code: "invalid_parameters", Message: "one or more parameters are invalid"}
 )
 
@@ -36,7 +38,6 @@ type (
 	}
 	// writeFromIter struct to pass to the function which write the http result from the mongo iterator for diabetes data
 	writeFromIter struct {
-		res      *common.HttpResponseWriter
 		iter     mongo.StorageIterator
 		settings *schemaV2.SettingsResult
 		cbgs     []schemaV2.CbgBucket
@@ -76,10 +77,6 @@ type (
 		GlyHyperLimit float64 `json:"glyHyperLimit"`
 		// The unit of hypo/hyper values
 		GlyUnit string `json:"glyUnit"`
-	}
-	simplifiedBgDatum struct {
-		Value float64 `json:"value" bson:"value"`
-		Unit  string  `json:"units" bson:"units"`
 	}
 	deviceParameter struct {
 		Level int    `json:"level" bson:"level"`
@@ -126,74 +123,70 @@ type PatientData struct {
 	patientDataRepository PatientDataRepository
 	tideV2Client          tideV2Client.ClientInterface
 	logger                *log.Logger
+	readBasalBucket       bool
 }
 
-func NewPatientDataUseCase(logger *log.Logger, tideV2Client tideV2Client.ClientInterface, patientDataRepository PatientDataRepository) *PatientData {
+func NewPatientDataUseCase(logger *log.Logger, tideV2Client tideV2Client.ClientInterface, patientDataRepository PatientDataRepository, readBasalBucket bool) *PatientData {
 	return &PatientData{
 		patientDataRepository: patientDataRepository,
 		logger:                logger,
 		tideV2Client:          tideV2Client,
+		readBasalBucket:       readBasalBucket,
 	}
 }
 
-func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, tideV2Data chan []schemaV2.CbgBucket, logErrorDataV2 chan *common.DetailedError) {
+func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.tideV2Client.GetCbgV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
 	if err != nil {
-		logErrorDataV2 <- &common.DetailedError{
+		channel <- &common.DetailedError{
 			Status:          errorTideV2Http.Status,
 			Code:            errorTideV2Http.Code,
 			Message:         errorTideV2Http.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getCbgFromTideV2", userID, traceID, err.Error()),
 		}
-		tideV2Data <- nil
 	} else {
-		tideV2Data <- data
-		logErrorDataV2 <- nil
+		channel <- data
 	}
-	elapsed_time := time.Now().Sub(start).Milliseconds()
-	dataFromTideV2Timer.Observe(float64(elapsed_time))
+	elapsedTime := time.Since(start).Milliseconds()
+	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
-func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, userID string, sessionToken string, dates *common.Date, v2Data chan []schemaV2.BasalBucket, logErrorDataV2 chan *common.DetailedError) {
+func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.tideV2Client.GetBasalV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
 	if err != nil {
-		logErrorDataV2 <- &common.DetailedError{
+		channel <- &common.DetailedError{
 			Status:          errorTideV2Http.Status,
 			Code:            errorTideV2Http.Code,
 			Message:         errorTideV2Http.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getBasalFromTideV2", userID, traceID, err.Error()),
 		}
-		v2Data <- nil
 	} else {
-		v2Data <- data
-		logErrorDataV2 <- nil
+		channel <- data
 	}
-	elapsed_time := time.Now().Sub(start).Milliseconds()
-	dataFromTideV2Timer.Observe(float64(elapsed_time))
+	elapsedTime := time.Since(start).Milliseconds()
+	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
-func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, loopModeData chan []schema.LoopModeEvent, logError chan *common.DetailedError) {
+func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	loopModes, err := p.patientDataRepository.GetLoopMode(ctx, traceID, userID, dates)
 	if err != nil {
-		logError <- &common.DetailedError{
+		channel <- &common.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getBasalFromTideV2", userID, traceID, err.Error()),
 		}
-		loopModeData <- loopModes
 	} else {
-		loopModeData <- loopModes
-		logError <- nil
+		channel <- loopModes
 	}
-	elapsed_time := time.Since(start).Milliseconds()
-	dataFromStoreTimer.Observe(float64(elapsed_time))
+	elapsedTime := time.Since(start).Milliseconds()
+	dataFromStoreTimer.Observe(float64(elapsedTime))
 }
 
 func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error) {
@@ -203,21 +196,21 @@ func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, us
 	return p.patientDataRepository.GetDataRangeLegacy(ctx, traceID, userID)
 }
 
-func (p *PatientData) GetData(ctx context.Context, res *common.HttpResponseWriter, readBasalBucket bool) error {
+/*Temporary hack until we remove DetailedError
+TODO : refactor DetailedError to stop using it and use go-common v2 errors
+By doing this we will use the error interface and we will be able to wrap errors with additional
+context using fmt.Errorf("context: %w", err) */
+func addContextToMessage(methodName string, userID string, traceID string, message string) string {
+	return fmt.Sprintf("%s failed: user=[%s], traceID=[%s] : %v", methodName, userID, traceID, message)
+}
 
-	params, logError := p.getDataV1Params(readBasalBucket, res)
-	if logError != nil {
-		return res.WriteError(logError)
+func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, sessionToken string, buff *bytes.Buffer) *common.DetailedError {
+	params, err := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, p.readBasalBucket)
+	if err != nil {
+		return err
 	}
-	// Mongo iterators
 	var pumpSettings *schemaV2.SettingsResult
-	var iterUploads mongo.StorageIterator
-	var chanApiCbgs chan []schemaV2.CbgBucket
-	var chanApiBasals chan []schemaV2.BasalBucket
-	var chanLoopMode chan []schema.LoopModeEvent
 
-	var chanApiCbgError, chanApiBasalError chan *common.DetailedError
-	var logErrorDataV2 *common.DetailedError
 	var wg sync.WaitGroup
 
 	var exclusions = map[string]string{
@@ -242,135 +235,96 @@ func (p *PatientData) GetData(ctx context.Context, res *common.HttpResponseWrite
 
 	writeParams := &params.writer
 
-	sessionToken := getSessionToken(res)
-
 	if params.includePumpSettings {
-		pumpSettings, logError = p.getLatestPumpSettings(ctx, res.TraceID, params.user, writeParams, sessionToken)
-		if logError != nil {
-			return res.WriteError(logError)
+		pumpSettings, err = p.getLatestPumpSettings(ctx, traceID, userID, writeParams, sessionToken)
+		if err != nil {
+			return err
 		}
 	}
 
 	// Fetch data from patientData and V2 API (for cbg)
-	chanStoreError := make(chan *common.DetailedError, 1)
-	chanMongoIter := make(chan mongo.StorageIterator, 1)
+	channel := make(chan interface{})
 
 	// Parallel routines
 	wg.Add(groups)
-	go p.getDataFromStore(ctx, &wg, res.TraceID, params.user, dates, exclusionList, chanMongoIter, chanStoreError)
+	go p.getDataFromStore(ctx, &wg, traceID, params.user, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
-		chanApiCbgs = make(chan []schemaV2.CbgBucket, 1)
-		chanApiCbgError = make(chan *common.DetailedError, 1)
-		go p.getCbgFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiCbgs, chanApiCbgError)
+		go p.getCbgFromTideV2(ctx, &wg, traceID, params.user, sessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
-		chanApiBasals = make(chan []schemaV2.BasalBucket, 1)
-		chanApiBasalError = make(chan *common.DetailedError, 1)
-		go p.getBasalFromTideV2(ctx, &wg, params.user, sessionToken, dates, chanApiBasals, chanApiBasalError)
-		chanLoopMode = make(chan []schema.LoopModeEvent, 1)
-		go p.getLoopModeData(ctx, &wg, res.TraceID, params.user, dates, chanLoopMode, chanStoreError)
+		go p.getBasalFromTideV2(ctx, &wg, traceID, params.user, sessionToken, dates, channel)
+		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, channel)
 	}
+
+	/*To stop the range loop reading channels once all data are read from it*/
+	/*This is due to the fact that writing into a channel will terminate once a read is done
+	with unbuffered channels.*/
 	go func() {
 		wg.Wait()
-		close(chanStoreError)
-		close(chanMongoIter)
-		if params.source["cbgBucket"] {
-			close(chanApiCbgs)
-			close(chanApiCbgError)
-		}
-		if params.source["basalBucket"] {
-			close(chanApiBasals)
-			close(chanApiBasalError)
-			close(chanLoopMode)
-		}
+		close(channel)
 	}()
 
-	logErrorStore := <-chanStoreError
-	if logErrorStore != nil {
-		return res.WriteError(logErrorStore)
-	}
-	if params.source["cbgBucket"] {
-		logErrorDataV2 = <-chanApiCbgError
-		if logErrorDataV2 != nil {
-			return res.WriteError(logErrorDataV2)
+	var iterData goComMgo.StorageIterator
+	var cbgs []schemaV2.CbgBucket
+	var basals []schemaV2.BasalBucket
+	var loopModes []schema.LoopModeEvent
+
+	for chanData := range channel {
+		switch d := chanData.(type) {
+		case *common.DetailedError:
+			return d
+		case goComMgo.StorageIterator:
+			iterData = d
+		case []schemaV2.CbgBucket:
+			cbgs = d
+		case []schemaV2.BasalBucket:
+			basals = d
+		case []schema.LoopModeEvent:
+			loopModes = d
 		}
 	}
-	if params.source["basalBucket"] {
-		logErrorDataV2 = <-chanApiBasalError
-		if logErrorDataV2 != nil {
-			return res.WriteError(logErrorDataV2)
-		}
-	}
-	iterData := <-chanMongoIter
-	var Cbgs []schemaV2.CbgBucket
-	if params.source["cbgBucket"] {
-		Cbgs = <-chanApiCbgs
-	}
-	var Basals []schemaV2.BasalBucket
-	if params.source["basalBucket"] {
-		Basals = <-chanApiBasals
-		loopModes := <-chanLoopMode
-		if len(loopModes) > 0 {
-			loopModes = schema.FillLoopModeEvents(loopModes)
-			Basals = basal.CleanUpBasals(Basals, loopModes)
-		}
+
+	if len(loopModes) > 0 {
+		loopModes = schema.FillLoopModeEvents(loopModes)
+		basals = basal.CleanUpBasals(basals, loopModes)
 	}
 
 	defer iterData.Close(ctx)
 
-	return p.writeDataV1(
+	return p.writeDataToBuffer(
 		ctx,
-		res,
+		buff,
+		traceID,
 		params.includePumpSettings,
 		pumpSettings,
-		iterUploads,
 		iterData,
-		Cbgs,
-		Basals,
+		cbgs,
+		basals,
 		writeParams,
 	)
 }
 
-func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, excludes []string, iterData chan mongo.StorageIterator, logError chan *common.DetailedError) {
+func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, excludes []string, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
 	data, err := p.patientDataRepository.GetDataInDeviceData(ctx, traceID, userID, dates, excludes)
 	if err != nil {
-		logError <- &common.DetailedError{
+		channel <- &common.DetailedError{
 			Status:          errorRunningQuery.Status,
 			Code:            errorRunningQuery.Code,
 			Message:         errorRunningQuery.Message,
-			InternalMessage: err.Error(),
+			InternalMessage: addContextToMessage("getDataFromStore", userID, traceID, err.Error()),
 		}
-		iterData <- nil
 	} else {
-		logError <- nil
-		iterData <- data
+		channel <- data
 	}
-	elapsed_time := time.Now().Sub(start).Milliseconds()
-	dataFromStoreTimer.Observe(float64(elapsed_time))
-}
-
-// get session token (for history the header is found in the response and not in the request because of the v1 middelware)
-// to be change of course, but for now keep it
-func getSessionToken(res *common.HttpResponseWriter) string {
-	// first look if old token are provided in the request
-	sessionToken := res.Header.Get("x-tidepool-session-token")
-	if sessionToken != "" {
-		return sessionToken
-	}
-	// if not then
-	sessionToken = strings.Trim(res.Header.Get("Authorization"), " ")
-	if sessionToken != "" && strings.HasPrefix(sessionToken, "Bearer ") {
-		tokenParts := strings.Split(sessionToken, " ")
-		sessionToken = tokenParts[1]
-	}
-	return sessionToken
+	elapsedTime := time.Since(start).Milliseconds()
+	dataFromStoreTimer.Observe(float64(elapsedTime))
 }
 
 // writeFromIterV1 Common code to write
-func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
+func writeFromIterV1(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
 	var err error
 
 	iter := p.iter
@@ -457,12 +411,12 @@ func writeFromIterV1(ctx context.Context, p *writeFromIter) error {
 
 			if p.writeCount > 0 {
 				// Add the coma and line return (for readability)
-				err = p.res.WriteString(",\n")
+				_, err = res.WriteString(",\n")
 				if err != nil {
 					return err
 				}
 			}
-			err = p.res.Write(jsonDatum)
+			_, err = res.Write(jsonDatum)
 			if err != nil {
 				return err
 			}
