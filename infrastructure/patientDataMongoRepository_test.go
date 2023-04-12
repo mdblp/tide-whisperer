@@ -65,32 +65,6 @@ func formatForReading(toFormat interface{}) string {
 	return string(formatted)
 }
 
-func getCursors(exPlans interface{}) []string {
-	var cursors []string
-
-	if exPlans != nil {
-
-		plans := exPlans.([]interface{})
-
-		if plans != nil {
-			for i := range plans {
-				p := plans[i].(map[string]interface{})
-				cursors = append(cursors, p["cursor"].(string))
-			}
-		}
-	}
-	return cursors
-}
-
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if strings.Contains(a, e) {
-			return true
-		}
-	}
-	return false
-}
-
 func basicQuery() bson.M {
 	qParams := &common.Params{
 		UserID:        "abc123",
@@ -207,94 +181,6 @@ func typesWithDeviceEventAndSubTypeQuery() bson.M {
 	}
 
 	return generateMongoQuery(qParams)
-}
-
-func testDataForLatestTests() map[string]bson.M {
-	testData := map[string]bson.M{
-		"upload1": {
-			"id":             uuid.New().String(),
-			"_active":        true,
-			"_userId":        "abc123",
-			"_schemaVersion": int32(1),
-			"time":           "2019-03-15T01:24:28.000Z",
-			"type":           "upload",
-			"deviceId":       "dev123",
-			"uploadId":       "9244bb16e27c4973c2f37af81784a05d",
-		},
-		"cbg1": {
-			"id":             uuid.New().String(),
-			"_active":        true,
-			"_userId":        "abc123",
-			"_schemaVersion": int32(1),
-			"time":           "2019-03-15T00:42:51.902Z",
-			"type":           "cbg",
-			"units":          "mmol/L",
-			"deviceId":       "dev123",
-			"uploadId":       "9244bb16e27c4973c2f37af81784a05d",
-			"value":          12.82223,
-		},
-		"upload2": {
-			"id":             uuid.New().String(),
-			"_active":        true,
-			"_userId":        "abc123",
-			"_schemaVersion": int32(1),
-			"time":           "2019-03-14T01:24:28.000Z",
-			"type":           "upload",
-			"deviceId":       "dev456",
-			"uploadId":       "zzz4bb16e27c4973c2f37af81784a05d",
-		},
-		"cbg2": {
-			"id":             uuid.New().String(),
-			"_active":        true,
-			"_userId":        "abc123",
-			"_schemaVersion": int32(1),
-			"time":           "2019-03-14T00:42:51.902Z",
-			"type":           "cbg",
-			"units":          "mmol/L",
-			"uploadId":       "zzz4bb16e27c4973c2f37af81784a05d",
-			"deviceId":       "dev456",
-			"value":          9.7213,
-		},
-		"upload3": {
-			"id":             uuid.New().String(),
-			"_active":        true,
-			"_userId":        "xyz123",
-			"_schemaVersion": int32(1),
-			"time":           "2019-03-19T01:24:28.000Z",
-			"type":           "upload",
-			"deviceId":       "dev789",
-			"uploadId":       "xxx4bb16e27c4973c2f37af81784a05d",
-		},
-		"cbg3": {
-			"id":             uuid.New().String(),
-			"_active":        true,
-			"_userId":        "xyz123",
-			"_schemaVersion": int32(1),
-			"time":           "2019-03-19T00:42:51.902Z",
-			"type":           "cbg",
-			"units":          "mmol/L",
-			"uploadId":       "xxx4bb16e27c4973c2f37af81784a05d",
-			"deviceId":       "dev789",
-			"value":          7.1237,
-		},
-	}
-
-	return testData
-}
-
-func storeDataForLatestTests(testData map[string]bson.M) []interface{} {
-	if testData == nil {
-		testData = testDataForLatestTests()
-	}
-
-	storeData := make([]interface{}, len(testData))
-	index := 0
-	for _, v := range testData {
-		storeData[index] = v
-		index++
-	}
-
-	return storeData
 }
 
 func iteratorToAllData(ctx context.Context, iter goComMgo.StorageIterator) ([]map[string]interface{}, error) {

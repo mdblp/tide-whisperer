@@ -98,7 +98,7 @@ func main() {
 		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 	})
 
-	awsconfig, err := config.LoadDefaultConfig(context.TODO(), config.WithEndpointResolverWithOptions(customResolver), config.WithRegion(region))
+	awsconfig, err := config.LoadDefaultConfig(context.Background(), config.WithEndpointResolverWithOptions(customResolver), config.WithRegion(region))
 	if err != nil {
 		logger.Fatal(err)
 	}

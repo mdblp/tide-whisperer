@@ -121,7 +121,7 @@ func (a *API) jsonError(res http.ResponseWriter, err common.DetailedError, start
 
 func (a *API) logError(err *common.DetailedError, startedAt time.Time) {
 	err.ID = uuid.New().String()
-	a.logger.Println(DataAPIPrefix, fmt.Sprintf("[%s][%s] failed after [%.3f]secs with error [%s][%s] ", err.ID, err.Code, time.Now().Sub(startedAt).Seconds(), err.Message, err.InternalMessage))
+	a.logger.Println(DataAPIPrefix, fmt.Sprintf("[%s][%s] failed after [%.3f]secs with error [%s][%s] ", err.ID, err.Code, time.Since(startedAt).Seconds(), err.Message, err.InternalMessage))
 }
 
 func (a *API) isAuthorized(req *http.Request, targetUserIDs []string) bool {

@@ -78,10 +78,6 @@ type (
 		// The unit of hypo/hyper values
 		GlyUnit string `json:"glyUnit"`
 	}
-	simplifiedBgDatum struct {
-		Value float64 `json:"value" bson:"value"`
-		Unit  string  `json:"units" bson:"units"`
-	}
 	deviceParameter struct {
 		Level int    `json:"level" bson:"level"`
 		Name  string `json:"name" bson:"name"`
@@ -153,7 +149,7 @@ func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, 
 	} else {
 		channel <- data
 	}
-	elapsedTime := time.Now().Sub(start).Milliseconds()
+	elapsedTime := time.Since(start).Milliseconds()
 	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
@@ -171,7 +167,7 @@ func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup
 	} else {
 		channel <- data
 	}
-	elapsedTime := time.Now().Sub(start).Milliseconds()
+	elapsedTime := time.Since(start).Milliseconds()
 	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
@@ -323,7 +319,7 @@ func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, 
 	} else {
 		channel <- data
 	}
-	elapsedTime := time.Now().Sub(start).Milliseconds()
+	elapsedTime := time.Since(start).Milliseconds()
 	dataFromStoreTimer.Observe(float64(elapsedTime))
 }
 
