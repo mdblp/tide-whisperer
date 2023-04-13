@@ -294,3 +294,63 @@ func TestPatientData_GetData_ShouldConvertOnlyMmolHistoryParameters(t *testing.T
 		assert.Contains(t, strRes, expectedValue5, "GetData result=%s does not contains expected value=%s", strRes, expectedValue5)
 	})
 }
+
+func TestPatientData_GetData_ShouldConvertOnlyMmolSmbgs(t *testing.T) {
+	testUserId := "testSmbgsConvertionUserId"
+	testTraceId := "testSmbgsConvertionTraceId"
+	patientDataRepository := MockPatientDataRepository{}
+	patientDataRepository.On("GetDataInDeviceData", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(
+		infrastructure.NewMockDbAdapterIterator([]string{
+			"{\"id\":\"1\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:00:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mmol/L\",\"value\":10}",
+			"{\"id\":\"2\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:05:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mmol/L\",\"value\":15}",
+			"{\"id\":\"3\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:10:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mg/dL\",\"value\":50}",
+		}),
+		nil,
+	)
+	patientDataRepository.On("GetUploadData", mock.Anything, testTraceId, []string{"upload01"}).Return(
+		infrastructure.NewMockDbAdapterIterator([]string{
+			"{\"time\":\"2022-08-08T16:40:00Z\",\"type\":\"upload\",\"id\":\"upload01\",\"timezone\":\"UTC\",\"_dataState\":\"open\",\"_deduplicator\":{\"name\":\"org.tidepool.deduplicator.none\",\"version\":\"1.0.0\"},\"_state\":\"open\",\"client\":{\"name\":\"portal-api.yourloops.com\",\"version\":\"1.0.0\" },\"dataSetType\":\"continuous\",\"deviceManufacturers\":[\"Diabeloop\"],\"deviceModel\":\"DBLG1\",\"deviceTags\":[\"cgm\",\"insulin-pump\"],\"revision\": 1,\"uploadId\":\"33031f76c78461670a1a95b5f032bb6a\",\"version\":\"1.0.0\",\"_userId\":\"osef\"}",
+		}),
+		nil,
+	)
+	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
+
+	unexpectedUnits := "\"units\":\"mmol/L\""
+
+	/*convert smbg1 and smbg2 because unit is mmol*/
+	expectedValue1 := "\"value\":6"
+	expectedValue2 := "\"value\":8"
+	/*do not convert smbg3 because unit is mg/dL*/
+	expectedValue3 := "\"value\":50"
+
+	t.Run("convert to mgdl all mmol smbgs", func(t *testing.T) {
+		p := &PatientData{
+			patientDataRepository: &patientDataRepository,
+			tideV2Client:          &tideV2Client,
+			logger:                &log.Logger{},
+			readBasalBucket:       false,
+		}
+
+		getDataArgs := GetDataArgs{
+			Ctx:                   common.TimeItContext(context.Background()),
+			UserID:                testUserId,
+			TraceID:               testTraceId,
+			StartDate:             "",
+			EndDate:               "",
+			WithPumpSettings:      false,
+			WithParametersChanges: false,
+			SessionToken:          "sessionToken",
+			ConvertToMgdl:         true,
+		}
+		res, err := p.GetData(getDataArgs)
+
+		/*No error should be thrown*/
+		assert.Nil(t, err)
+		strRes := res.String()
+
+		assert.NotContainsf(t, strRes, unexpectedUnits, "GetData result=%s does contains unexpected units=%s", strRes, unexpectedUnits)
+		assert.Contains(t, strRes, expectedValue1, "GetData result=%s does not contains expected value=%s", strRes, expectedValue1)
+		assert.Contains(t, strRes, expectedValue2, "GetData result=%s does not contains expected value=%s", strRes, expectedValue2)
+		assert.Contains(t, strRes, expectedValue3, "GetData result=%s does not contains expected value=%s", strRes, expectedValue3)
+	})
+}

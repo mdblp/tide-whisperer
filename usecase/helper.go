@@ -243,7 +243,7 @@ func (p *PatientData) writeDataToBuffer(
 		common.TimeEnd(ctx, "getUploads")
 	}
 
-	// Silently failed theses error to the client, but record them to the log
+	// Silently failed those error to the client, but record them to the log
 	if writeParams.decode.firstError != nil {
 		p.logger.Printf("{%s} - {nErrors:%d,MongoDecode:\"%s\"}", traceID, writeParams.decode.numErrors, writeParams.decode.firstError)
 	}

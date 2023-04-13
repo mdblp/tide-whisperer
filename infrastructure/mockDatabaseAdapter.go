@@ -16,6 +16,14 @@ func NewEmptyMockDbAdapterIterator() *MockDbAdapterIterator {
 	}
 }
 
+func NewMockDbAdapterIterator(data []string) *MockDbAdapterIterator {
+	return &MockDbAdapterIterator{
+		numIter: -1,
+		maxIter: len(data),
+		data:    data,
+	}
+}
+
 type MockDbAdapterIterator struct {
 	numIter int
 	maxIter int
