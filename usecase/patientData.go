@@ -213,15 +213,21 @@ func addContextToMessage(methodName string, userID string, traceID string, messa
 }
 
 type GetDataArgs struct {
-	Ctx                   context.Context
-	UserID                string
-	TraceID               string
-	StartDate             string
-	EndDate               string
-	WithPumpSettings      bool
-	WithParametersChanges bool
-	SessionToken          string
-	ConvertToMgdl         bool
+	Ctx              context.Context
+	UserID           string
+	TraceID          string
+	StartDate        string
+	EndDate          string
+	WithPumpSettings bool
+	SessionToken     string
+	/*Added args for export*/
+	/*TODO split getData into two functions : getData and writeData
+	by doing this export could use getData and transform data as needed
+	(and no need to pass params to the actual getData)
+	*/
+	WithParametersChanges      bool
+	FilteringParametersChanges bool
+	ConvertToMgdl              bool
 }
 
 func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
@@ -323,6 +329,8 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 		basals,
 		writeParams,
 		args.ConvertToMgdl,
+		args.FilteringParametersChanges,
+		dates,
 	)
 }
 

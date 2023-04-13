@@ -168,6 +168,8 @@ func (p *PatientData) writeDataToBuffer(
 	Basals []schemaV2.BasalBucket,
 	writeParams *writeFromIter,
 	convertToMgdl bool,
+	filteringParameterChanges bool,
+	dates *common.Date,
 ) (*bytes.Buffer, *common.DetailedError) {
 	buff := bytes.Buffer{}
 	var iterUploads mongo.StorageIterator
@@ -189,7 +191,7 @@ func (p *PatientData) writeDataToBuffer(
 
 	if includeParameterChanges && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writeDeviceParameterChanges(&buff, writeParams)
+		err = writeDeviceParameterChanges(&buff, writeParams, filteringParameterChanges, dates)
 		if err != nil {
 			return nil, newWriteError(err)
 		}
@@ -259,12 +261,29 @@ func (p *PatientData) writeDataToBuffer(
 	return &buff, nil
 }
 
-func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
+func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, dates *common.Date) error {
 	settings := p.settings
+	var startDate, endDate time.Time
+	var err error
+	if filteringParameterChanges {
+		if dates.Start != "" {
+			if startDate, err = time.Parse(time.RFC3339Nano, dates.Start); err != nil {
+				return fmt.Errorf("cannot parse startDate=%s", dates.Start)
+			}
+		}
+		if dates.End != "" {
+			if endDate, err = time.Parse(time.RFC3339Nano, dates.End); err != nil {
+				return fmt.Errorf("cannot parse endDate=%s", dates.End)
+			}
+		} else {
+			endDate = time.Now()
+		}
+	}
+
 	for _, paramChange := range settings.HistoryParameters {
-
-		/*TODO only write params in the startDate-endDate interval ?*/
-
+		if filteringParameterChanges && (paramChange.Timestamp.Before(startDate) || paramChange.Timestamp.After(endDate)) {
+			continue
+		}
 		datum := make(map[string]interface{})
 		datum["id"] = uuid.New().String()
 		datum["type"] = "deviceEvent"
