@@ -7,68 +7,96 @@ import (
 	"testing"
 	"time"
 
+	orcaSchema "github.com/mdblp/orca/schema"
 	"github.com/mdblp/tide-whisperer-v2/v2/client/tidewhisperer"
-	"github.com/mdblp/tide-whisperer-v2/v2/schema"
+	tideV2Schema "github.com/mdblp/tide-whisperer-v2/v2/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/tidepool-org/tide-whisperer/common"
 	"github.com/tidepool-org/tide-whisperer/infrastructure"
+	"github.com/tidepool-org/tide-whisperer/schema"
 )
 
 var now = time.Now().UTC().Round(time.Second)
-var cbgDay = time.Date(2023, time.April, 1, 0, 0, 0, 0, time.UTC)
-var cbgTime = time.Date(2023, time.April, 1, 12, 32, 0, 0, time.UTC)
-var oneCbgArray = []schema.CbgBucket{
-	{
-		Id:                "cbg1",
-		CreationTimestamp: now,
-		UserId:            "user1",
-		Day:               cbgDay,
-		Samples: []schema.CbgSample{
-			{
-				Value:          10,
-				Units:          MmolL,
-				Timestamp:      cbgTime,
-				Timezone:       "UTC",
-				TimezoneOffset: 0,
-			},
-		},
-	},
-}
-
-var oneCbgResultMgdl = "[\n{\"id\":\"cbg_cbg1_0\",\"time\":\"2023-04-01T12:32:00Z\",\"timezone\":\"UTC\",\"type\":\"cbg\",\"units\":\"mg/dL\",\"value\":6}]\n"
-var oneCbgResultMmol = "[\n{\"id\":\"cbg_cbg1_0\",\"time\":\"2023-04-01T12:32:00Z\",\"timezone\":\"UTC\",\"type\":\"cbg\",\"units\":\"mmol/L\",\"value\":10}]\n"
-var getDataArgs = GetDataArgs{
-	Ctx:              common.TimeItContext(context.Background()),
-	UserID:           "user1",
-	TraceID:          "trace1",
-	StartDate:        "",
-	EndDate:          "",
-	WithPumpSettings: false,
-	SessionToken:     "token1",
-	ConvertToMgdl:    false,
-}
-
-var getDataArgsWithConversion = GetDataArgs{
-	Ctx:              getDataArgs.Ctx,
-	UserID:           getDataArgs.UserID,
-	TraceID:          getDataArgs.TraceID,
-	StartDate:        getDataArgs.StartDate,
-	EndDate:          getDataArgs.EndDate,
-	WithPumpSettings: getDataArgs.WithPumpSettings,
-	SessionToken:     getDataArgs.SessionToken,
-	ConvertToMgdl:    true,
-}
 
 func TestPatientData_GetData(t *testing.T) {
+	testUserId := "testUserId"
+	cbgDay := time.Date(2023, time.April, 1, 0, 0, 0, 0, time.UTC)
+	cbgTime := time.Date(2023, time.April, 1, 12, 32, 0, 0, time.UTC)
+	oneCbgArray := []tideV2Schema.CbgBucket{
+		{
+			Id:                "cbg1",
+			CreationTimestamp: now,
+			UserId:            testUserId,
+			Day:               cbgDay,
+			Samples: []tideV2Schema.CbgSample{
+				{
+					Value:          10,
+					Units:          MmolL,
+					Timestamp:      cbgTime,
+					Timezone:       "UTC",
+					TimezoneOffset: 0,
+				},
+			},
+		},
+	}
+
+	oneCbgResultMgdl := "[\n{\"id\":\"cbg_cbg1_0\",\"time\":\"2023-04-01T12:32:00Z\",\"timezone\":\"UTC\",\"type\":\"cbg\",\"units\":\"mg/dL\",\"value\":6}]\n"
+	oneCbgResultMmol := "[\n{\"id\":\"cbg_cbg1_0\",\"time\":\"2023-04-01T12:32:00Z\",\"timezone\":\"UTC\",\"type\":\"cbg\",\"units\":\"mmol/L\",\"value\":10}]\n"
+	getDataArgs := GetDataArgs{
+		Ctx:                   common.TimeItContext(context.Background()),
+		UserID:                testUserId,
+		TraceID:               "trace1",
+		StartDate:             "",
+		EndDate:               "",
+		WithPumpSettings:      false,
+		WithParametersChanges: false,
+		SessionToken:          "token1",
+		ConvertToMgdl:         false,
+	}
+
+	getDataArgsWithConversion := GetDataArgs{
+		Ctx:                   getDataArgs.Ctx,
+		UserID:                getDataArgs.UserID,
+		TraceID:               getDataArgs.TraceID,
+		StartDate:             getDataArgs.StartDate,
+		EndDate:               getDataArgs.EndDate,
+		WithPumpSettings:      getDataArgs.WithPumpSettings,
+		WithParametersChanges: getDataArgs.WithParametersChanges,
+		SessionToken:          getDataArgs.SessionToken,
+		ConvertToMgdl:         true,
+	}
 
 	patientDataRepository := MockPatientDataRepository{}
 	patientDataRepository.On("GetDataInDeviceData", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(
 		infrastructure.NewEmptyMockDbAdapterIterator(),
 		nil,
 	)
+	patientDataRepository.On("GetLatestBasalSecurityProfile", mock.Anything, mock.Anything, testUserId).Return(&schema.DbProfile{
+		Type:          "test",
+		Time:          time.Time{},
+		Timezone:      "UTC",
+		Guid:          "osefduguid",
+		BasalSchedule: nil,
+	}, nil)
 	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
 	tideV2Client.MockedCbg = oneCbgArray
+	tideV2Client.On("GetSettings", mock.Anything, testUserId, mock.Anything).Return(&tideV2Schema.SettingsResult{
+		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
+			CurrentSettings: orcaSchema.CurrentSettings{
+				UserId:     testUserId,
+				Device:     nil,
+				Cgm:        nil,
+				Pump:       nil,
+				Parameters: nil,
+			},
+			Time:           nil,
+			Timezone:       "",
+			TimezoneOffset: nil,
+		},
+		HistoryParameters: nil,
+	}, nil)
+
 	expectedMgdlBuffer := bytes.Buffer{}
 	expectedMgdlBuffer.WriteString(oneCbgResultMgdl)
 	expectedMmolBuffer := bytes.Buffer{}
@@ -131,4 +159,138 @@ func TestPatientData_GetData(t *testing.T) {
 			assert.Equal(t, tt.wantBuff.String(), res.String())
 		})
 	}
+}
+
+func TestPatientData_GetData_ShouldConvertOnlyMmolHistoryParameters(t *testing.T) {
+	testUserId := "testParamsMmolUserId"
+	patientDataRepository := MockPatientDataRepository{}
+	patientDataRepository.On("GetDataInDeviceData", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(
+		infrastructure.NewEmptyMockDbAdapterIterator(),
+		nil,
+	)
+	patientDataRepository.On("GetLatestBasalSecurityProfile", mock.Anything, mock.Anything, testUserId).Return(&schema.DbProfile{
+		Type:          "test",
+		Time:          time.Time{},
+		Timezone:      "UTC",
+		Guid:          "osefduguid",
+		BasalSchedule: nil,
+	}, nil)
+	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
+
+	settingsResult := &tideV2Schema.SettingsResult{
+		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
+			CurrentSettings: orcaSchema.CurrentSettings{
+				UserId: testUserId,
+				Device: nil,
+				Cgm:    nil,
+				Pump:   nil,
+				Parameters: []orcaSchema.CurrentParameter{
+					{
+						Name:          "unexpectedCurrentParam",
+						Value:         "0.1",
+						Unit:          MmolL,
+						Level:         1,
+						EffectiveDate: &now,
+					},
+				},
+			},
+			Time:           nil,
+			Timezone:       "",
+			TimezoneOffset: nil,
+		},
+		HistoryParameters: []orcaSchema.HistoryParameter{
+			{
+				CurrentParameter: orcaSchema.CurrentParameter{
+					Name:          "param1",
+					Value:         "10",
+					Unit:          MmolL,
+					Level:         1,
+					EffectiveDate: &now,
+				},
+				ChangeType:     "ADDED",
+				PreviousValue:  "",
+				PreviousUnit:   "",
+				Timestamp:      now,
+				Timezone:       "UTC",
+				TimezoneOffset: 0,
+			},
+			{
+				CurrentParameter: orcaSchema.CurrentParameter{
+					Name:          "param2",
+					Value:         "16",
+					Unit:          MgdL,
+					Level:         1,
+					EffectiveDate: &now,
+				},
+				ChangeType:     "MODIFIED",
+				PreviousValue:  "15",
+				PreviousUnit:   MgdL,
+				Timestamp:      now,
+				Timezone:       "UTC",
+				TimezoneOffset: 0,
+			},
+			{
+				CurrentParameter: orcaSchema.CurrentParameter{
+					Name:          "param3",
+					Value:         "81",
+					Unit:          MgdL,
+					Level:         1,
+					EffectiveDate: &now,
+				},
+				ChangeType:     "MODIFIED",
+				PreviousValue:  "80",
+				PreviousUnit:   MmolL,
+				Timestamp:      now,
+				Timezone:       "UTC",
+				TimezoneOffset: 0,
+			},
+		},
+	}
+	tideV2Client.On("GetSettings", mock.Anything, testUserId, mock.Anything).Return(settingsResult, nil)
+
+	unexpectedUnits := "\"units\":\"mmol/L\""
+	unexpectedParam := "\"name\":\"unexpectedCurrentParam\""
+
+	/*convert param1 because unit is mmol*/
+	expectedValue1 := "\"value\":\"6\""
+	/*convert nothing in param2 because unit is mg/dL*/
+	expectedValue2 := "\"previousValue\":\"15\""
+	expectedValue3 := "\"value\":\"16\""
+	/*convert previousValue only for param 3 because previousUnit is mmol*/
+	expectedValue4 := "\"previousValue\":\"44\""
+	expectedValue5 := "\"value\":\"81\""
+
+	t.Run("convert to mgdl all mmol history params", func(t *testing.T) {
+		p := &PatientData{
+			patientDataRepository: &patientDataRepository,
+			tideV2Client:          &tideV2Client,
+			logger:                &log.Logger{},
+			readBasalBucket:       false,
+		}
+
+		getDataArgs := GetDataArgs{
+			Ctx:                   common.TimeItContext(context.Background()),
+			UserID:                testUserId,
+			TraceID:               "testParamsMmolTraceId",
+			StartDate:             "",
+			EndDate:               "",
+			WithPumpSettings:      false,
+			WithParametersChanges: true,
+			SessionToken:          "sessionToken",
+			ConvertToMgdl:         true,
+		}
+		res, err := p.GetData(getDataArgs)
+
+		/*No error should be thrown*/
+		assert.Nil(t, err)
+		strRes := res.String()
+
+		assert.NotContainsf(t, strRes, unexpectedUnits, "GetData result=%s does contains unexpected units=%s", strRes, unexpectedUnits)
+		assert.NotContainsf(t, strRes, unexpectedParam, "GetData result=%s does contains unexpected param=%s", strRes, unexpectedParam)
+		assert.Contains(t, strRes, expectedValue1, "GetData result=%s does not contains expected value=%s", strRes, expectedValue1)
+		assert.Contains(t, strRes, expectedValue2, "GetData result=%s does not contains expected value=%s", strRes, expectedValue2)
+		assert.Contains(t, strRes, expectedValue3, "GetData result=%s does not contains expected value=%s", strRes, expectedValue3)
+		assert.Contains(t, strRes, expectedValue4, "GetData result=%s does not contains expected value=%s", strRes, expectedValue4)
+		assert.Contains(t, strRes, expectedValue5, "GetData result=%s does not contains expected value=%s", strRes, expectedValue5)
+	})
 }

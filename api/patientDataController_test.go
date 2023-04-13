@@ -82,7 +82,6 @@ func TestAPI_GetDataV2(t *testing.T) {
 	userID := "abcdef"
 
 	patientDataRepository.DataV1 = []string{
-		"{\"id\":\"00\",\"uploadId\":\"00\",\"units\":\"mmol/L\",\"time\":\"2021-01-10T00:00:04.000Z\",\"type\":\"wizard\",\"value\":14}",
 		"{\"id\":\"01\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"basal\",\"value\":10}",
 		"{\"id\":\"02\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:01.000Z\",\"type\":\"basal\",\"value\":11}",
 		"{\"id\":\"03\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:02.000Z\",\"type\":\"basal\",\"value\":12}",

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -184,10 +185,6 @@ func (p *PatientData) writeDataToBuffer(
 		if err != nil {
 			return nil, newWriteError(err)
 		}
-		err = writeDeviceParameterChanges(&buff, writeParams)
-		if err != nil {
-			return nil, newWriteError(err)
-		}
 	}
 
 	if includeParameterChanges && pumpSettings != nil {
@@ -265,6 +262,9 @@ func (p *PatientData) writeDataToBuffer(
 func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
 	settings := p.settings
 	for _, paramChange := range settings.HistoryParameters {
+
+		/*TODO only write params in the startDate-endDate interval ?*/
+
 		datum := make(map[string]interface{})
 		datum["id"] = uuid.New().String()
 		datum["type"] = "deviceEvent"
@@ -279,12 +279,26 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
 		datum["units"] = paramChange.Unit
 		datum["value"] = paramChange.Value
 		datum["level"] = paramChange.Level
+
 		if paramChange.PreviousValue != "" {
 			datum["previousValue"] = paramChange.PreviousValue
 		}
 
 		if datum["units"] == MmolL {
-			datum["units"], datum["value"] = getMgdl(datum["units"].(string), datum["value"].(float64))
+			datum["units"] = MgdL
+			val, err := convertToFloat64(datum["value"], datum["name"])
+			if err != nil {
+				return err
+			}
+			datum["value"] = fmt.Sprintf("%g", getMgdl(val))
+		}
+
+		if paramChange.PreviousUnit == MmolL {
+			val, err := convertToFloat64(datum["previousValue"], datum["name"])
+			if err != nil {
+				return err
+			}
+			datum["previousValue"] = fmt.Sprintf("%g", getMgdl(val))
 		}
 
 		jsonDatum, err := json.Marshal(datum)
@@ -310,6 +324,14 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
 	return nil
 }
 
+func convertToFloat64(value interface{}, name interface{}) (float64, error) {
+	val, err := strconv.ParseFloat(value.(string), 64)
+	if err != nil {
+		return 0, fmt.Errorf("conversion failed because previousValue=%s for param %s is not a number", value.(string), name.(string))
+	}
+	return val, nil
+}
+
 func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
 	settings := p.settings
 	datum := make(map[string]interface{})
@@ -331,10 +353,6 @@ func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
 		"history":              groupedHistoryParameters,
 	}
 	datum["payload"] = payload
-
-	if datum["units"] == MmolL {
-		datum["units"], datum["value"] = getMgdl(datum["units"].(string), datum["value"].(float64))
-	}
 
 	jsonDatum, err := json.Marshal(datum)
 	if err != nil {
@@ -387,11 +405,8 @@ func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistor
 	return finalArray
 }
 
-func getMgdl(unit string, value float64) (string, float64) {
-	if unit == MmolL {
-		return MgdL, math.Round(value / MmolLToMgdLConversionFactor * MmolLToMgdLPrecisionFactor)
-	}
-	return unit, value
+func getMgdl(value float64) float64 {
+	return math.Round(value / MmolLToMgdLConversionFactor * MmolLToMgdLPrecisionFactor)
 }
 
 // Mapping V2 Bucket schema to expected V1 schema + write to output
@@ -407,8 +422,9 @@ func writeCbgs(ctx context.Context, convertToMgdl bool, res *bytes.Buffer, p *wr
 			datum["timezone"] = sample.Timezone
 			datum["units"] = sample.Units
 			datum["value"] = sample.Value
-			if convertToMgdl {
-				datum["units"], datum["value"] = getMgdl(sample.Units, sample.Value)
+			if convertToMgdl && datum["units"] == MmolL {
+				datum["units"] = MgdL
+				datum["value"] = getMgdl(sample.Value)
 			}
 			jsonDatum, err := json.Marshal(datum)
 			if err != nil {

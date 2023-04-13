@@ -423,10 +423,10 @@ func writeFromIterV1(ctx context.Context, res *bytes.Buffer, p *writeFromIter) e
 
 			/*perform mmol -> mgdl conversion if needed*/
 			switch datum["type"] {
-			case "smbg", "deviceEvent":
-				/*verify units is mmol, mainly for deviceEvent*/
+			case "smbg":
 				if datum["units"] == MmolL {
-					datum["units"], datum["value"] = getMgdl(datum["units"].(string), datum["value"].(float64))
+					datum["units"] = MgdL
+					datum["value"] = getMgdl(datum["value"].(float64))
 				}
 			case "wizard":
 				/*For wizard, we don't have anymore fields in mmol, so we're changing the unit but no conversion is done.

@@ -173,48 +173,32 @@ func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
 
 func Test_getMgdl(t *testing.T) {
 	type args struct {
-		unit  string
 		value float64
 	}
 	tests := []struct {
-		name  string
-		args  args
-		want  string
-		want1 float64
+		name string
+		args args
+		want float64
 	}{
-		{
-			name: "should not convert already mgdl unit",
-			args: args{
-				unit:  MgdL,
-				value: 10,
-			},
-			want:  MgdL,
-			want1: 10,
-		},
 		{
 			name: "should convert mmol to mgdl",
 			args: args{
-				unit:  MmolL,
 				value: 45,
 			},
-			want:  MgdL,
-			want1: 25,
+			want: 25,
 		},
 		{
 			name: "should handle 0 value mmol",
 			args: args{
-				unit:  MmolL,
 				value: 0,
 			},
-			want:  MgdL,
-			want1: 0,
+			want: 0,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := getMgdl(tt.args.unit, tt.args.value)
-			assert.Equalf(t, tt.want, got, "getMgdl(%v, %v)", tt.args.unit, tt.args.value)
-			assert.Equalf(t, tt.want1, got1, "getMgdl(%v, %v)", tt.args.unit, tt.args.value)
+			got := getMgdl(tt.args.value)
+			assert.Equalf(t, tt.want, got, "getMgdl(%v)", tt.args.value)
 		})
 	}
 }
