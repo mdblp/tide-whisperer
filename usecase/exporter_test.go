@@ -3,7 +3,6 @@ package usecase
 import (
 	"bytes"
 	"log"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -11,36 +10,42 @@ import (
 )
 
 func TestExporter_Export(t *testing.T) {
-	userID := "userid123"
-	traceID := "traceid123"
-	startDate := "2023-03-05T09:00:00Z"
-	endDate := "2023-04-05T09:00:00Z"
-	withPumpSettings := false
-	withParametersChanges := true
-	sessionToken := "sessiontoken123"
-	convertToMgdl := true
-	testLogger := log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
+	exportArgsNoCsv := ExportArgs{
+		UserID:                "userid123",
+		TraceID:               "traceid123",
+		StartDate:             "2023-03-05T09:00:00Z",
+		EndDate:               "2023-04-05T09:00:00Z",
+		WithPumpSettings:      false,
+		WithParametersChanges: true,
+		SessionToken:          "sessiontoken123",
+		ConvertToMgdl:         true,
+	}
+	exportArgsCsv := ExportArgs{
+		UserID:                exportArgsNoCsv.UserID,
+		TraceID:               exportArgsNoCsv.TraceID,
+		StartDate:             exportArgsNoCsv.StartDate,
+		EndDate:               exportArgsNoCsv.EndDate,
+		WithPumpSettings:      exportArgsNoCsv.WithPumpSettings,
+		WithParametersChanges: exportArgsNoCsv.WithParametersChanges,
+		SessionToken:          exportArgsNoCsv.SessionToken,
+		ConvertToMgdl:         exportArgsNoCsv.ConvertToMgdl,
+		FormatToCsv:           true,
+	}
+	testLogger := log.New(&bytes.Buffer{}, "", 0)
 	getDataErrUseCase := MockPatientDataUseCase{}
 	argsMatcher := mock.MatchedBy(func(args GetDataArgs) bool {
-		return args.UserID == userID && args.TraceID == traceID && args.SessionToken == sessionToken &&
-			args.WithPumpSettings == withPumpSettings && args.WithParametersChanges == withParametersChanges &&
-			args.StartDate == startDate && args.EndDate == endDate && args.ConvertToMgdl == convertToMgdl
+		return args.UserID == exportArgsNoCsv.UserID && args.TraceID == exportArgsNoCsv.TraceID && args.SessionToken == exportArgsNoCsv.SessionToken &&
+			args.WithPumpSettings == exportArgsNoCsv.WithPumpSettings && args.WithParametersChanges == exportArgsNoCsv.WithParametersChanges &&
+			args.StartDate == exportArgsNoCsv.StartDate && args.EndDate == exportArgsNoCsv.EndDate && args.ConvertToMgdl == exportArgsNoCsv.ConvertToMgdl
 	})
 	getDataErrUseCase.On("GetData", argsMatcher).Return(nil, &common.DetailedError{})
 	getDataSuccessUseCase := MockPatientDataUseCase{}
-	getDataSuccessUseCase.On("GetData", argsMatcher).Return(&bytes.Buffer{}, nil)
+	getDataSuccessUseCase.On("GetData", argsMatcher).Return(bytes.NewBufferString(`{"foo": "bar"}`), nil)
+	getDataSuccessWrongJsonUseCase := MockPatientDataUseCase{}
+	getDataSuccessWrongJsonUseCase.On("GetData", argsMatcher).Return(bytes.NewBufferString(`{"foo": ERROR}`), nil)
 	uploadSuccess := MockUploader{}
 	uploadSuccess.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
-	exportArgs := ExportArgs{
-		UserID:                userID,
-		TraceID:               traceID,
-		StartDate:             startDate,
-		EndDate:               endDate,
-		WithPumpSettings:      withPumpSettings,
-		WithParametersChanges: withParametersChanges,
-		SessionToken:          sessionToken,
-		ConvertToMgdl:         convertToMgdl,
-	}
+
 	type fields struct {
 		logger      *log.Logger
 		uploader    MockUploader
@@ -58,16 +63,34 @@ func TestExporter_Export(t *testing.T) {
 				uploader:    MockUploader{},
 				patientData: getDataErrUseCase,
 			},
-			exportArgs: exportArgs,
+			exportArgs: exportArgsNoCsv,
 		},
 		{
-			name: "should not call uploader when GetData succeeded",
+			name: "should call uploader when GetData succeeded",
 			fields: fields{
 				logger:      testLogger,
 				uploader:    uploadSuccess,
 				patientData: getDataSuccessUseCase,
 			},
-			exportArgs: exportArgs,
+			exportArgs: exportArgsNoCsv,
+		},
+		{
+			name: "should not call uploader when GetData succeeded but json cannot be converted to csv",
+			fields: fields{
+				logger:      testLogger,
+				uploader:    MockUploader{},
+				patientData: getDataSuccessWrongJsonUseCase,
+			},
+			exportArgs: exportArgsCsv,
+		},
+		{
+			name: "should call uploader when GetData succeeded and json can be converted to csv",
+			fields: fields{
+				logger:      testLogger,
+				uploader:    uploadSuccess,
+				patientData: getDataSuccessUseCase,
+			},
+			exportArgs: exportArgsCsv,
 		},
 	}
 	for _, tt := range tests {
