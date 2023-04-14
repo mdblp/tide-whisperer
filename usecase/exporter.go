@@ -56,6 +56,8 @@ func (e Exporter) Export(args ExportArgs) {
 		return
 	}
 
+	/*Transform to CSV */
+
 	filename := strings.Join([]string{args.UserID, startExportTime}, "_")
 	errUpload := e.uploader.Upload(backgroundCtx, filename, buffer)
 	if errUpload != nil {
