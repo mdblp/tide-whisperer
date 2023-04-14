@@ -3,7 +3,7 @@ package usecase
 import (
 	"bytes"
 	"log"
-	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -18,8 +18,8 @@ var (
 	withPumpSettings      = false
 	withParametersChanges = true
 	sessionToken          = "sessiontoken123"
-	testLogger            = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
-	exportArgs            = ExportArgs{
+	testLogger            = log.New(&bytes.Buffer{}, "", 0)
+	exportArgsFormatJSON  = ExportArgs{
 		UserID:                userID,
 		TraceID:               traceID,
 		StartDate:             startDate,
@@ -28,6 +28,18 @@ var (
 		WithParametersChanges: withParametersChanges,
 		SessionToken:          sessionToken,
 		BgUnit:                MgdL,
+		FormatToCsv:           false,
+	}
+	exportArgsFormatCsv = ExportArgs{
+		UserID:                userID,
+		TraceID:               traceID,
+		StartDate:             startDate,
+		EndDate:               endDate,
+		WithPumpSettings:      withPumpSettings,
+		WithParametersChanges: withParametersChanges,
+		SessionToken:          sessionToken,
+		BgUnit:                MgdL,
+		FormatToCsv:           true,
 	}
 	argsMatcher = mock.MatchedBy(func(args GetDataArgs) bool {
 		return args.UserID == userID && args.TraceID == traceID && args.SessionToken == sessionToken &&
@@ -38,69 +50,104 @@ var (
 
 type given struct {
 	logger      *log.Logger
-	uploader    MockUploader
-	patientData MockPatientDataUseCase
+	uploader    Uploader
+	patientData PatientDataUseCase
 	exportArgs  ExportArgs
 }
 
 func TestExporter_Export(t *testing.T) {
 	tests := []struct {
 		name  string
-		given given
-		then  func(t *testing.T, uploader MockUploader)
+		given *given
+		/*No expect because there is no output for this function.
+		We're just checking mock have been called accordingly*/
 	}{
 		{
-			name:  "should not call uploader when GetData is returning an error",
-			given: getDataUseCaseError(),
-			then:  assertUploadNotHaveBeenCalled,
+			name:  "should not call uploader when GetData failed",
+			given: emptyGiven().withGetDataUseCaseError().withEmptyMockUploader(),
 		},
 		{
-			name:  "should call uploader when GetData returns data without error",
-			given: getDataUseCaseSuccess(),
-			then:  assertUploadHaveBeenCalled,
+			name:  "should call uploader with json filename extension when GetData returns valid JSON and format is json",
+			given: emptyGiven().withFormatToCsvFalse().withGetDataUseCaseSuccessValidJSON().withSuccessUploaderJSONFile(),
+		},
+		{
+			name:  "should call uploader with csv filename extension when GetData returns valid JSON and format is csv",
+			given: emptyGiven().withFormatToCsvTrue().withGetDataUseCaseSuccessValidJSON().withSuccessUploaderCSVFile(),
+		},
+		{
+			name:  "should not call uploader when GetData returns invalid json and formatToCsv is true",
+			given: emptyGiven().withFormatToCsvTrue().withGetDataUseCaseSuccessInvalidJSON().withEmptyMockUploader(),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := Exporter{
 				logger:      tt.given.logger,
-				uploader:    &tt.given.uploader,
-				patientData: &tt.given.patientData,
+				uploader:    tt.given.uploader,
+				patientData: tt.given.patientData,
 			}
 			e.Export(tt.given.exportArgs)
-			tt.then(t, tt.given.uploader)
+			tt.given.uploader.(*MockUploader).AssertExpectations(t)
 		})
 	}
 }
 
-func assertUploadNotHaveBeenCalled(t *testing.T, uploader MockUploader) {
-	uploader.AssertExpectations(t)
+func (g *given) withGetDataUseCaseError() *given {
+	patientData := MockPatientDataUseCase{}
+	patientData.On("GetData", argsMatcher).Return(nil, &common.DetailedError{})
+	g.patientData = &patientData
+	return g
 }
-
-func assertUploadHaveBeenCalled(t *testing.T, uploader MockUploader) {
-	uploader.AssertExpectations(t)
+func (g *given) withGetDataUseCaseSuccessValidJSON() *given {
+	patientData := MockPatientDataUseCase{}
+	patientData.On("GetData", argsMatcher).Return(bytes.NewBufferString(`{"foo": "bar"}`), nil)
+	g.patientData = &patientData
+	return g
 }
-
-func getDataUseCaseError() given {
-	getDataErrUseCase := MockPatientDataUseCase{}
-	getDataErrUseCase.On("GetData", mock.Anything, argsMatcher).Return(nil, &common.DetailedError{})
-	return given{
-		logger:      testLogger,
-		uploader:    MockUploader{},
-		patientData: getDataErrUseCase,
-		exportArgs:  exportArgs,
-	}
+func (g *given) withGetDataUseCaseSuccessInvalidJSON() *given {
+	patientData := MockPatientDataUseCase{}
+	patientData.On("GetData", mock.Anything, argsMatcher).Return(bytes.NewBufferString(`{"foo": invalid}`), nil)
+	g.patientData = &patientData
+	return g
 }
-
-func getDataUseCaseSuccess() given {
-	getDataSuccessUseCase := MockPatientDataUseCase{}
-	getDataSuccessUseCase.On("GetData", mock.Anything, argsMatcher).Return(&bytes.Buffer{}, nil)
+func (g *given) withEmptyMockUploader() *given {
+	uploader := MockUploader{}
+	g.uploader = &uploader
+	return g
+}
+func (g *given) withSuccessUploaderJSONFile() *given {
 	uploadSuccess := MockUploader{}
-	uploadSuccess.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
-	return given{
+	uploadSuccess.On("Upload", mock.Anything, mock.MatchedBy(func(filename string) bool {
+		return strings.HasSuffix(filename, ".json")
+	}), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
+	g.uploader = &uploadSuccess
+	return g
+}
+
+func (g *given) withSuccessUploaderCSVFile() *given {
+	uploadSuccess := MockUploader{}
+	uploadSuccess.On("Upload", mock.Anything, mock.MatchedBy(func(filename string) bool {
+		return strings.HasSuffix(filename, ".csv")
+	}), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
+	g.uploader = &uploadSuccess
+	return g
+}
+
+func (g *given) withFormatToCsvTrue() *given {
+	g.exportArgs.FormatToCsv = true
+	return g
+}
+
+func (g *given) withFormatToCsvFalse() *given {
+	g.exportArgs.FormatToCsv = false
+	return g
+}
+
+func emptyGiven() *given {
+	return &given{
 		logger:      testLogger,
-		uploader:    uploadSuccess,
-		patientData: getDataSuccessUseCase,
-		exportArgs:  exportArgs,
+		uploader:    &MockUploader{},
+		patientData: &MockPatientDataUseCase{},
+		exportArgs:  exportArgsFormatJSON,
 	}
 }

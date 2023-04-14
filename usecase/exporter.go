@@ -1,7 +1,9 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -32,12 +34,14 @@ type ExportArgs struct {
 	WithParametersChanges bool
 	SessionToken          string
 	BgUnit                string
+	FormatToCsv           bool
 }
 
 func (e Exporter) Export(args ExportArgs) {
 	e.logger.Println("launching export process")
 	backgroundCtx := common.TimeItContext(context.Background())
-	startExportTime := strings.ReplaceAll(time.Now().UTC().Round(time.Second).String(), " ", "_")
+	exportTime := time.Now().UTC().Format("2006-01-02T15:04:05")
+	filename := strings.Join([]string{args.UserID, exportTime}, "_")
 	getDataArgs := GetDataArgs{
 		UserID:                     args.UserID,
 		TraceID:                    args.TraceID,
@@ -55,8 +59,23 @@ func (e Exporter) Export(args ExportArgs) {
 		return
 	}
 
-	filename := strings.Join([]string{args.UserID, startExportTime}, "_")
-	errUpload := e.uploader.Upload(backgroundCtx, filename, buffer)
+	finalBuffer := buffer
+
+	/*Transform to CSV */
+	if args.FormatToCsv {
+		var csvBuffer *bytes.Buffer
+		var csvErr error
+		if csvBuffer, csvErr = jsonToCsv(buffer.String()); csvErr != nil {
+			e.logger.Printf("jsonToCsv failed: %v \n", csvErr)
+			return
+		}
+		finalBuffer = csvBuffer
+		filename = fmt.Sprintf("%s.csv", filename)
+	} else {
+		filename = fmt.Sprintf("%s.json", filename)
+	}
+
+	errUpload := e.uploader.Upload(backgroundCtx, filename, finalBuffer)
 	if errUpload != nil {
 		e.logger.Printf("S3 upload failed: %v \n", errUpload)
 	}
