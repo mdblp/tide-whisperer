@@ -34,6 +34,7 @@ func NewExportController(logger *log.Logger, exporter ExporterUseCase) ExportCon
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
 // @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
 // @Param convertToMgdl query string false "true to get blood glucose related data in mg/dL. Default is set to false, thus data are going to be in mmol/L."
+// @Param format query string false "the output format desired for the export. Can be json or csv. Default is set to csv."
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security Auth0
 // @Router /export/{userID} [get]
@@ -44,6 +45,13 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 	startDate := query.Get("startDate")
 	endDate := query.Get("endDate")
 	convertToMgdl := query.Get("convertToMgdl") == "true"
+	format := query.Get("format")
+
+	/*By default, we're formatting to CSV*/
+	formatToCsv := true
+	if format == "json" {
+		formatToCsv = false
+	}
 
 	sessionToken := getSessionToken(res)
 	exportArgs := usecase.ExportArgs{
@@ -55,6 +63,7 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 		WithParametersChanges: true,
 		SessionToken:          sessionToken,
 		ConvertToMgdl:         convertToMgdl,
+		FormatToCsv:           formatToCsv,
 	}
 	go c.exporter.Export(exportArgs)
 	return nil
