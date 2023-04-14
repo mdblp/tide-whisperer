@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"log"
 	"strings"
@@ -32,6 +33,7 @@ type ExportArgs struct {
 	WithParametersChanges bool
 	SessionToken          string
 	BgUnit                string
+	FormatToCsv           bool
 }
 
 func (e Exporter) Export(args ExportArgs) {
@@ -56,10 +58,21 @@ func (e Exporter) Export(args ExportArgs) {
 		return
 	}
 
+	finalBuffer := buffer
+
 	/*Transform to CSV */
+	if args.FormatToCsv {
+		var csvBuffer *bytes.Buffer
+		var csvErr error
+		if csvBuffer, csvErr = jsonToCsv(buffer.String()); csvErr != nil {
+			e.logger.Printf("jsonToCsv failed: %v \n", csvErr)
+			return
+		}
+		finalBuffer = csvBuffer
+	}
 
 	filename := strings.Join([]string{args.UserID, startExportTime}, "_")
-	errUpload := e.uploader.Upload(backgroundCtx, filename, buffer)
+	errUpload := e.uploader.Upload(backgroundCtx, filename, finalBuffer)
 	if errUpload != nil {
 		e.logger.Printf("S3 upload failed: %v \n", errUpload)
 	}
