@@ -44,9 +44,8 @@ func jsonToCsv(jsonString string) (*bytes.Buffer, error) {
 	csvWriter.Write(headers)
 	csvWriter.Flush()
 
-	row := make([]string, len(headers))
 	for _, jsonObject := range jsonObjects {
-		if err := writeCsvRow(jsonObject, headers, row, csvWriter); err != nil {
+		if err := writeCsvRow(jsonObject, headers, csvWriter); err != nil {
 			return nil, err
 		}
 	}
@@ -73,16 +72,16 @@ func extractHeaders(jsonObject map[string]interface{}) ([]string, error) {
 	return headers, nil
 }
 
-func writeCsvRow(jsonObject map[string]interface{}, headers []string, row []string, csvWriter *csv.Writer) error {
+func writeCsvRow(jsonObject map[string]interface{}, headers []string, csvWriter *csv.Writer) error {
+	row := make([]string, len(headers))
 	for i, header := range headers {
 		parts := strings.Split(header, ".")
 		value, err := getValue(jsonObject, parts)
 		if err != nil {
 			return err
 		}
-		row[i] = fmt.Sprint(value)
+		row[i] = fmt.Sprintf("%v", value)
 	}
-
 	csvWriter.Write(row)
 	csvWriter.Flush()
 	return nil
@@ -98,7 +97,7 @@ func getValue(jsonObject map[string]interface{}, parts []string) (interface{}, e
 	}
 	subObject, ok := value.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("subobject not found")
+		return nil, errors.New("sub object not found")
 	}
 	return getValue(subObject, parts[1:])
 }
