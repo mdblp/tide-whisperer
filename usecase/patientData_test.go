@@ -33,7 +33,7 @@ var (
 		TimezoneOffset: 0,
 	}
 	oneCbgResultMgdl = `[
-{"id":"cbg_cbg1_0","time":"2023-04-01T12:32:00Z","timezone":"UTC","type":"cbg","units":"mg/dL","value":6}]
+{"id":"cbg_cbg1_0","time":"2023-04-01T12:32:00Z","timezone":"UTC","type":"cbg","units":"mg/dL","value":180}]
 `
 	oneCbgResultMmol = `[
 {"id":"cbg_cbg1_0","time":"2023-04-01T12:32:00Z","timezone":"UTC","type":"cbg","units":"mmol/L","value":10}]
@@ -53,6 +53,141 @@ type patientDataExpected struct {
 	result *bytes.Buffer
 }
 
+func TestPatientData_GetData(t *testing.T) {
+	tests := []struct {
+		name     string
+		given    []func(patientDataGiven) patientDataGiven
+		expected []func(*testing.T, patientDataExpected)
+	}{
+		{
+			name: "should convert cbg to mgdl when ConvertToMgdl is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlTrue,
+				noDeviceDataReturnedByRepository,
+				oneCbgReturnedInMmolByTideV2,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectCbgResultIsInMgdl,
+			},
+		},
+		{
+			name: "should not convert cbg to mgdl when ConvertToMgdl is set to false",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlFalse,
+				noDeviceDataReturnedByRepository,
+				oneCbgReturnedInMmolByTideV2,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectCbgResultIsInMmol,
+			},
+		},
+		{
+			name: "should convert smbg to mgdl when ConvertToMgdl is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlTrue,
+				smbgReturnedByRepository,
+				nothingReturnedByTideV2,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectSmbgResultIsInMgdl,
+			},
+		},
+		{
+			name: "should convert history parameters to mgdl if unit is mmol when ConvertToMgdl is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlTrue,
+				paramWithParametersHistoryTrue,
+				noDeviceDataReturnedByRepository,
+				threeParamHistoryForConvertionReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectHistoryParamIsInMgdl,
+			},
+		},
+		{
+			name: "should filter history parameters between startDate and endDate when FilteringParametersHistory is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlFalse,
+				paramWithParametersHistoryTrue,
+				paramFilteringParametersHistoryTrue,
+				paramStartDate2YearsAgo,
+				paramEndDate5MinAgo,
+				noDeviceDataReturnedByRepository,
+				threeParamHistoryForFilteringReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectOnlyParamFilter1And2ArePresent,
+				expectParameterAreNotConverted,
+			},
+		},
+		{
+			name: "should not filter history parameters between startDate and endDate if they are empty and FilteringParametersHistory is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlFalse,
+				paramWithParametersHistoryTrue,
+				paramFilteringParametersHistoryTrue,
+				noDeviceDataReturnedByRepository,
+				threeParamHistoryForFilteringReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectAllParamFiltersArePresent,
+				expectParameterAreNotConverted,
+			},
+		},
+		{
+			name: "should not filter history parameters between startDate and endDate if they are provided and FilteringParametersHistory is set to false",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlFalse,
+				paramWithParametersHistoryTrue,
+				paramFilteringParametersHistoryFalse,
+				paramStartDate2YearsAgo,
+				paramEndDate5MinAgo,
+				noDeviceDataReturnedByRepository,
+				threeParamHistoryForFilteringReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectAllParamFiltersArePresent,
+				expectParameterAreNotConverted,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			given := emptyPatientDataGiven("userid_test_getData")
+			for _, f := range tt.given {
+				given = f(given)
+			}
+			p := &PatientData{
+				patientDataRepository: given.patientDataRepository,
+				tideV2Client:          given.tideV2Client,
+				logger:                given.logger,
+				readBasalBucket:       given.readBasalBucket,
+			}
+			res, err := p.GetData(given.getDataArgs)
+			expected := patientDataExpected{
+				err:    err,
+				result: res,
+			}
+			for _, f := range tt.expected {
+				f(t, expected)
+			}
+			given.patientDataRepository.(*MockPatientDataRepository).AssertExpectations(t)
+			given.tideV2Client.(*tidewhisperer.TideWhispererV2MockClient).AssertExpectations(t)
+		})
+	}
+}
+
 func expectErrIsNil(t *testing.T, p patientDataExpected) {
 	assert.Nil(t, p.err)
 }
@@ -68,8 +203,8 @@ func expectCbgResultIsInMmol(t *testing.T, p patientDataExpected) {
 func expectSmbgResultIsInMgdl(t *testing.T, p patientDataExpected) {
 	unexpectedUnits := MmolL
 	/*convert smbg1 and smbg2 because unit is mmol*/
-	expectedValue1 := `"value":6`
-	expectedValue2 := `"value":8`
+	expectedValue1 := `"value":180`
+	expectedValue2 := `"value":270`
 	/*do not convert smbg3 because unit is already mg/dL*/
 	expectedValue3 := `"value":50`
 	resultString := p.result.String()
@@ -110,12 +245,12 @@ func expectHistoryParamIsInMgdl(t *testing.T, p patientDataExpected) {
 	unexpectedParam := "unexpectedCurrentParam"
 
 	/*convert param1 because unit is mmol*/
-	expectedValue1 := `"value":"6"`
+	expectedValue1 := `"value":"180"`
 	/*convert nothing in param2 because unit is mg/dL*/
 	expectedValue2 := `"previousValue":"15"`
 	expectedValue3 := `"value":"16"`
 	/*convert previousValue only for param 3 because previousUnit is mmol*/
-	expectedValue4 := `"previousValue":"44"`
+	expectedValue4 := `"previousValue":"1441"`
 	expectedValue5 := `"value":"81"`
 
 	resultString := p.result.String()
@@ -334,140 +469,5 @@ func emptyPatientDataGiven(userid string) patientDataGiven {
 			FilteringParametersHistory: false,
 			ConvertToMgdl:              true,
 		},
-	}
-}
-
-func TestPatientData_GetData(t *testing.T) {
-	tests := []struct {
-		name     string
-		given    []func(patientDataGiven) patientDataGiven
-		expected []func(*testing.T, patientDataExpected)
-	}{
-		{
-			name: "should convert cbg to mgdl when ConvertToMgdl is set to true",
-			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlTrue,
-				noDeviceDataReturnedByRepository,
-				oneCbgReturnedInMmolByTideV2,
-			},
-			expected: []func(*testing.T, patientDataExpected){
-				expectErrIsNil,
-				expectCbgResultIsInMgdl,
-			},
-		},
-		{
-			name: "should not convert cbg to mgdl when ConvertToMgdl is set to false",
-			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlFalse,
-				noDeviceDataReturnedByRepository,
-				oneCbgReturnedInMmolByTideV2,
-			},
-			expected: []func(*testing.T, patientDataExpected){
-				expectErrIsNil,
-				expectCbgResultIsInMmol,
-			},
-		},
-		{
-			name: "should convert smbg to mgdl when ConvertToMgdl is set to true",
-			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlTrue,
-				smbgReturnedByRepository,
-				nothingReturnedByTideV2,
-			},
-			expected: []func(*testing.T, patientDataExpected){
-				expectErrIsNil,
-				expectSmbgResultIsInMgdl,
-			},
-		},
-		{
-			name: "should convert history parameters to mgdl if unit is mmol when ConvertToMgdl is set to true",
-			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlTrue,
-				paramWithParametersHistoryTrue,
-				noDeviceDataReturnedByRepository,
-				threeParamHistoryForConvertionReturnedByTideV2,
-				mockGetLatestBasalSecurityProfileWithDummyReturn,
-			},
-			expected: []func(*testing.T, patientDataExpected){
-				expectErrIsNil,
-				expectHistoryParamIsInMgdl,
-			},
-		},
-		{
-			name: "should filter history parameters between startDate and endDate when FilteringParametersHistory is set to true",
-			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlFalse,
-				paramWithParametersHistoryTrue,
-				paramFilteringParametersHistoryTrue,
-				paramStartDate2YearsAgo,
-				paramEndDate5MinAgo,
-				noDeviceDataReturnedByRepository,
-				threeParamHistoryForFilteringReturnedByTideV2,
-				mockGetLatestBasalSecurityProfileWithDummyReturn,
-			},
-			expected: []func(*testing.T, patientDataExpected){
-				expectErrIsNil,
-				expectOnlyParamFilter1And2ArePresent,
-				expectParameterAreNotConverted,
-			},
-		},
-		{
-			name: "should not filter history parameters between startDate and endDate if they are empty and FilteringParametersHistory is set to true",
-			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlFalse,
-				paramWithParametersHistoryTrue,
-				paramFilteringParametersHistoryTrue,
-				noDeviceDataReturnedByRepository,
-				threeParamHistoryForFilteringReturnedByTideV2,
-				mockGetLatestBasalSecurityProfileWithDummyReturn,
-			},
-			expected: []func(*testing.T, patientDataExpected){
-				expectErrIsNil,
-				expectAllParamFiltersArePresent,
-				expectParameterAreNotConverted,
-			},
-		},
-		{
-			name: "should not filter history parameters between startDate and endDate if they are provided and FilteringParametersHistory is set to false",
-			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlFalse,
-				paramWithParametersHistoryTrue,
-				paramFilteringParametersHistoryFalse,
-				paramStartDate2YearsAgo,
-				paramEndDate5MinAgo,
-				noDeviceDataReturnedByRepository,
-				threeParamHistoryForFilteringReturnedByTideV2,
-				mockGetLatestBasalSecurityProfileWithDummyReturn,
-			},
-			expected: []func(*testing.T, patientDataExpected){
-				expectErrIsNil,
-				expectAllParamFiltersArePresent,
-				expectParameterAreNotConverted,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			given := emptyPatientDataGiven("userid_test_getData")
-			for _, f := range tt.given {
-				given = f(given)
-			}
-			p := &PatientData{
-				patientDataRepository: given.patientDataRepository,
-				tideV2Client:          given.tideV2Client,
-				logger:                given.logger,
-				readBasalBucket:       given.readBasalBucket,
-			}
-			res, err := p.GetData(given.getDataArgs)
-			expected := patientDataExpected{
-				err:    err,
-				result: res,
-			}
-			for _, f := range tt.expected {
-				f(t, expected)
-			}
-			given.patientDataRepository.(*MockPatientDataRepository).AssertExpectations(t)
-			given.tideV2Client.(*tidewhisperer.TideWhispererV2MockClient).AssertExpectations(t)
-		})
 	}
 }

@@ -368,8 +368,9 @@ func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
 		"cgm":                  settings.CurrentSettings.Cgm,
 		"device":               settings.CurrentSettings.Device,
 		"pump":                 settings.CurrentSettings.Pump,
-		"parameters":           settings.CurrentSettings.Parameters,
-		"history":              groupedHistoryParameters,
+		/*TODO convert parameters because they are in mgdl in DB ?*/
+		"parameters": settings.CurrentSettings.Parameters,
+		"history":    groupedHistoryParameters,
 	}
 	datum["payload"] = payload
 
@@ -425,7 +426,7 @@ func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistor
 }
 
 func getMgdl(value float64) float64 {
-	return math.Round(value / MmolLToMgdLConversionFactor * MmolLToMgdLPrecisionFactor)
+	return math.Round(value * MmolLToMgdLConversionFactor)
 }
 
 // Mapping V2 Bucket schema to expected V1 schema + write to output

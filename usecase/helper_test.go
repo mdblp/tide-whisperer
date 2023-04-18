@@ -170,8 +170,8 @@ func Test_getMgdl(t *testing.T) {
 	}{
 		{
 			name:  "should convert mmol to mgdl",
-			given: 45,
-			want:  25,
+			given: 10,
+			want:  180,
 		},
 		{
 			name:  "should handle 0 value mmol",
