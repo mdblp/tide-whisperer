@@ -73,28 +73,19 @@ var (
 )
 
 func Test_groupByChangeDate(t *testing.T) {
-	type args struct {
-		parameters []orcaSchema.HistoryParameter
-	}
 	tests := []struct {
-		name string
-		args args
-		want []GroupedHistoryParameters
+		name  string
+		given []orcaSchema.HistoryParameter
+		want  []GroupedHistoryParameters
 	}{
 		{
-			name: "should return empty array when empty array input",
-			args: args{
-				[]orcaSchema.HistoryParameter{},
-			},
-			want: []GroupedHistoryParameters{},
+			name:  "should return empty array when empty array input",
+			given: []orcaSchema.HistoryParameter{},
+			want:  []GroupedHistoryParameters{},
 		},
 		{
-			name: "should return one group when one param input",
-			args: args{
-				[]orcaSchema.HistoryParameter{
-					histoParam1,
-				},
-			},
+			name:  "should return one group when one param input",
+			given: []orcaSchema.HistoryParameter{histoParam1},
 			want: []GroupedHistoryParameters{
 				{
 					ChangeDate: effDate2,
@@ -104,11 +95,9 @@ func Test_groupByChangeDate(t *testing.T) {
 		},
 		{
 			name: "should return one group when two param with same timestamp day input",
-			args: args{
-				[]orcaSchema.HistoryParameter{
-					histoParam1,
-					histoParam2,
-				},
+			given: []orcaSchema.HistoryParameter{
+				histoParam1,
+				histoParam2,
 			},
 			want: []GroupedHistoryParameters{
 				{
@@ -119,12 +108,10 @@ func Test_groupByChangeDate(t *testing.T) {
 		},
 		{
 			name: "should return two group when two param with same timestamp day and third with different day input",
-			args: args{
-				[]orcaSchema.HistoryParameter{
-					histoParam1,
-					histoParam2,
-					histoParam3,
-				},
+			given: []orcaSchema.HistoryParameter{
+				histoParam1,
+				histoParam2,
+				histoParam3,
 			},
 			want: []GroupedHistoryParameters{
 				{
@@ -140,7 +127,7 @@ func Test_groupByChangeDate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := groupByChangeDate(tt.args.parameters)
+			got := groupByChangeDate(tt.given)
 			sort.Slice(tt.want, func(i, j int) bool { return tt.want[i].ChangeDate.After(tt.want[j].ChangeDate) })
 			sort.Slice(got, func(i, j int) bool { return got[i].ChangeDate.After(got[j].ChangeDate) })
 			if !reflect.DeepEqual(got, tt.want) {
@@ -152,6 +139,7 @@ func Test_groupByChangeDate(t *testing.T) {
 
 /*When no settings are found, we should not raise an error in getLatestPumpSettings*/
 func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
+	/*Given*/
 	token := "TestAPI_getLatestPumpSettings_token"
 	userId := "TestAPI_getLatestPumpSettings_userId"
 	ctx := context.Background()
@@ -164,41 +152,37 @@ func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
 	mockRepository := infrastructure.NewMockPatientDataRepository()
 	mockTideV2 := twV2Client.NewMock()
 	usecase := NewPatientDataUseCase(testLogger, mockTideV2, mockRepository, true)
-
 	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
+
+	/*When*/
 	res, err := usecase.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
+
+	/*Then*/
 	assert.Nil(t, err)
 	assert.Nil(t, res)
 }
 
 func Test_getMgdl(t *testing.T) {
-	type args struct {
-		value float64
-	}
 	tests := []struct {
-		name string
-		args args
-		want float64
+		name  string
+		given float64
+		want  float64
 	}{
 		{
-			name: "should convert mmol to mgdl",
-			args: args{
-				value: 45,
-			},
-			want: 25,
+			name:  "should convert mmol to mgdl",
+			given: 45,
+			want:  25,
 		},
 		{
-			name: "should handle 0 value mmol",
-			args: args{
-				value: 0,
-			},
-			want: 0,
+			name:  "should handle 0 value mmol",
+			given: 0,
+			want:  0,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getMgdl(tt.args.value)
-			assert.Equalf(t, tt.want, got, "getMgdl(%v)", tt.args.value)
+			got := getMgdl(tt.given)
+			assert.Equalf(t, tt.want, got, "getMgdl(%v)", tt.given)
 		})
 	}
 }

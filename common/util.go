@@ -2,52 +2,17 @@ package common
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type TimeItKey int
-type TimerAddValue struct {
-	start        time.Time
-	microSeconds int64
-	num          int
-}
+
 type TimeItType struct {
-	timers    map[string]time.Time
-	timersAdd map[string]*TimerAddValue
-	results   string
-}
-
-const (
-	// To convert mg/dL to mmol/L and vice-versa
-	mgdlPerMmoll float64 = 18.01577
-	unitMgdL             = "mg/dL"
-	unitMmolL            = "mmol/L"
-)
-
-// convertBG is a common util function to convert bg values
-// to/from "mg/dL" and "mmol/L"
-//
-// - param: value The value to convert
-//
-// - param: unit The unit of the passed value
-//
-// - return: The converted value in the opposite unit
-func ConvertBG(value float64, unit string) (float64, error) {
-	if value < 0 {
-		return 0, errors.New("Invalid glycemia value")
-	}
-	if unit == unitMgdL {
-		return math.Round(10.0*value/mgdlPerMmoll) / 10, nil
-	}
-	if unit == unitMmolL {
-		return math.Round(value * mgdlPerMmoll), nil
-	}
-	return 0, errors.New("Invalid parameter unit")
+	timers  map[string]time.Time
+	results string
 }
 
 // IsValidUUID check if the uuid is valid
@@ -78,8 +43,7 @@ func ContainsInt(a []int, x int) bool {
 
 func TimeItContext(ctx context.Context) context.Context {
 	value := &TimeItType{
-		timers:    make(map[string]time.Time),
-		timersAdd: make(map[string]*TimerAddValue),
+		timers: make(map[string]time.Time),
 	}
 	return context.WithValue(ctx, TimeItKey(0), value)
 }

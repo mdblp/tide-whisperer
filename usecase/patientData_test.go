@@ -17,12 +17,147 @@ import (
 	"github.com/tidepool-org/tide-whisperer/schema"
 )
 
-var now = time.Now().UTC()
-var oneYearAgo = now.AddDate(-1, 0, 0)
-var twoYearsAgo = now.AddDate(-2, 0, 0)
-var fiveMinutesAgo = now.Add(-5 * time.Minute)
-var fiveHoursAgo = now.Add(-5 * time.Hour)
-var fiveSecondsAgo = now.Add(-5 * time.Second)
+var (
+	now            = time.Now().UTC()
+	oneYearAgo     = now.AddDate(-1, 0, 0)
+	twoYearsAgo    = now.AddDate(-2, 0, 0)
+	fiveMinutesAgo = now.Add(-5 * time.Minute)
+	fiveHoursAgo   = now.Add(-5 * time.Hour)
+	fiveSecondsAgo = now.Add(-5 * time.Second)
+	cbgTime        = time.Date(2023, time.April, 1, 12, 32, 0, 0, time.UTC)
+	cbgSample      = tideV2Schema.CbgSample{
+		Value:          10,
+		Units:          MmolL,
+		Timestamp:      cbgTime,
+		Timezone:       "UTC",
+		TimezoneOffset: 0,
+	}
+	oneCbgResultMgdl = `[
+{"id":"cbg_cbg1_0","time":"2023-04-01T12:32:00Z","timezone":"UTC","type":"cbg","units":"mg/dL","value":6}]
+`
+	oneCbgResultMmol = `[
+{"id":"cbg_cbg1_0","time":"2023-04-01T12:32:00Z","timezone":"UTC","type":"cbg","units":"mmol/L","value":10}]
+`
+)
+
+type patientDataGiven struct {
+	patientDataRepository PatientDataRepository
+	tideV2Client          tidewhisperer.ClientInterface
+	logger                *log.Logger
+	readBasalBucket       bool
+	getDataArgs           GetDataArgs
+}
+
+type patientDataExpected struct {
+	err    *common.DetailedError
+	result *bytes.Buffer
+}
+
+func expectErrIsNil(t *testing.T, p patientDataExpected) {
+	assert.Nil(t, p.err)
+}
+
+func expectCbgResultIsInMgdl(t *testing.T, p patientDataExpected) {
+	assert.Equal(t, oneCbgResultMgdl, p.result.String())
+}
+func expectCbgResultIsInMmol(t *testing.T, p patientDataExpected) {
+	assert.Equal(t, oneCbgResultMmol, p.result.String())
+}
+func expectHistoryParamIsInMgdl(t *testing.T, p patientDataExpected) {
+	unexpectedUnits := "mmol/L"
+	unexpectedParam := "unexpectedCurrentParam"
+
+	/*convert param1 because unit is mmol*/
+	expectedValue1 := `"value":"6"`
+	/*convert nothing in param2 because unit is mg/dL*/
+	expectedValue2 := `"previousValue":"15"`
+	expectedValue3 := `"value":"16"`
+	/*convert previousValue only for param 3 because previousUnit is mmol*/
+	expectedValue4 := `"previousValue":"44"`
+	expectedValue5 := `"value":"81"`
+
+	resultString := p.result.String()
+	assert.NotContainsf(t, resultString, unexpectedUnits, "GetData result=%s does contains unexpected units=%s", resultString, unexpectedUnits)
+	assert.NotContainsf(t, resultString, unexpectedParam, "GetData result=%s does contains unexpected param=%s", resultString, unexpectedParam)
+	assert.Containsf(t, resultString, expectedValue1, "GetData result=%s does not contains expected value=%s", resultString, expectedValue1)
+	assert.Containsf(t, resultString, expectedValue2, "GetData result=%s does not contains expected value=%s", resultString, expectedValue2)
+	assert.Containsf(t, resultString, expectedValue3, "GetData result=%s does not contains expected value=%s", resultString, expectedValue3)
+	assert.Containsf(t, resultString, expectedValue4, "GetData result=%s does not contains expected value=%s", resultString, expectedValue4)
+	assert.Containsf(t, resultString, expectedValue5, "GetData result=%s does not contains expected value=%s", resultString, expectedValue5)
+}
+func paramConvertToMgdlTrue(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.ConvertToMgdl = true
+	return p
+}
+func mockGetLatestBasalSecurityProfileWithDummyReturn(p patientDataGiven) patientDataGiven {
+	p.patientDataRepository.(*MockPatientDataRepository).On("GetLatestBasalSecurityProfile", mock.Anything, mock.Anything, p.getDataArgs.UserID).Return(&schema.DbProfile{
+		Type:          "test",
+		Time:          time.Time{},
+		Timezone:      "UTC",
+		Guid:          "osefduguid",
+		BasalSchedule: nil,
+	}, nil)
+	return p
+}
+func paramWithParametersChangesTrue(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.WithParametersChanges = true
+	return p
+}
+func queryParamConvertToMgdlFalse(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.ConvertToMgdl = false
+	return p
+}
+
+func noDeviceDataReturnedByRepository(p patientDataGiven) patientDataGiven {
+	patientDataRepository := MockPatientDataRepository{}
+	patientDataRepository.On("GetDataInDeviceData", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(
+		infrastructure.NewEmptyMockDbAdapterIterator(),
+		nil,
+	)
+	p.patientDataRepository = &patientDataRepository
+	return p
+}
+
+func oneCbgReturnedInMmolByTideV2(p patientDataGiven) patientDataGiven {
+	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
+	tideV2Client.MockedCbg = getCbgBucketWithOneCbgSample(p.getDataArgs.UserID)
+	p.tideV2Client = &tideV2Client
+	return p
+}
+
+func threeVariousParamHistoryReturnedByTideV2(p patientDataGiven) patientDataGiven {
+	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
+	settingsResult := &tideV2Schema.SettingsResult{
+		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
+			CurrentSettings: orcaSchema.CurrentSettings{
+				UserId: p.getDataArgs.UserID,
+				Device: nil,
+				Cgm:    nil,
+				Pump:   nil,
+				Parameters: []orcaSchema.CurrentParameter{
+					{
+						Name:          "unexpectedCurrentParam",
+						Value:         "0.1",
+						Unit:          MmolL,
+						Level:         1,
+						EffectiveDate: &now,
+					},
+				},
+			},
+			Time:           nil,
+			Timezone:       "",
+			TimezoneOffset: nil,
+		},
+		HistoryParameters: []orcaSchema.HistoryParameter{
+			createAddedHistoryParam("param1", "10", MmolL, &now),
+			createUpdatedHistoryParam("param2", "16", MgdL, &now, "15", MgdL),
+			createUpdatedHistoryParam("param3", "81", MgdL, &now, "80", MmolL),
+		},
+	}
+	tideV2Client.On("GetSettings", mock.Anything, p.getDataArgs.UserID, mock.Anything).Return(settingsResult, nil)
+	p.tideV2Client = &tideV2Client
+	return p
+}
 
 func createHistoryParam(name string, value string, unit string, date *time.Time, changeType string, previousValue string, previousUnit string) orcaSchema.HistoryParameter {
 	return orcaSchema.HistoryParameter{
@@ -66,229 +201,111 @@ func setupEmptyPatientDataRepositoryMock(userId string) MockPatientDataRepositor
 	return patientDataRepository
 }
 
-func TestPatientData_GetData(t *testing.T) {
-	testUserId := "testUserId"
+func getCbgBucketWithOneCbgSample(userid string) []tideV2Schema.CbgBucket {
 	cbgDay := time.Date(2023, time.April, 1, 0, 0, 0, 0, time.UTC)
-	cbgTime := time.Date(2023, time.April, 1, 12, 32, 0, 0, time.UTC)
-	oneCbgArray := []tideV2Schema.CbgBucket{
+	return []tideV2Schema.CbgBucket{
 		{
 			Id:                "cbg1",
 			CreationTimestamp: now,
-			UserId:            testUserId,
+			UserId:            userid,
 			Day:               cbgDay,
 			Samples: []tideV2Schema.CbgSample{
-				{
-					Value:          10,
-					Units:          MmolL,
-					Timestamp:      cbgTime,
-					Timezone:       "UTC",
-					TimezoneOffset: 0,
-				},
+				cbgSample,
 			},
 		},
 	}
+}
 
-	oneCbgResultMgdl := "[\n{\"id\":\"cbg_cbg1_0\",\"time\":\"2023-04-01T12:32:00Z\",\"timezone\":\"UTC\",\"type\":\"cbg\",\"units\":\"mg/dL\",\"value\":6}]\n"
-	oneCbgResultMmol := "[\n{\"id\":\"cbg_cbg1_0\",\"time\":\"2023-04-01T12:32:00Z\",\"timezone\":\"UTC\",\"type\":\"cbg\",\"units\":\"mmol/L\",\"value\":10}]\n"
-	getDataArgs := GetDataArgs{
-		Ctx:                        common.TimeItContext(context.Background()),
-		UserID:                     testUserId,
-		TraceID:                    "trace1",
-		StartDate:                  "",
-		EndDate:                    "",
-		WithPumpSettings:           false,
-		WithParametersChanges:      false,
-		SessionToken:               "token1",
-		ConvertToMgdl:              false,
-		FilteringParametersChanges: false,
-	}
-
-	getDataArgsWithConversion := GetDataArgs{
-		Ctx:                        getDataArgs.Ctx,
-		UserID:                     getDataArgs.UserID,
-		TraceID:                    getDataArgs.TraceID,
-		StartDate:                  getDataArgs.StartDate,
-		EndDate:                    getDataArgs.EndDate,
-		WithPumpSettings:           getDataArgs.WithPumpSettings,
-		WithParametersChanges:      getDataArgs.WithParametersChanges,
-		SessionToken:               getDataArgs.SessionToken,
-		FilteringParametersChanges: getDataArgs.FilteringParametersChanges,
-		ConvertToMgdl:              true,
-	}
-
-	patientDataRepository := MockPatientDataRepository{}
-	patientDataRepository.On("GetDataInDeviceData", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(
-		infrastructure.NewEmptyMockDbAdapterIterator(),
-		nil,
-	)
-	patientDataRepository.On("GetLatestBasalSecurityProfile", mock.Anything, mock.Anything, testUserId).Return(&schema.DbProfile{
-		Type:          "test",
-		Time:          time.Time{},
-		Timezone:      "UTC",
-		Guid:          "osefduguid",
-		BasalSchedule: nil,
-	}, nil)
-	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
-	tideV2Client.MockedCbg = oneCbgArray
-	tideV2Client.On("GetSettings", mock.Anything, testUserId, mock.Anything).Return(&tideV2Schema.SettingsResult{
-		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
-			CurrentSettings: orcaSchema.CurrentSettings{
-				UserId:     testUserId,
-				Device:     nil,
-				Cgm:        nil,
-				Pump:       nil,
-				Parameters: nil,
-			},
-			Time:           nil,
-			Timezone:       "",
-			TimezoneOffset: nil,
+func emptyPatientDataGiven(userid string) patientDataGiven {
+	return patientDataGiven{
+		patientDataRepository: nil,
+		tideV2Client:          nil,
+		logger:                &log.Logger{},
+		readBasalBucket:       false,
+		getDataArgs: GetDataArgs{
+			Ctx:                        common.TimeItContext(context.Background()),
+			UserID:                     userid,
+			TraceID:                    "trace1",
+			StartDate:                  "",
+			EndDate:                    "",
+			WithPumpSettings:           false,
+			WithParametersChanges:      false,
+			SessionToken:               "token1",
+			FilteringParametersChanges: false,
+			ConvertToMgdl:              true,
 		},
-		HistoryParameters: nil,
-	}, nil)
+	}
+}
 
-	expectedMgdlBuffer := bytes.Buffer{}
-	expectedMgdlBuffer.WriteString(oneCbgResultMgdl)
-	expectedMmolBuffer := bytes.Buffer{}
-	expectedMmolBuffer.WriteString(oneCbgResultMmol)
-	type fields struct {
-		patientDataRepository PatientDataRepository
-		tideV2Client          tidewhisperer.ClientInterface
-		logger                *log.Logger
-		readBasalBucket       bool
-	}
-	type args struct {
-		args GetDataArgs
-	}
+func TestPatientData_GetData_ConvertToMgdl(t *testing.T) {
 	tests := []struct {
 		name     string
-		fields   fields
-		args     args
-		wantErr  *common.DetailedError
-		wantBuff *bytes.Buffer
+		given    []func(patientDataGiven) patientDataGiven
+		expected []func(*testing.T, patientDataExpected)
 	}{
 		{
-			name: "should return cbg converted to mgdl",
-			fields: fields{
-				patientDataRepository: &patientDataRepository,
-				tideV2Client:          &tideV2Client,
-				logger:                &log.Logger{},
-				readBasalBucket:       false,
+			name: "should convert cbg to mgdl when ConvertToMgdl is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlTrue,
+				noDeviceDataReturnedByRepository,
+				oneCbgReturnedInMmolByTideV2,
 			},
-			args: args{
-				args: getDataArgsWithConversion,
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectCbgResultIsInMgdl,
 			},
-			wantErr:  nil,
-			wantBuff: &expectedMgdlBuffer,
 		},
 		{
-			name: "should return cbg in mmol",
-			fields: fields{
-				patientDataRepository: &patientDataRepository,
-				tideV2Client:          &tideV2Client,
-				logger:                &log.Logger{},
-				readBasalBucket:       false,
+			name: "should not convert cbg to mgdl when ConvertToMgdl is set to false",
+			given: []func(patientDataGiven) patientDataGiven{
+				queryParamConvertToMgdlFalse,
+				noDeviceDataReturnedByRepository,
+				oneCbgReturnedInMmolByTideV2,
 			},
-			args: args{
-				args: getDataArgs,
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectCbgResultIsInMmol,
 			},
-			wantErr:  nil,
-			wantBuff: &expectedMmolBuffer,
+		},
+		{
+			name: "should convert history parameters to mgdl if unit is mmol when ConvertToMgdl is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlTrue,
+				paramWithParametersChangesTrue,
+				noDeviceDataReturnedByRepository,
+				threeVariousParamHistoryReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectHistoryParamIsInMgdl,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &PatientData{
-				patientDataRepository: tt.fields.patientDataRepository,
-				tideV2Client:          tt.fields.tideV2Client,
-				logger:                tt.fields.logger,
-				readBasalBucket:       tt.fields.readBasalBucket,
+			given := emptyPatientDataGiven("getData_ConvertToMgdl")
+			for _, f := range tt.given {
+				given = f(given)
 			}
-			res, err := p.GetData(tt.args.args)
-			assert.Equalf(t, tt.wantErr, err, "GetData error %v not equal to expected %v", err, tt.args.args)
-			assert.Equal(t, tt.wantBuff.String(), res.String())
+			p := &PatientData{
+				patientDataRepository: given.patientDataRepository,
+				tideV2Client:          given.tideV2Client,
+				logger:                given.logger,
+				readBasalBucket:       given.readBasalBucket,
+			}
+			res, err := p.GetData(given.getDataArgs)
+			expected := patientDataExpected{
+				err:    err,
+				result: res,
+			}
+			for _, f := range tt.expected {
+				f(t, expected)
+			}
+			given.patientDataRepository.(*MockPatientDataRepository).AssertExpectations(t)
+			given.tideV2Client.(*tidewhisperer.TideWhispererV2MockClient).AssertExpectations(t)
 		})
 	}
-}
-
-func TestPatientData_GetData_ShouldConvertOnlyMmolHistoryParameters(t *testing.T) {
-	testUserId := "testParamsMmolUserId"
-	patientDataRepository := setupEmptyPatientDataRepositoryMock(testUserId)
-	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
-
-	settingsResult := &tideV2Schema.SettingsResult{
-		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
-			CurrentSettings: orcaSchema.CurrentSettings{
-				UserId: testUserId,
-				Device: nil,
-				Cgm:    nil,
-				Pump:   nil,
-				Parameters: []orcaSchema.CurrentParameter{
-					{
-						Name:          "unexpectedCurrentParam",
-						Value:         "0.1",
-						Unit:          MmolL,
-						Level:         1,
-						EffectiveDate: &now,
-					},
-				},
-			},
-			Time:           nil,
-			Timezone:       "",
-			TimezoneOffset: nil,
-		},
-		HistoryParameters: []orcaSchema.HistoryParameter{
-			createAddedHistoryParam("param1", "10", MmolL, &now),
-			createUpdatedHistoryParam("param2", "16", MgdL, &now, "15", MgdL),
-			createUpdatedHistoryParam("param3", "81", MgdL, &now, "80", MmolL),
-		},
-	}
-	tideV2Client.On("GetSettings", mock.Anything, testUserId, mock.Anything).Return(settingsResult, nil)
-
-	unexpectedUnits := "\"units\":\"mmol/L\""
-	unexpectedParam := "\"name\":\"unexpectedCurrentParam\""
-
-	/*convert param1 because unit is mmol*/
-	expectedValue1 := "\"value\":\"6\""
-	/*convert nothing in param2 because unit is mg/dL*/
-	expectedValue2 := "\"previousValue\":\"15\""
-	expectedValue3 := "\"value\":\"16\""
-	/*convert previousValue only for param 3 because previousUnit is mmol*/
-	expectedValue4 := "\"previousValue\":\"44\""
-	expectedValue5 := "\"value\":\"81\""
-
-	t.Run("convert to mgdl all mmol history params", func(t *testing.T) {
-		p := &PatientData{
-			patientDataRepository: &patientDataRepository,
-			tideV2Client:          &tideV2Client,
-			logger:                &log.Logger{},
-			readBasalBucket:       false,
-		}
-
-		getDataArgs := GetDataArgs{
-			Ctx:                   common.TimeItContext(context.Background()),
-			UserID:                testUserId,
-			TraceID:               "testParamsMmolTraceId",
-			StartDate:             "",
-			EndDate:               "",
-			WithPumpSettings:      false,
-			WithParametersChanges: true,
-			SessionToken:          "sessionToken",
-			ConvertToMgdl:         true,
-		}
-		res, err := p.GetData(getDataArgs)
-
-		/*No error should be thrown*/
-		assert.Nil(t, err)
-		strRes := res.String()
-
-		assert.NotContainsf(t, strRes, unexpectedUnits, "GetData result=%s does contains unexpected units=%s", strRes, unexpectedUnits)
-		assert.NotContainsf(t, strRes, unexpectedParam, "GetData result=%s does contains unexpected param=%s", strRes, unexpectedParam)
-		assert.Containsf(t, strRes, expectedValue1, "GetData result=%s does not contains expected value=%s", strRes, expectedValue1)
-		assert.Containsf(t, strRes, expectedValue2, "GetData result=%s does not contains expected value=%s", strRes, expectedValue2)
-		assert.Containsf(t, strRes, expectedValue3, "GetData result=%s does not contains expected value=%s", strRes, expectedValue3)
-		assert.Containsf(t, strRes, expectedValue4, "GetData result=%s does not contains expected value=%s", strRes, expectedValue4)
-		assert.Containsf(t, strRes, expectedValue5, "GetData result=%s does not contains expected value=%s", strRes, expectedValue5)
-	})
 }
 
 func TestPatientData_GetData_FilterHistoryParameters(t *testing.T) {
