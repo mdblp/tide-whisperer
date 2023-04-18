@@ -227,7 +227,7 @@ type GetDataArgs struct {
 	*/
 	WithParametersHistory      bool
 	FilteringParametersHistory bool
-	ConvertToMgdl              bool
+	BgUnit                     string
 }
 
 func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
@@ -328,7 +328,7 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 		cbgs,
 		basals,
 		writeParams,
-		args.ConvertToMgdl,
+		args.BgUnit,
 		args.FilteringParametersHistory,
 		dates,
 	)
@@ -353,7 +353,7 @@ func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, 
 }
 
 // writeFromIterV1 Common code to write
-func writeFromIterV1(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
+func writeFromIterV1(ctx context.Context, res *bytes.Buffer, bgUnit string, p *writeFromIter) error {
 	var err error
 
 	iter := p.iter
@@ -430,19 +430,31 @@ func writeFromIterV1(ctx context.Context, res *bytes.Buffer, p *writeFromIter) e
 			}
 
 			/*perform mmol -> mgdl conversion if needed*/
-			switch datum["type"] {
-			case "smbg":
-				if datum["units"] == MmolL {
-					datum["units"] = MgdL
-					datum["value"] = getMgdl(datum["value"].(float64))
-				}
-			case "wizard":
-				/*For wizard, we don't have anymore fields in mmol, so we're changing the unit but no conversion is done.
-				The associated bolus is separated and will be converted in another function.*/
-				if datum["units"] == MmolL {
-					datum["units"] = MgdL
+			if bgUnit != "" {
+				switch datum["type"] {
+				case "smbg":
+					if datum["units"] != bgUnit {
+						if datum["units"] == MmolL {
+							datum["units"] = MgdL
+							datum["value"] = getMgdl(datum["value"].(float64))
+						} else {
+							datum["units"] = MmolL
+							datum["value"] = getMmol(datum["value"].(float64))
+						}
+					}
+				case "wizard":
+					/*For wizard, we don't have anymore fields in mmol, so we're changing the unit but no conversion is done.
+					The associated bolus is separated and will be converted in another function.*/
+					if datum["units"] != bgUnit {
+						if datum["units"] == MmolL {
+							datum["units"] = MgdL
+						} else {
+							datum["units"] = MmolL
+						}
+					}
 				}
 			}
+
 			// Create the JSON string for this datum
 			if jsonDatum, err = json.Marshal(datum); err != nil {
 				if p.jsonError.firstError == nil {

@@ -60,9 +60,9 @@ func TestPatientData_GetData(t *testing.T) {
 		expected []func(*testing.T, patientDataExpected)
 	}{
 		{
-			name: "should convert cbg to mgdl when ConvertToMgdl is set to true",
+			name: "should convert cbg to mgdl when bgUnit is mgdl",
 			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlTrue,
+				paramBgUnitMgdl,
 				noDeviceDataReturnedByRepository,
 				oneCbgReturnedInMmolByTideV2,
 			},
@@ -72,9 +72,9 @@ func TestPatientData_GetData(t *testing.T) {
 			},
 		},
 		{
-			name: "should not convert cbg to mgdl when ConvertToMgdl is set to false",
+			name: "should not convert cbg to mgdl when bgUnit is mmol",
 			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlFalse,
+				paramBgUnitMmol,
 				noDeviceDataReturnedByRepository,
 				oneCbgReturnedInMmolByTideV2,
 			},
@@ -84,9 +84,9 @@ func TestPatientData_GetData(t *testing.T) {
 			},
 		},
 		{
-			name: "should convert smbg to mgdl when ConvertToMgdl is set to true",
+			name: "should convert smbg to mgdl when bgUnit is mgdl",
 			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlTrue,
+				paramBgUnitMgdl,
 				smbgReturnedByRepository,
 				nothingReturnedByTideV2,
 			},
@@ -96,9 +96,9 @@ func TestPatientData_GetData(t *testing.T) {
 			},
 		},
 		{
-			name: "should convert history parameters to mgdl if unit is mmol when ConvertToMgdl is set to true",
+			name: "should convert history parameters to mgdl if unit is mmol when bgUnit is mgdl",
 			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlTrue,
+				paramBgUnitMgdl,
 				paramWithParametersHistoryTrue,
 				noDeviceDataReturnedByRepository,
 				threeParamHistoryForConvertionReturnedByTideV2,
@@ -112,7 +112,7 @@ func TestPatientData_GetData(t *testing.T) {
 		{
 			name: "should filter history parameters between startDate and endDate when FilteringParametersHistory is set to true",
 			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlFalse,
+				paramBgUnitEmpty,
 				paramWithParametersHistoryTrue,
 				paramFilteringParametersHistoryTrue,
 				paramStartDate2YearsAgo,
@@ -130,7 +130,7 @@ func TestPatientData_GetData(t *testing.T) {
 		{
 			name: "should not filter history parameters between startDate and endDate if they are empty and FilteringParametersHistory is set to true",
 			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlFalse,
+				paramBgUnitEmpty,
 				paramWithParametersHistoryTrue,
 				paramFilteringParametersHistoryTrue,
 				noDeviceDataReturnedByRepository,
@@ -146,7 +146,7 @@ func TestPatientData_GetData(t *testing.T) {
 		{
 			name: "should not filter history parameters between startDate and endDate if they are provided and FilteringParametersHistory is set to false",
 			given: []func(patientDataGiven) patientDataGiven{
-				paramConvertToMgdlFalse,
+				paramBgUnitEmpty,
 				paramWithParametersHistoryTrue,
 				paramFilteringParametersHistoryFalse,
 				paramStartDate2YearsAgo,
@@ -263,13 +263,18 @@ func expectHistoryParamIsInMgdl(t *testing.T, p patientDataExpected) {
 	assert.Containsf(t, resultString, expectedValue5, "GetData result=%s does not contains expected value=%s", resultString, expectedValue5)
 }
 
-func paramConvertToMgdlTrue(p patientDataGiven) patientDataGiven {
-	p.getDataArgs.ConvertToMgdl = true
+func paramBgUnitMgdl(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.BgUnit = MgdL
 	return p
 }
 
-func paramConvertToMgdlFalse(p patientDataGiven) patientDataGiven {
-	p.getDataArgs.ConvertToMgdl = false
+func paramBgUnitMmol(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.BgUnit = MmolL
+	return p
+}
+
+func paramBgUnitEmpty(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.BgUnit = ""
 	return p
 }
 
@@ -362,7 +367,7 @@ func threeParamHistoryForConvertionReturnedByTideV2(p patientDataGiven) patientD
 				Parameters: []orcaSchema.CurrentParameter{
 					{
 						Name:          "unexpectedCurrentParam",
-						Value:         "0.1",
+						Value:         "12",
 						Unit:          MmolL,
 						Level:         1,
 						EffectiveDate: &now,
@@ -467,7 +472,7 @@ func emptyPatientDataGiven(userid string) patientDataGiven {
 			WithParametersHistory:      false,
 			SessionToken:               "token1",
 			FilteringParametersHistory: false,
-			ConvertToMgdl:              true,
+			BgUnit:                     MgdL,
 		},
 	}
 }

@@ -18,7 +18,6 @@ var (
 	withPumpSettings      = false
 	withParametersChanges = true
 	sessionToken          = "sessiontoken123"
-	convertToMgdl         = true
 	testLogger            = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
 	exportArgs            = ExportArgs{
 		UserID:                userID,
@@ -28,12 +27,12 @@ var (
 		WithPumpSettings:      withPumpSettings,
 		WithParametersChanges: withParametersChanges,
 		SessionToken:          sessionToken,
-		ConvertToMgdl:         convertToMgdl,
+		BgUnit:                MgdL,
 	}
 	argsMatcher = mock.MatchedBy(func(args GetDataArgs) bool {
 		return args.UserID == userID && args.TraceID == traceID && args.SessionToken == sessionToken &&
 			args.WithPumpSettings == withPumpSettings && args.WithParametersHistory == withParametersChanges &&
-			args.StartDate == startDate && args.EndDate == endDate && args.ConvertToMgdl == convertToMgdl
+			args.StartDate == startDate && args.EndDate == endDate && args.BgUnit == MgdL
 	})
 )
 

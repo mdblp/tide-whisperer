@@ -31,7 +31,7 @@ type ExportArgs struct {
 	WithPumpSettings      bool
 	WithParametersChanges bool
 	SessionToken          string
-	ConvertToMgdl         bool
+	BgUnit                string
 }
 
 func (e Exporter) Export(args ExportArgs) {
@@ -47,7 +47,7 @@ func (e Exporter) Export(args ExportArgs) {
 		WithPumpSettings:           args.WithPumpSettings,
 		WithParametersHistory:      args.WithParametersChanges,
 		SessionToken:               args.SessionToken,
-		ConvertToMgdl:              args.ConvertToMgdl,
+		BgUnit:                     args.BgUnit,
 		FilteringParametersHistory: true,
 	}
 	buffer, err := e.patientData.GetData(getDataArgs)

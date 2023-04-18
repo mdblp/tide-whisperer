@@ -167,7 +167,7 @@ func (p *PatientData) writeDataToBuffer(
 	Cbgs []schemaV2.CbgBucket,
 	Basals []schemaV2.BasalBucket,
 	writeParams *writeFromIter,
-	convertToMgdl bool,
+	bgUnit string,
 	filteringParameterChanges bool,
 	dates *common.Date,
 ) (*bytes.Buffer, *common.DetailedError) {
@@ -183,7 +183,7 @@ func (p *PatientData) writeDataToBuffer(
 
 	if includePumpSettings && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writePumpSettings(&buff, writeParams)
+		err = writePumpSettings(&buff, writeParams, bgUnit)
 		if err != nil {
 			return nil, newWriteError(err)
 		}
@@ -191,7 +191,7 @@ func (p *PatientData) writeDataToBuffer(
 
 	if includeParameterChanges && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writeDeviceParameterChanges(&buff, writeParams, filteringParameterChanges, convertToMgdl, dates)
+		err = writeDeviceParameterChanges(&buff, writeParams, filteringParameterChanges, bgUnit, dates)
 		if err != nil {
 			return nil, newWriteError(err)
 		}
@@ -199,7 +199,7 @@ func (p *PatientData) writeDataToBuffer(
 
 	common.TimeIt(ctx, "writeDataMain")
 	writeParams.iter = iterData
-	err = writeFromIterV1(ctx, &buff, writeParams)
+	err = writeFromIterV1(ctx, &buff, bgUnit, writeParams)
 	if err != nil {
 		return nil, newWriteError(err)
 	}
@@ -208,7 +208,7 @@ func (p *PatientData) writeDataToBuffer(
 	if len(Cbgs) > 0 {
 		common.TimeIt(ctx, "WriteCbgs")
 		writeParams.cbgs = Cbgs
-		err = writeCbgs(ctx, convertToMgdl, &buff, writeParams)
+		err = writeCbgs(ctx, bgUnit, &buff, writeParams)
 		if err != nil {
 			return nil, newWriteError(err)
 		}
@@ -236,7 +236,7 @@ func (p *PatientData) writeDataToBuffer(
 		} else {
 			defer iterUploads.Close(ctx)
 			writeParams.iter = iterUploads
-			err = writeFromIterV1(ctx, &buff, writeParams)
+			err = writeFromIterV1(ctx, &buff, bgUnit, writeParams)
 			if err != nil {
 				common.TimeEnd(ctx, "getUploads")
 				return nil, newWriteError(err)
@@ -261,7 +261,7 @@ func (p *PatientData) writeDataToBuffer(
 	return &buff, nil
 }
 
-func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, convertToMgdl bool, dates *common.Date) error {
+func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, bgUnit string, dates *common.Date) error {
 	settings := p.settings
 	var startDate, endDate time.Time
 	var err error
@@ -303,21 +303,33 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringP
 			datum["previousValue"] = paramChange.PreviousValue
 		}
 
-		if datum["units"] == MmolL && convertToMgdl {
-			datum["units"] = MgdL
-			val, err := convertToFloat64(datum["value"], datum["name"])
-			if err != nil {
-				return err
+		/*Handle conversion if bgUnit is not empty*/
+		if bgUnit != "" {
+			if datum["units"] != bgUnit {
+				val, err := convertToFloat64(datum["value"], datum["name"])
+				if err != nil {
+					return err
+				}
+				if datum["units"] == MgdL {
+					datum["units"] = MmolL
+					datum["value"] = fmt.Sprintf("%g", getMmol(val))
+				} else if datum["units"] == MmolL {
+					datum["units"] = MgdL
+					datum["value"] = fmt.Sprintf("%g", getMgdl(val))
+				}
 			}
-			datum["value"] = fmt.Sprintf("%g", getMgdl(val))
-		}
 
-		if paramChange.PreviousUnit == MmolL && convertToMgdl {
-			val, err := convertToFloat64(datum["previousValue"], datum["name"])
-			if err != nil {
-				return err
+			if paramChange.PreviousUnit != bgUnit && paramChange.PreviousValue != "" {
+				val, err := convertToFloat64(datum["previousValue"], datum["name"])
+				if err != nil {
+					return err
+				}
+				if paramChange.PreviousUnit == MgdL {
+					datum["previousValue"] = fmt.Sprintf("%g", getMmol(val))
+				} else if paramChange.PreviousUnit == MmolL {
+					datum["previousValue"] = fmt.Sprintf("%g", getMgdl(val))
+				}
 			}
-			datum["previousValue"] = fmt.Sprintf("%g", getMgdl(val))
 		}
 
 		jsonDatum, err := json.Marshal(datum)
@@ -351,7 +363,7 @@ func convertToFloat64(value interface{}, name interface{}) (float64, error) {
 	return val, nil
 }
 
-func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
+func writePumpSettings(res *bytes.Buffer, p *writeFromIter, bgUnit string) error {
 	settings := p.settings
 	datum := make(map[string]interface{})
 	datum["id"] = uuid.New().String()
@@ -362,6 +374,55 @@ func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
 	/*TODO fetch from somewhere*/
 	datum["activeSchedule"] = "Normal"
 	datum["deviceId"] = settings.CurrentSettings.Device.DeviceID
+
+	/* Perform conversion */
+	if bgUnit != "" {
+		for _, hp := range settings.HistoryParameters {
+			if hp.Unit != bgUnit {
+				val, err := convertToFloat64(datum["value"], datum["name"])
+				if err != nil {
+					return err
+				}
+				if hp.Unit == MgdL {
+					hp.Unit = MmolL
+					hp.Value = fmt.Sprintf("%g", getMmol(val))
+				} else if hp.Unit == MmolL {
+					hp.Unit = MgdL
+					hp.Value = fmt.Sprintf("%g", getMgdl(val))
+				}
+			}
+
+			if hp.PreviousUnit != bgUnit {
+				val, err := convertToFloat64(datum["previousValue"], datum["name"])
+				if err != nil {
+					return err
+				}
+				if hp.PreviousUnit == MgdL {
+					hp.PreviousUnit = MmolL
+					hp.PreviousValue = fmt.Sprintf("%g", getMmol(val))
+				} else if hp.PreviousUnit == MmolL {
+					hp.PreviousUnit = MgdL
+					hp.PreviousValue = fmt.Sprintf("%g", getMgdl(val))
+				}
+			}
+		}
+		for _, p := range settings.CurrentSettings.Parameters {
+			if p.Unit != bgUnit {
+				val, err := convertToFloat64(datum["value"], datum["name"])
+				if err != nil {
+					return err
+				}
+				if p.Unit == MgdL {
+					p.Unit = MmolL
+					p.Value = fmt.Sprintf("%g", getMmol(val))
+				} else if p.Unit == MmolL {
+					p.Unit = MgdL
+					p.Value = fmt.Sprintf("%g", getMgdl(val))
+				}
+			}
+		}
+	}
+
 	groupedHistoryParameters := groupByChangeDate(settings.HistoryParameters)
 	payload := map[string]interface{}{
 		"basalsecurityprofile": p.basalSecurityProfile,
@@ -429,8 +490,12 @@ func getMgdl(value float64) float64 {
 	return math.Round(value * MmolLToMgdLConversionFactor)
 }
 
+func getMmol(value float64) float64 {
+	return math.Round(value / MmolLToMgdLConversionFactor)
+}
+
 // Mapping V2 Bucket schema to expected V1 schema + write to output
-func writeCbgs(ctx context.Context, convertToMgdl bool, res *bytes.Buffer, p *writeFromIter) error {
+func writeCbgs(ctx context.Context, bgUnit string, res *bytes.Buffer, p *writeFromIter) error {
 	var err error
 	for _, bucket := range p.cbgs {
 		for i, sample := range bucket.Samples {
@@ -442,9 +507,14 @@ func writeCbgs(ctx context.Context, convertToMgdl bool, res *bytes.Buffer, p *wr
 			datum["timezone"] = sample.Timezone
 			datum["units"] = sample.Units
 			datum["value"] = sample.Value
-			if convertToMgdl && datum["units"] == MmolL {
-				datum["units"] = MgdL
-				datum["value"] = getMgdl(sample.Value)
+			if bgUnit != "" && datum["units"] != bgUnit {
+				if datum["units"] == MmolL {
+					datum["units"] = MgdL
+					datum["value"] = getMgdl(sample.Value)
+				} else {
+					datum["units"] = MmolL
+					datum["value"] = getMmol(sample.Value)
+				}
 			}
 			jsonDatum, err := json.Marshal(datum)
 			if err != nil {

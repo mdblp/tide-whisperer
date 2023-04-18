@@ -32,7 +32,7 @@ func NewExportController(logger *log.Logger, exporter ExporterUseCase) ExportCon
 // @Param userID path string true "The ID of the user to search data for"
 // @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
-// @Param convertToMgdl query string false "true to get blood glucose related data in mg/dL. Default is set to false, thus data are going to be in mmol/L."
+// @Param bgUnit query string false "The blood glucose unit used for exported data, can be mmol/L or mg/dL. By default, will be mmol/L."
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security Auth0
 // @Router /export/{userID} [get]
@@ -42,7 +42,10 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 	query := res.URL.Query()
 	startDate := query.Get("startDate")
 	endDate := query.Get("endDate")
-	convertToMgdl := query.Get("convertToMgdl") == "true"
+	bgUnit := query.Get("bgUnit")
+	if bgUnit != usecase.MgdL {
+		bgUnit = usecase.MmolL
+	}
 
 	sessionToken := getSessionToken(res)
 	exportArgs := usecase.ExportArgs{
@@ -53,7 +56,7 @@ func (c ExportController) ExportData(ctx context.Context, res *common.HttpRespon
 		WithPumpSettings:      false,
 		WithParametersChanges: true,
 		SessionToken:          sessionToken,
-		ConvertToMgdl:         convertToMgdl,
+		BgUnit:                bgUnit,
 	}
 	go c.exporter.Export(exportArgs)
 	return nil

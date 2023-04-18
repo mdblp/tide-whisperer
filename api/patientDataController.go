@@ -23,6 +23,7 @@ import (
 // @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
 // @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
+// @Param bgUnit query string false "The blood glucose unit used for exported data, can be mmol/L or mg/dL. If nothing is specified, blood glucose data will be returned as it is in database."
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security Auth0
 // @Router /v1/dataV2/{userID} [get]
@@ -35,6 +36,10 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 	sessionToken := getSessionToken(res)
+	bgUnit := query.Get("bgUnit")
+	if bgUnit != usecase.MgdL && bgUnit != usecase.MmolL {
+		bgUnit = ""
+	}
 	getDataArgs := usecase.GetDataArgs{
 		Ctx:                        ctx,
 		UserID:                     userID,
@@ -44,7 +49,7 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 		WithPumpSettings:           withPumpSettings,
 		WithParametersHistory:      withPumpSettings,
 		SessionToken:               sessionToken,
-		ConvertToMgdl:              false,
+		BgUnit:                     bgUnit,
 		FilteringParametersHistory: false,
 	}
 	buff, err := a.patientData.GetData(getDataArgs)
