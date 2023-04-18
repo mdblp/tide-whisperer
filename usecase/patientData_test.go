@@ -60,9 +60,25 @@ func expectErrIsNil(t *testing.T, p patientDataExpected) {
 func expectCbgResultIsInMgdl(t *testing.T, p patientDataExpected) {
 	assert.Equal(t, oneCbgResultMgdl, p.result.String())
 }
+
 func expectCbgResultIsInMmol(t *testing.T, p patientDataExpected) {
 	assert.Equal(t, oneCbgResultMmol, p.result.String())
 }
+
+func expectSmbgResultIsInMgdl(t *testing.T, p patientDataExpected) {
+	unexpectedUnits := MmolL
+	/*convert smbg1 and smbg2 because unit is mmol*/
+	expectedValue1 := `"value":6`
+	expectedValue2 := `"value":8`
+	/*do not convert smbg3 because unit is already mg/dL*/
+	expectedValue3 := `"value":50`
+	resultString := p.result.String()
+	assert.NotContainsf(t, resultString, unexpectedUnits, "GetData result=%s does contains unexpected units=%s", resultString, unexpectedUnits)
+	assert.Containsf(t, resultString, expectedValue1, "GetData result=%s does not contains expected value=%s", resultString, expectedValue1)
+	assert.Containsf(t, resultString, expectedValue2, "GetData result=%s does not contains expected value=%s", resultString, expectedValue2)
+	assert.Containsf(t, resultString, expectedValue3, "GetData result=%s does not contains expected value=%s", resultString, expectedValue3)
+}
+
 func expectOnlyParamFilter1And2ArePresent(t *testing.T, p patientDataExpected) {
 	resultString := p.result.String()
 	paramNotExpected := "paramFilter3"
@@ -72,6 +88,7 @@ func expectOnlyParamFilter1And2ArePresent(t *testing.T, p patientDataExpected) {
 	assert.Containsf(t, resultString, paramExpected1, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected1)
 	assert.Containsf(t, resultString, paramExpected2, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected2)
 }
+
 func expectAllParamFiltersArePresent(t *testing.T, p patientDataExpected) {
 	resultString := p.result.String()
 	paramExpected1 := "paramFilter1"
@@ -81,11 +98,13 @@ func expectAllParamFiltersArePresent(t *testing.T, p patientDataExpected) {
 	assert.Containsf(t, resultString, paramExpected2, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected2)
 	assert.Containsf(t, resultString, paramExpected3, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected3)
 }
+
 func expectParameterAreNotConverted(t *testing.T, p patientDataExpected) {
 	resultString := p.result.String()
 	assert.Containsf(t, resultString, MgdL, "GetData result=%s does not contains expected unit=%s", resultString, MgdL)
 	assert.Containsf(t, resultString, MmolL, "GetData result=%s does not contains expected unit=%s", resultString, MmolL)
 }
+
 func expectHistoryParamIsInMgdl(t *testing.T, p patientDataExpected) {
 	unexpectedUnits := "mmol/L"
 	unexpectedParam := "unexpectedCurrentParam"
@@ -108,14 +127,17 @@ func expectHistoryParamIsInMgdl(t *testing.T, p patientDataExpected) {
 	assert.Containsf(t, resultString, expectedValue4, "GetData result=%s does not contains expected value=%s", resultString, expectedValue4)
 	assert.Containsf(t, resultString, expectedValue5, "GetData result=%s does not contains expected value=%s", resultString, expectedValue5)
 }
+
 func paramConvertToMgdlTrue(p patientDataGiven) patientDataGiven {
 	p.getDataArgs.ConvertToMgdl = true
 	return p
 }
+
 func paramConvertToMgdlFalse(p patientDataGiven) patientDataGiven {
 	p.getDataArgs.ConvertToMgdl = false
 	return p
 }
+
 func mockGetLatestBasalSecurityProfileWithDummyReturn(p patientDataGiven) patientDataGiven {
 	p.patientDataRepository.(*MockPatientDataRepository).On("GetLatestBasalSecurityProfile", mock.Anything, mock.Anything, p.getDataArgs.UserID).Return(&schema.DbProfile{
 		Type:          "test",
@@ -126,22 +148,27 @@ func mockGetLatestBasalSecurityProfileWithDummyReturn(p patientDataGiven) patien
 	}, nil)
 	return p
 }
+
 func paramWithParametersHistoryTrue(p patientDataGiven) patientDataGiven {
 	p.getDataArgs.WithParametersHistory = true
 	return p
 }
+
 func paramFilteringParametersHistoryTrue(p patientDataGiven) patientDataGiven {
 	p.getDataArgs.FilteringParametersHistory = true
 	return p
 }
+
 func paramFilteringParametersHistoryFalse(p patientDataGiven) patientDataGiven {
 	p.getDataArgs.FilteringParametersHistory = false
 	return p
 }
+
 func paramStartDate2YearsAgo(p patientDataGiven) patientDataGiven {
 	p.getDataArgs.StartDate = twoYearsAgo.Format(time.RFC3339Nano)
 	return p
 }
+
 func paramEndDate5MinAgo(p patientDataGiven) patientDataGiven {
 	p.getDataArgs.EndDate = fiveMinutesAgo.Format(time.RFC3339Nano)
 	return p
@@ -156,10 +183,34 @@ func noDeviceDataReturnedByRepository(p patientDataGiven) patientDataGiven {
 	p.patientDataRepository = &patientDataRepository
 	return p
 }
+func smbgReturnedByRepository(p patientDataGiven) patientDataGiven {
+	patientDataRepository := MockPatientDataRepository{}
+	patientDataRepository.On("GetDataInDeviceData", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(
+		infrastructure.NewMockDbAdapterIterator([]string{
+			"{\"id\":\"1\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:00:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mmol/L\",\"value\":10}",
+			"{\"id\":\"2\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:05:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mmol/L\",\"value\":15}",
+			"{\"id\":\"3\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:10:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mg/dL\",\"value\":50}",
+		}),
+		nil,
+	)
+	patientDataRepository.On("GetUploadData", mock.Anything, p.getDataArgs.TraceID, []string{"upload01"}).Return(
+		infrastructure.NewMockDbAdapterIterator([]string{
+			"{\"time\":\"2022-08-08T16:40:00Z\",\"type\":\"upload\",\"id\":\"upload01\",\"timezone\":\"UTC\",\"_dataState\":\"open\",\"_deduplicator\":{\"name\":\"org.tidepool.deduplicator.none\",\"version\":\"1.0.0\"},\"_state\":\"open\",\"client\":{\"name\":\"portal-api.yourloops.com\",\"version\":\"1.0.0\" },\"dataSetType\":\"continuous\",\"deviceManufacturers\":[\"Diabeloop\"],\"deviceModel\":\"DBLG1\",\"deviceTags\":[\"cgm\",\"insulin-pump\"],\"revision\": 1,\"uploadId\":\"33031f76c78461670a1a95b5f032bb6a\",\"version\":\"1.0.0\",\"_userId\":\"osef\"}",
+		}),
+		nil,
+	)
+	p.patientDataRepository = &patientDataRepository
+	return p
+}
 
 func oneCbgReturnedInMmolByTideV2(p patientDataGiven) patientDataGiven {
 	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
 	tideV2Client.MockedCbg = getCbgBucketWithOneCbgSample(p.getDataArgs.UserID)
+	p.tideV2Client = &tideV2Client
+	return p
+}
+func nothingReturnedByTideV2(p patientDataGiven) patientDataGiven {
+	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
 	p.tideV2Client = &tideV2Client
 	return p
 }
@@ -250,22 +301,6 @@ func createAddedHistoryParam(name string, value string, unit string, date *time.
 	return createHistoryParam(name, value, unit, date, orcaSchema.ADDED, "", "")
 }
 
-func setupEmptyPatientDataRepositoryMock(userId string) MockPatientDataRepository {
-	patientDataRepository := MockPatientDataRepository{}
-	patientDataRepository.On("GetDataInDeviceData", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(
-		infrastructure.NewEmptyMockDbAdapterIterator(),
-		nil,
-	)
-	patientDataRepository.On("GetLatestBasalSecurityProfile", mock.Anything, mock.Anything, userId).Return(&schema.DbProfile{
-		Type:          "test",
-		Time:          time.Time{},
-		Timezone:      "UTC",
-		Guid:          "osefduguid",
-		BasalSchedule: nil,
-	}, nil)
-	return patientDataRepository
-}
-
 func getCbgBucketWithOneCbgSample(userid string) []tideV2Schema.CbgBucket {
 	cbgDay := time.Date(2023, time.April, 1, 0, 0, 0, 0, time.UTC)
 	return []tideV2Schema.CbgBucket{
@@ -333,6 +368,18 @@ func TestPatientData_GetData(t *testing.T) {
 			},
 		},
 		{
+			name: "should convert smbg to mgdl when ConvertToMgdl is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlTrue,
+				smbgReturnedByRepository,
+				nothingReturnedByTideV2,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectSmbgResultIsInMgdl,
+			},
+		},
+		{
 			name: "should convert history parameters to mgdl if unit is mmol when ConvertToMgdl is set to true",
 			given: []func(patientDataGiven) patientDataGiven{
 				paramConvertToMgdlTrue,
@@ -380,10 +427,28 @@ func TestPatientData_GetData(t *testing.T) {
 				expectParameterAreNotConverted,
 			},
 		},
+		{
+			name: "should not filter history parameters between startDate and endDate if they are provided and FilteringParametersHistory is set to false",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlFalse,
+				paramWithParametersHistoryTrue,
+				paramFilteringParametersHistoryFalse,
+				paramStartDate2YearsAgo,
+				paramEndDate5MinAgo,
+				noDeviceDataReturnedByRepository,
+				threeParamHistoryForFilteringReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectAllParamFiltersArePresent,
+				expectParameterAreNotConverted,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			given := emptyPatientDataGiven("getData_ConvertToMgdl")
+			given := emptyPatientDataGiven("userid_test_getData")
 			for _, f := range tt.given {
 				given = f(given)
 			}
@@ -405,65 +470,4 @@ func TestPatientData_GetData(t *testing.T) {
 			given.tideV2Client.(*tidewhisperer.TideWhispererV2MockClient).AssertExpectations(t)
 		})
 	}
-}
-
-func TestPatientData_GetData_ShouldConvertOnlyMmolSmbgs(t *testing.T) {
-	testUserId := "testSmbgsConvertionUserId"
-	testTraceId := "testSmbgsConvertionTraceId"
-	patientDataRepository := MockPatientDataRepository{}
-	patientDataRepository.On("GetDataInDeviceData", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.Anything, mock.Anything).Return(
-		infrastructure.NewMockDbAdapterIterator([]string{
-			"{\"id\":\"1\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:00:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mmol/L\",\"value\":10}",
-			"{\"id\":\"2\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:05:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mmol/L\",\"value\":15}",
-			"{\"id\":\"3\",\"_userId\":\"user01\",\"uploadId\":\"upload01\",\"time\":\"2021-01-10T00:10:01.000Z\",\"timezone\":\"Europe/Paris\",\"type\":\"smbg\",\"units\":\"mg/dL\",\"value\":50}",
-		}),
-		nil,
-	)
-	patientDataRepository.On("GetUploadData", mock.Anything, testTraceId, []string{"upload01"}).Return(
-		infrastructure.NewMockDbAdapterIterator([]string{
-			"{\"time\":\"2022-08-08T16:40:00Z\",\"type\":\"upload\",\"id\":\"upload01\",\"timezone\":\"UTC\",\"_dataState\":\"open\",\"_deduplicator\":{\"name\":\"org.tidepool.deduplicator.none\",\"version\":\"1.0.0\"},\"_state\":\"open\",\"client\":{\"name\":\"portal-api.yourloops.com\",\"version\":\"1.0.0\" },\"dataSetType\":\"continuous\",\"deviceManufacturers\":[\"Diabeloop\"],\"deviceModel\":\"DBLG1\",\"deviceTags\":[\"cgm\",\"insulin-pump\"],\"revision\": 1,\"uploadId\":\"33031f76c78461670a1a95b5f032bb6a\",\"version\":\"1.0.0\",\"_userId\":\"osef\"}",
-		}),
-		nil,
-	)
-	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
-
-	unexpectedUnits := "\"units\":\"mmol/L\""
-
-	/*convert smbg1 and smbg2 because unit is mmol*/
-	expectedValue1 := "\"value\":6"
-	expectedValue2 := "\"value\":8"
-	/*do not convert smbg3 because unit is mg/dL*/
-	expectedValue3 := "\"value\":50"
-
-	t.Run("convert to mgdl all mmol smbgs", func(t *testing.T) {
-		p := &PatientData{
-			patientDataRepository: &patientDataRepository,
-			tideV2Client:          &tideV2Client,
-			logger:                &log.Logger{},
-			readBasalBucket:       false,
-		}
-
-		getDataArgs := GetDataArgs{
-			Ctx:                        common.TimeItContext(context.Background()),
-			UserID:                     testUserId,
-			TraceID:                    testTraceId,
-			StartDate:                  "",
-			EndDate:                    "",
-			WithPumpSettings:           false,
-			WithParametersHistory:      false,
-			SessionToken:               "sessionToken",
-			ConvertToMgdl:              true,
-			FilteringParametersHistory: false,
-		}
-		res, err := p.GetData(getDataArgs)
-
-		/*No error should be thrown*/
-		assert.Nil(t, err)
-		strRes := res.String()
-
-		assert.NotContainsf(t, strRes, unexpectedUnits, "GetData result=%s does contains unexpected units=%s", strRes, unexpectedUnits)
-		assert.Containsf(t, strRes, expectedValue1, "GetData result=%s does not contains expected value=%s", strRes, expectedValue1)
-		assert.Containsf(t, strRes, expectedValue2, "GetData result=%s does not contains expected value=%s", strRes, expectedValue2)
-		assert.Containsf(t, strRes, expectedValue3, "GetData result=%s does not contains expected value=%s", strRes, expectedValue3)
-	})
 }
