@@ -45,10 +45,10 @@ func (e Exporter) Export(args ExportArgs) {
 		StartDate:                  args.StartDate,
 		EndDate:                    args.EndDate,
 		WithPumpSettings:           args.WithPumpSettings,
-		WithParametersChanges:      args.WithParametersChanges,
+		WithParametersHistory:      args.WithParametersChanges,
 		SessionToken:               args.SessionToken,
 		ConvertToMgdl:              args.ConvertToMgdl,
-		FilteringParametersChanges: true,
+		FilteringParametersHistory: true,
 	}
 	buffer, err := e.patientData.GetData(getDataArgs)
 	if err != nil {

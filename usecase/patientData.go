@@ -225,8 +225,8 @@ type GetDataArgs struct {
 	by doing this export could use getData and transform data as needed
 	(and no need to pass params to the actual getData)
 	*/
-	WithParametersChanges      bool
-	FilteringParametersChanges bool
+	WithParametersHistory      bool
+	FilteringParametersHistory bool
 	ConvertToMgdl              bool
 }
 
@@ -261,7 +261,7 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 
 	writeParams := &params.writer
 
-	if args.WithPumpSettings || args.WithParametersChanges {
+	if args.WithPumpSettings || args.WithParametersHistory {
 		pumpSettings, err = p.getLatestPumpSettings(args.Ctx, args.TraceID, args.UserID, writeParams, args.SessionToken)
 		if err != nil {
 			return nil, err
@@ -322,14 +322,14 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 		args.Ctx,
 		args.TraceID,
 		args.WithPumpSettings,
-		args.WithParametersChanges,
+		args.WithParametersHistory,
 		pumpSettings,
 		iterData,
 		cbgs,
 		basals,
 		writeParams,
 		args.ConvertToMgdl,
-		args.FilteringParametersChanges,
+		args.FilteringParametersHistory,
 		dates,
 	)
 }

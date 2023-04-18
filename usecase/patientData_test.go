@@ -63,6 +63,29 @@ func expectCbgResultIsInMgdl(t *testing.T, p patientDataExpected) {
 func expectCbgResultIsInMmol(t *testing.T, p patientDataExpected) {
 	assert.Equal(t, oneCbgResultMmol, p.result.String())
 }
+func expectOnlyParamFilter1And2ArePresent(t *testing.T, p patientDataExpected) {
+	resultString := p.result.String()
+	paramNotExpected := "paramFilter3"
+	paramExpected1 := "paramFilter1"
+	paramExpected2 := "paramFilter2"
+	assert.NotContainsf(t, resultString, paramNotExpected, "GetData result=%s does contains unexpected parameter=%s", resultString, paramNotExpected)
+	assert.Containsf(t, resultString, paramExpected1, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected1)
+	assert.Containsf(t, resultString, paramExpected2, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected2)
+}
+func expectAllParamFiltersArePresent(t *testing.T, p patientDataExpected) {
+	resultString := p.result.String()
+	paramExpected1 := "paramFilter1"
+	paramExpected2 := "paramFilter2"
+	paramExpected3 := "paramFilter3"
+	assert.Containsf(t, resultString, paramExpected1, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected1)
+	assert.Containsf(t, resultString, paramExpected2, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected2)
+	assert.Containsf(t, resultString, paramExpected3, "GetData result=%s does not contains expected parameter=%s", resultString, paramExpected3)
+}
+func expectParameterAreNotConverted(t *testing.T, p patientDataExpected) {
+	resultString := p.result.String()
+	assert.Containsf(t, resultString, MgdL, "GetData result=%s does not contains expected unit=%s", resultString, MgdL)
+	assert.Containsf(t, resultString, MmolL, "GetData result=%s does not contains expected unit=%s", resultString, MmolL)
+}
 func expectHistoryParamIsInMgdl(t *testing.T, p patientDataExpected) {
 	unexpectedUnits := "mmol/L"
 	unexpectedParam := "unexpectedCurrentParam"
@@ -89,6 +112,10 @@ func paramConvertToMgdlTrue(p patientDataGiven) patientDataGiven {
 	p.getDataArgs.ConvertToMgdl = true
 	return p
 }
+func paramConvertToMgdlFalse(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.ConvertToMgdl = false
+	return p
+}
 func mockGetLatestBasalSecurityProfileWithDummyReturn(p patientDataGiven) patientDataGiven {
 	p.patientDataRepository.(*MockPatientDataRepository).On("GetLatestBasalSecurityProfile", mock.Anything, mock.Anything, p.getDataArgs.UserID).Return(&schema.DbProfile{
 		Type:          "test",
@@ -99,12 +126,24 @@ func mockGetLatestBasalSecurityProfileWithDummyReturn(p patientDataGiven) patien
 	}, nil)
 	return p
 }
-func paramWithParametersChangesTrue(p patientDataGiven) patientDataGiven {
-	p.getDataArgs.WithParametersChanges = true
+func paramWithParametersHistoryTrue(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.WithParametersHistory = true
 	return p
 }
-func queryParamConvertToMgdlFalse(p patientDataGiven) patientDataGiven {
-	p.getDataArgs.ConvertToMgdl = false
+func paramFilteringParametersHistoryTrue(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.FilteringParametersHistory = true
+	return p
+}
+func paramFilteringParametersHistoryFalse(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.FilteringParametersHistory = false
+	return p
+}
+func paramStartDate2YearsAgo(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.StartDate = twoYearsAgo.Format(time.RFC3339Nano)
+	return p
+}
+func paramEndDate5MinAgo(p patientDataGiven) patientDataGiven {
+	p.getDataArgs.EndDate = fiveMinutesAgo.Format(time.RFC3339Nano)
 	return p
 }
 
@@ -125,7 +164,7 @@ func oneCbgReturnedInMmolByTideV2(p patientDataGiven) patientDataGiven {
 	return p
 }
 
-func threeVariousParamHistoryReturnedByTideV2(p patientDataGiven) patientDataGiven {
+func threeParamHistoryForConvertionReturnedByTideV2(p patientDataGiven) patientDataGiven {
 	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
 	settingsResult := &tideV2Schema.SettingsResult{
 		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
@@ -152,6 +191,32 @@ func threeVariousParamHistoryReturnedByTideV2(p patientDataGiven) patientDataGiv
 			createAddedHistoryParam("param1", "10", MmolL, &now),
 			createUpdatedHistoryParam("param2", "16", MgdL, &now, "15", MgdL),
 			createUpdatedHistoryParam("param3", "81", MgdL, &now, "80", MmolL),
+		},
+	}
+	tideV2Client.On("GetSettings", mock.Anything, p.getDataArgs.UserID, mock.Anything).Return(settingsResult, nil)
+	p.tideV2Client = &tideV2Client
+	return p
+}
+
+func threeParamHistoryForFilteringReturnedByTideV2(p patientDataGiven) patientDataGiven {
+	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
+	settingsResult := &tideV2Schema.SettingsResult{
+		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
+			CurrentSettings: orcaSchema.CurrentSettings{
+				UserId:     p.getDataArgs.UserID,
+				Device:     nil,
+				Cgm:        nil,
+				Pump:       nil,
+				Parameters: nil,
+			},
+			Time:           nil,
+			Timezone:       "",
+			TimezoneOffset: nil,
+		},
+		HistoryParameters: []orcaSchema.HistoryParameter{
+			createAddedHistoryParam("paramFilter1", "10", MmolL, &oneYearAgo),
+			createUpdatedHistoryParam("paramFilter2", "16", MgdL, &fiveHoursAgo, "15", MgdL),
+			createUpdatedHistoryParam("paramFilter3", "81", MgdL, &fiveSecondsAgo, "80", MmolL),
 		},
 	}
 	tideV2Client.On("GetSettings", mock.Anything, p.getDataArgs.UserID, mock.Anything).Return(settingsResult, nil)
@@ -229,15 +294,15 @@ func emptyPatientDataGiven(userid string) patientDataGiven {
 			StartDate:                  "",
 			EndDate:                    "",
 			WithPumpSettings:           false,
-			WithParametersChanges:      false,
+			WithParametersHistory:      false,
 			SessionToken:               "token1",
-			FilteringParametersChanges: false,
+			FilteringParametersHistory: false,
 			ConvertToMgdl:              true,
 		},
 	}
 }
 
-func TestPatientData_GetData_ConvertToMgdl(t *testing.T) {
+func TestPatientData_GetData(t *testing.T) {
 	tests := []struct {
 		name     string
 		given    []func(patientDataGiven) patientDataGiven
@@ -258,7 +323,7 @@ func TestPatientData_GetData_ConvertToMgdl(t *testing.T) {
 		{
 			name: "should not convert cbg to mgdl when ConvertToMgdl is set to false",
 			given: []func(patientDataGiven) patientDataGiven{
-				queryParamConvertToMgdlFalse,
+				paramConvertToMgdlFalse,
 				noDeviceDataReturnedByRepository,
 				oneCbgReturnedInMmolByTideV2,
 			},
@@ -271,14 +336,48 @@ func TestPatientData_GetData_ConvertToMgdl(t *testing.T) {
 			name: "should convert history parameters to mgdl if unit is mmol when ConvertToMgdl is set to true",
 			given: []func(patientDataGiven) patientDataGiven{
 				paramConvertToMgdlTrue,
-				paramWithParametersChangesTrue,
+				paramWithParametersHistoryTrue,
 				noDeviceDataReturnedByRepository,
-				threeVariousParamHistoryReturnedByTideV2,
+				threeParamHistoryForConvertionReturnedByTideV2,
 				mockGetLatestBasalSecurityProfileWithDummyReturn,
 			},
 			expected: []func(*testing.T, patientDataExpected){
 				expectErrIsNil,
 				expectHistoryParamIsInMgdl,
+			},
+		},
+		{
+			name: "should filter history parameters between startDate and endDate when FilteringParametersHistory is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlFalse,
+				paramWithParametersHistoryTrue,
+				paramFilteringParametersHistoryTrue,
+				paramStartDate2YearsAgo,
+				paramEndDate5MinAgo,
+				noDeviceDataReturnedByRepository,
+				threeParamHistoryForFilteringReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectOnlyParamFilter1And2ArePresent,
+				expectParameterAreNotConverted,
+			},
+		},
+		{
+			name: "should not filter history parameters between startDate and endDate if they are empty and FilteringParametersHistory is set to true",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramConvertToMgdlFalse,
+				paramWithParametersHistoryTrue,
+				paramFilteringParametersHistoryTrue,
+				noDeviceDataReturnedByRepository,
+				threeParamHistoryForFilteringReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectAllParamFiltersArePresent,
+				expectParameterAreNotConverted,
 			},
 		},
 	}
@@ -304,100 +403,6 @@ func TestPatientData_GetData_ConvertToMgdl(t *testing.T) {
 			}
 			given.patientDataRepository.(*MockPatientDataRepository).AssertExpectations(t)
 			given.tideV2Client.(*tidewhisperer.TideWhispererV2MockClient).AssertExpectations(t)
-		})
-	}
-}
-
-func TestPatientData_GetData_FilterHistoryParameters(t *testing.T) {
-	testUserId := "testParamsFilteringUserId"
-	testTraceId := "testParamsFilteringTraceId"
-	patientDataRepository := setupEmptyPatientDataRepositoryMock(testUserId)
-	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
-
-	settingsResult := &tideV2Schema.SettingsResult{
-		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
-			CurrentSettings: orcaSchema.CurrentSettings{
-				UserId:     testUserId,
-				Device:     nil,
-				Cgm:        nil,
-				Pump:       nil,
-				Parameters: nil,
-			},
-			Time:           nil,
-			Timezone:       "",
-			TimezoneOffset: nil,
-		},
-		HistoryParameters: []orcaSchema.HistoryParameter{
-			createAddedHistoryParam("param1", "10", MmolL, &twoYearsAgo),
-			createUpdatedHistoryParam("param2", "16", MgdL, &fiveHoursAgo, "15", MgdL),
-			createUpdatedHistoryParam("param3", "81", MgdL, &fiveSecondsAgo, "80", MmolL),
-		},
-	}
-	tideV2Client.On("GetSettings", mock.Anything, testUserId, mock.Anything).Return(settingsResult, nil)
-
-	testCases := []struct {
-		name                    string
-		startDate               string
-		endDate                 string
-		withFilteringParameters bool
-		expectedParams          []string
-		unexpectedParams        []string
-	}{
-		{
-			name:                    "should filter history params between startDate and endDate",
-			startDate:               oneYearAgo.Format(time.RFC3339Nano),
-			endDate:                 fiveMinutesAgo.Format(time.RFC3339Nano),
-			withFilteringParameters: true,
-			expectedParams:          []string{"param2"},
-			unexpectedParams:        []string{"param1", "param3"},
-		},
-		{
-			name:                    "should not filter any params if startDate and endDate are empty",
-			startDate:               "",
-			endDate:                 "",
-			withFilteringParameters: true,
-			expectedParams:          []string{"param1", "param2", "param3"},
-			unexpectedParams:        []string{},
-		},
-		{
-			name:                    "should not filter any params if startDate and endDate are provided but filtering boolean set to false",
-			startDate:               fiveMinutesAgo.Format(time.RFC3339Nano),
-			endDate:                 now.Format(time.RFC3339Nano),
-			withFilteringParameters: false,
-			expectedParams:          []string{"param1", "param2", "param3"},
-			unexpectedParams:        []string{},
-		},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &PatientData{
-				patientDataRepository: &patientDataRepository,
-				tideV2Client:          &tideV2Client,
-				logger:                &log.Logger{},
-				readBasalBucket:       false,
-			}
-
-			getDataArgs := GetDataArgs{
-				Ctx:                        common.TimeItContext(context.Background()),
-				UserID:                     testUserId,
-				TraceID:                    testTraceId,
-				StartDate:                  tt.startDate,
-				EndDate:                    tt.endDate,
-				WithPumpSettings:           false,
-				WithParametersChanges:      true,
-				FilteringParametersChanges: tt.withFilteringParameters,
-			}
-
-			res, err := p.GetData(getDataArgs)
-			assert.Nil(t, err)
-			strRes := res.String()
-			for _, expectedParam := range tt.expectedParams {
-				assert.Containsf(t, strRes, expectedParam, "GetData result=%s does not contains expected param=%s", strRes, expectedParam)
-			}
-			for _, unexpectedParam := range tt.unexpectedParams {
-				assert.NotContainsf(t, strRes, unexpectedParam, "GetData result=%s does contains unexpected param=%s", strRes, unexpectedParam)
-			}
 		})
 	}
 }
@@ -445,10 +450,10 @@ func TestPatientData_GetData_ShouldConvertOnlyMmolSmbgs(t *testing.T) {
 			StartDate:                  "",
 			EndDate:                    "",
 			WithPumpSettings:           false,
-			WithParametersChanges:      false,
+			WithParametersHistory:      false,
 			SessionToken:               "sessionToken",
 			ConvertToMgdl:              true,
-			FilteringParametersChanges: false,
+			FilteringParametersHistory: false,
 		}
 		res, err := p.GetData(getDataArgs)
 

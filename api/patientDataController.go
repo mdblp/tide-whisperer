@@ -42,10 +42,10 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 		StartDate:                  startDate,
 		EndDate:                    endDate,
 		WithPumpSettings:           withPumpSettings,
-		WithParametersChanges:      withPumpSettings,
+		WithParametersHistory:      withPumpSettings,
 		SessionToken:               sessionToken,
 		ConvertToMgdl:              false,
-		FilteringParametersChanges: false,
+		FilteringParametersHistory: false,
 	}
 	buff, err := a.patientData.GetData(getDataArgs)
 	if err != nil {

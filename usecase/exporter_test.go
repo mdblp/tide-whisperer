@@ -32,7 +32,7 @@ var (
 	}
 	argsMatcher = mock.MatchedBy(func(args GetDataArgs) bool {
 		return args.UserID == userID && args.TraceID == traceID && args.SessionToken == sessionToken &&
-			args.WithPumpSettings == withPumpSettings && args.WithParametersChanges == withParametersChanges &&
+			args.WithPumpSettings == withPumpSettings && args.WithParametersHistory == withParametersChanges &&
 			args.StartDate == startDate && args.EndDate == endDate && args.ConvertToMgdl == convertToMgdl
 	})
 )

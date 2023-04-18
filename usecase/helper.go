@@ -191,7 +191,7 @@ func (p *PatientData) writeDataToBuffer(
 
 	if includeParameterChanges && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writeDeviceParameterChanges(&buff, writeParams, filteringParameterChanges, dates)
+		err = writeDeviceParameterChanges(&buff, writeParams, filteringParameterChanges, convertToMgdl, dates)
 		if err != nil {
 			return nil, newWriteError(err)
 		}
@@ -261,7 +261,7 @@ func (p *PatientData) writeDataToBuffer(
 	return &buff, nil
 }
 
-func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, dates *common.Date) error {
+func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, convertToMgdl bool, dates *common.Date) error {
 	settings := p.settings
 	var startDate, endDate time.Time
 	var err error
@@ -303,7 +303,7 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringP
 			datum["previousValue"] = paramChange.PreviousValue
 		}
 
-		if datum["units"] == MmolL {
+		if datum["units"] == MmolL && convertToMgdl {
 			datum["units"] = MgdL
 			val, err := convertToFloat64(datum["value"], datum["name"])
 			if err != nil {
@@ -312,7 +312,7 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringP
 			datum["value"] = fmt.Sprintf("%g", getMgdl(val))
 		}
 
-		if paramChange.PreviousUnit == MmolL {
+		if paramChange.PreviousUnit == MmolL && convertToMgdl {
 			val, err := convertToFloat64(datum["previousValue"], datum["name"])
 			if err != nil {
 				return err
