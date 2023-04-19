@@ -287,7 +287,7 @@ func TestAPI_GetRangeV1(t *testing.T) {
 }
 
 func TestAPI_getDataV2_bgUnit(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		name                    string
 		givenBgUnitQueryParam   string
 		expectedBgUnitInUseCase string
@@ -297,13 +297,13 @@ func TestAPI_getDataV2_bgUnit(t *testing.T) {
 		{"Invalid unit", "invalid_unit", ""},
 		{"No unit provided", "", ""},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			mockPatientData := MockPatientDataUseCase{}
 			mockPatientData.On("GetData", mock.Anything).Return(new(bytes.Buffer), nil)
 			api := &API{patientData: &mockPatientData}
 			/*Build the request with bgUnit query param*/
-			request, _ := http.NewRequest("GET", "/v1/dataV2/testBgUnit?bgUnit="+tc.givenBgUnitQueryParam, nil)
+			request, _ := http.NewRequest("GET", "/v1/dataV2/testBgUnit?bgUnit="+tt.givenBgUnitQueryParam, nil)
 			httpResponseWriter := common.HttpResponseWriter{}
 			httpResponseWriter.URL = request.URL
 			/*Call getDataV2*/
@@ -311,7 +311,7 @@ func TestAPI_getDataV2_bgUnit(t *testing.T) {
 			/*Assert no error and mock is called with expectedBgUnitInUseCase*/
 			assert.NoError(t, err)
 			mockPatientData.AssertCalled(t, "GetData", mock.MatchedBy(func(args usecase.GetDataArgs) bool {
-				return args.BgUnit == tc.expectedBgUnitInUseCase
+				return args.BgUnit == tt.expectedBgUnitInUseCase
 			}))
 		})
 	}
