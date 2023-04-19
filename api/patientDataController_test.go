@@ -1,6 +1,8 @@
 package api
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/mdblp/tide-whisperer-v2/v2/schema"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/tidepool-org/tide-whisperer/common"
 	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/usecase"
 )
@@ -278,5 +283,36 @@ func TestAPI_GetRangeV1(t *testing.T) {
 
 	if bodyStr != expectedValue {
 		t.Errorf("Expected '%s' to equal '%s'", bodyStr, expectedValue)
+	}
+}
+
+func TestAPI_getDataV2_bgUnit(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		givenBgUnitQueryParam   string
+		expectedBgUnitInUseCase string
+	}{
+		{"Valid mg/dL", "mg/dL", "mg/dL"},
+		{"Valid mmol/L", "mmol/L", "mmol/L"},
+		{"Invalid unit", "invalid_unit", ""},
+		{"No unit provided", "", ""},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockPatientData := MockPatientDataUseCase{}
+			mockPatientData.On("GetData", mock.Anything).Return(new(bytes.Buffer), nil)
+			api := &API{patientData: &mockPatientData}
+			/*Build the request with bgUnit query param*/
+			request, _ := http.NewRequest("GET", "/v1/dataV2/testBgUnit?bgUnit="+tc.givenBgUnitQueryParam, nil)
+			httpResponseWriter := common.HttpResponseWriter{}
+			httpResponseWriter.URL = request.URL
+			/*Call getDataV2*/
+			err := api.getDataV2(context.Background(), &httpResponseWriter)
+			/*Assert no error and mock is called with expectedBgUnitInUseCase*/
+			assert.NoError(t, err)
+			mockPatientData.AssertCalled(t, "GetData", mock.MatchedBy(func(args usecase.GetDataArgs) bool {
+				return args.BgUnit == tc.expectedBgUnitInUseCase
+			}))
+		})
 	}
 }

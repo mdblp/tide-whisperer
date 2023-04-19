@@ -90,8 +90,7 @@ func getSessionToken(res *common.HttpResponseWriter) string {
 // @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
 // @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
-// @Param cbgBucket query string false "no parameter or not equal to true to get cbg from buckets" format(boolean)
-// @Param basalBucket query string false "true to get basals from buckets, if the parameter is not there or not equal to true the basals are from deviceData" format(boolean)
+// @Param bgUnit query string false "The blood glucose unit used for exported data, can be mmol/L or mg/dL. If nothing is specified, blood glucose data will be returned as it is in database."
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security Auth0
 // @Router /v1/data/{userID} [get]
