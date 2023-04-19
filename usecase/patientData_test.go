@@ -110,6 +110,20 @@ func TestPatientData_GetData(t *testing.T) {
 			},
 		},
 		{
+			name: "should try to convert history parameters to mgdl and keep original value if given is mmol with non float value and bgUnit is mgdl",
+			given: []func(patientDataGiven) patientDataGiven{
+				paramBgUnitMgdl,
+				paramWithParametersHistoryTrue,
+				noDeviceDataReturnedByRepository,
+				nonFloatValueParamHistoryForConvertionReturnedByTideV2,
+				mockGetLatestBasalSecurityProfileWithDummyReturn,
+			},
+			expected: []func(*testing.T, patientDataExpected){
+				expectErrIsNil,
+				expectHistoryParamIsHavingOriginalNonFloatValue,
+			},
+		},
+		{
 			name: "should filter history parameters between startDate and endDate when FilteringParametersHistory is set to true",
 			given: []func(patientDataGiven) patientDataGiven{
 				paramBgUnitEmpty,
@@ -240,6 +254,15 @@ func expectParameterAreNotConverted(t *testing.T, p patientDataExpected) {
 	assert.Containsf(t, resultString, MmolL, "GetData result=%s does not contains expected given=%s", resultString, MmolL)
 }
 
+func expectHistoryParamIsHavingOriginalNonFloatValue(t *testing.T, p patientDataExpected) {
+	expectedNonFloatValue := `"value":"10,458"`
+	expectedUnit := MmolL
+
+	resultString := p.result.String()
+	assert.Containsf(t, resultString, expectedUnit, "GetData result=%s does not contains expected units=%s", resultString, expectedUnit)
+	assert.Containsf(t, resultString, expectedNonFloatValue, "GetData result=%s does not contains expected value=%s", resultString, expectedNonFloatValue)
+}
+
 func expectHistoryParamIsInMgdl(t *testing.T, p patientDataExpected) {
 	unexpectedUnits := "mmol/L"
 	unexpectedParam := "unexpectedCurrentParam"
@@ -351,6 +374,38 @@ func oneCbgReturnedInMmolByTideV2(p patientDataGiven) patientDataGiven {
 }
 func nothingReturnedByTideV2(p patientDataGiven) patientDataGiven {
 	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
+	p.tideV2Client = &tideV2Client
+	return p
+}
+
+func nonFloatValueParamHistoryForConvertionReturnedByTideV2(p patientDataGiven) patientDataGiven {
+	tideV2Client := tidewhisperer.TideWhispererV2MockClient{}
+	settingsResult := &tideV2Schema.SettingsResult{
+		TimedCurrentSettings: orcaSchema.TimedCurrentSettings{
+			CurrentSettings: orcaSchema.CurrentSettings{
+				UserId: p.getDataArgs.UserID,
+				Device: nil,
+				Cgm:    nil,
+				Pump:   nil,
+				Parameters: []orcaSchema.CurrentParameter{
+					{
+						Name:          "unexpectedCurrentParam",
+						Value:         "12",
+						Unit:          MmolL,
+						Level:         1,
+						EffectiveDate: &now,
+					},
+				},
+			},
+			Time:           nil,
+			Timezone:       "",
+			TimezoneOffset: nil,
+		},
+		HistoryParameters: []orcaSchema.HistoryParameter{
+			createAddedHistoryParam("param1", "10,458", MmolL, &now),
+		},
+	}
+	tideV2Client.On("GetSettings", mock.Anything, p.getDataArgs.UserID, mock.Anything).Return(settingsResult, nil)
 	p.tideV2Client = &tideV2Client
 	return p
 }

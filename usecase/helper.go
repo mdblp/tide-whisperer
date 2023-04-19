@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/mdblp/go-common/clients/status"
+	appContext "github.com/mdblp/go-common/context"
 	orcaSchema "github.com/mdblp/orca/schema"
 	schemaV2 "github.com/mdblp/tide-whisperer-v2/v2/schema"
 	"github.com/tidepool-org/go-common/clients/mongo"
@@ -192,7 +193,7 @@ func (p *PatientData) writeDataToBuffer(
 
 	if includePumpSettings && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writePumpSettings(&buff, writeParams, bgUnit)
+		err = writePumpSettings(ctx, &buff, writeParams, bgUnit)
 		if err != nil {
 			return nil, newWriteError(err)
 		}
@@ -200,7 +201,7 @@ func (p *PatientData) writeDataToBuffer(
 
 	if includeParameterChanges && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writeDeviceParameterChanges(&buff, writeParams, filteringParameterChanges, bgUnit, startTime, endTime)
+		err = writeDeviceParameterChanges(ctx, &buff, writeParams, filteringParameterChanges, bgUnit, startTime, endTime)
 		if err != nil {
 			return nil, newWriteError(err)
 		}
@@ -274,7 +275,8 @@ func isConvertibleUnit(unit string) bool {
 	return unit == MgdL || unit == MmolL
 }
 
-func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, bgUnit string, startTime time.Time, endTime time.Time) error {
+func writeDeviceParameterChanges(ctx context.Context, res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, bgUnit string, startTime time.Time, endTime time.Time) error {
+	logger := appContext.GetLogger(ctx)
 	settings := p.settings
 
 	for _, paramChange := range settings.HistoryParameters {
@@ -305,21 +307,23 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringP
 			if datum["units"] != bgUnit && isConvertibleUnit(datum["units"].(string)) {
 				val, err := convertToFloat64(datum["value"], datum["name"])
 				if err != nil {
-					return err
-				}
-				if datum["units"] == MgdL {
-					datum["units"] = MmolL
-					datum["value"] = fmt.Sprintf("%g", convertToMmol(val))
+					logger.Errorf("cannot convert device parameter change with name=%s having value=%s \n error=%v \n Continuing with original unit and value.", datum["name"], datum["value"], err)
 				} else {
-					datum["units"] = MgdL
-					datum["value"] = fmt.Sprintf("%g", convertToMgdl(val))
+					if datum["units"] == MgdL {
+						datum["units"] = MmolL
+						datum["value"] = fmt.Sprintf("%g", convertToMmol(val))
+					} else {
+						datum["units"] = MgdL
+						datum["value"] = fmt.Sprintf("%g", convertToMgdl(val))
+					}
 				}
+
 			}
 
 			if paramChange.PreviousUnit != bgUnit && paramChange.PreviousValue != "" && isConvertibleUnit(paramChange.PreviousUnit) {
 				val, err := convertToFloat64(datum["previousValue"], datum["name"])
 				if err != nil {
-					return err
+					logger.Errorf("cannot convert device parameter change with name=%s having previousValue=%s \n error=%v \n Continuing with original previousUnit and previousValue.", datum["name"], datum["previousValue"], err)
 				}
 				if paramChange.PreviousUnit == MgdL {
 					datum["previousValue"] = fmt.Sprintf("%g", convertToMmol(val))
@@ -360,7 +364,8 @@ func convertToFloat64(value interface{}, name interface{}) (float64, error) {
 	return val, nil
 }
 
-func writePumpSettings(res *bytes.Buffer, p *writeFromIter, bgUnit string) error {
+func writePumpSettings(ctx context.Context, res *bytes.Buffer, p *writeFromIter, bgUnit string) error {
+	logger := appContext.GetLogger(ctx)
 	settings := p.settings
 	datum := make(map[string]interface{})
 	datum["id"] = uuid.New().String()
@@ -378,28 +383,30 @@ func writePumpSettings(res *bytes.Buffer, p *writeFromIter, bgUnit string) error
 			if hp.Unit != bgUnit && isConvertibleUnit(hp.Unit) {
 				val, err := convertToFloat64(datum["value"], datum["name"])
 				if err != nil {
-					/*log error but continue with existing values*/
-				}
-				if hp.Unit == MgdL {
-					hp.Unit = MmolL
-					hp.Value = fmt.Sprintf("%g", convertToMmol(val))
+					logger.Errorf("cannot convert param=%s having value=%s \n error=%v \n Continuing with original unit and value.", datum["name"], datum["value"], err)
 				} else {
-					hp.Unit = MgdL
-					hp.Value = fmt.Sprintf("%g", convertToMgdl(val))
+					if hp.Unit == MgdL {
+						hp.Unit = MmolL
+						hp.Value = fmt.Sprintf("%g", convertToMmol(val))
+					} else {
+						hp.Unit = MgdL
+						hp.Value = fmt.Sprintf("%g", convertToMgdl(val))
+					}
 				}
 			}
 
 			if hp.PreviousUnit != bgUnit && isConvertibleUnit(hp.PreviousUnit) {
 				val, err := convertToFloat64(datum["previousValue"], datum["name"])
 				if err != nil {
-					return err
-				}
-				if hp.PreviousUnit == MgdL {
-					hp.PreviousUnit = MmolL
-					hp.PreviousValue = fmt.Sprintf("%g", convertToMmol(val))
+					logger.Errorf("cannot convert historyParam with name=%s having previousValue=%s \n error=%v \n Continuing with original previousUnit and previousValue.", datum["name"], datum["previousValue"], err)
 				} else {
-					hp.PreviousUnit = MgdL
-					hp.PreviousValue = fmt.Sprintf("%g", convertToMgdl(val))
+					if hp.PreviousUnit == MgdL {
+						hp.PreviousUnit = MmolL
+						hp.PreviousValue = fmt.Sprintf("%g", convertToMmol(val))
+					} else {
+						hp.PreviousUnit = MgdL
+						hp.PreviousValue = fmt.Sprintf("%g", convertToMgdl(val))
+					}
 				}
 			}
 		}
@@ -407,14 +414,15 @@ func writePumpSettings(res *bytes.Buffer, p *writeFromIter, bgUnit string) error
 			if p.Unit != bgUnit && isConvertibleUnit(p.Unit) {
 				val, err := convertToFloat64(datum["value"], datum["name"])
 				if err != nil {
-					return err
-				}
-				if p.Unit == MgdL {
-					p.Unit = MmolL
-					p.Value = fmt.Sprintf("%g", convertToMmol(val))
+					logger.Errorf("cannot convert current parameter with name=%s having value=%s \n error=%v \n Continuing with original unit and value.", datum["name"], datum["value"], err)
 				} else {
-					p.Unit = MgdL
-					p.Value = fmt.Sprintf("%g", convertToMgdl(val))
+					if p.Unit == MgdL {
+						p.Unit = MmolL
+						p.Value = fmt.Sprintf("%g", convertToMmol(val))
+					} else {
+						p.Unit = MgdL
+						p.Value = fmt.Sprintf("%g", convertToMgdl(val))
+					}
 				}
 			}
 		}

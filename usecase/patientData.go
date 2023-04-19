@@ -434,7 +434,7 @@ func writeFromIterV1(ctx context.Context, res *bytes.Buffer, bgUnit string, p *w
 			if bgUnit != "" {
 				switch datum["type"] {
 				case "smbg":
-					if datum["units"] != bgUnit {
+					if datum["units"] != bgUnit && isConvertibleUnit(datum["units"].(string)) {
 						if datum["units"] == MmolL {
 							datum["units"] = MgdL
 							datum["value"] = convertToMgdl(datum["value"].(float64))
