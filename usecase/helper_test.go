@@ -162,27 +162,62 @@ func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
 	assert.Nil(t, res)
 }
 
-func Test_getMgdl(t *testing.T) {
+func Test_convertToMgdl(t *testing.T) {
 	tests := []struct {
 		name  string
 		given float64
 		want  float64
 	}{
-		{
-			name:  "should convert mmol to mgdl",
-			given: 10,
-			want:  180,
-		},
-		{
-			name:  "should handle 0 value mmol",
-			given: 0,
-			want:  0,
-		},
+		{"should handle positive value", 10, 180},
+		{"should handle 0 value mmol", 0, 0},
+		{"should handle positive value with decimal", 2.5, 45},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getMgdl(tt.given)
-			assert.Equalf(t, tt.want, got, "getMgdl(%v)", tt.given)
+			got := convertToMgdl(tt.given)
+			assert.Equalf(t, tt.want, got, "convertToMgdl(%v)", tt.given)
+		})
+	}
+}
+
+func TestIsConvertibleUnit(t *testing.T) {
+	tests := []struct {
+		name     string
+		given    string
+		expected bool
+	}{
+		{"Valid Unit - mg/dL", MgdL, true},
+		{"Valid Unit - mmol/L", MmolL, true},
+		{"Invalid Unit - g/L", "g/L", false},
+		{"Empty Unit", "", false},
+		{"Random String", "random", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isConvertibleUnit(tt.given)
+			if result != tt.expected {
+				t.Errorf("isConvertibleUnit(%q) = %v, expected %v", tt.given, result, tt.expected)
+			}
+		})
+	}
+}
+
+func Test_convertToMmol(t *testing.T) {
+	tests := []struct {
+		name  string
+		given float64
+		want  float64
+	}{
+		{"should handle 0 value", 0, 0},
+		{"should handle positive value", 180, 10},
+		{"should handle positive value with decimal", 45.1, 2.5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := convertToMmol(tt.given)
+			assert.Equalf(t, tt.want, got, "convertToMmol(%v)", tt.given)
 		})
 	}
 }

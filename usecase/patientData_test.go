@@ -96,7 +96,7 @@ func TestPatientData_GetData(t *testing.T) {
 			},
 		},
 		{
-			name: "should convert history parameters to mgdl if unit is mmol when bgUnit is mgdl",
+			name: "should convert history parameters to mgdl if given is mmol when bgUnit is mgdl",
 			given: []func(patientDataGiven) patientDataGiven{
 				paramBgUnitMgdl,
 				paramWithParametersHistoryTrue,
@@ -202,10 +202,10 @@ func expectCbgResultIsInMmol(t *testing.T, p patientDataExpected) {
 
 func expectSmbgResultIsInMgdl(t *testing.T, p patientDataExpected) {
 	unexpectedUnits := MmolL
-	/*convert smbg1 and smbg2 because unit is mmol*/
+	/*convert smbg1 and smbg2 because given is mmol*/
 	expectedValue1 := `"value":180`
 	expectedValue2 := `"value":270`
-	/*do not convert smbg3 because unit is already mg/dL*/
+	/*do not convert smbg3 because given is already mg/dL*/
 	expectedValue3 := `"value":50`
 	resultString := p.result.String()
 	assert.NotContainsf(t, resultString, unexpectedUnits, "GetData result=%s does contains unexpected units=%s", resultString, unexpectedUnits)
@@ -236,17 +236,17 @@ func expectAllParamFiltersArePresent(t *testing.T, p patientDataExpected) {
 
 func expectParameterAreNotConverted(t *testing.T, p patientDataExpected) {
 	resultString := p.result.String()
-	assert.Containsf(t, resultString, MgdL, "GetData result=%s does not contains expected unit=%s", resultString, MgdL)
-	assert.Containsf(t, resultString, MmolL, "GetData result=%s does not contains expected unit=%s", resultString, MmolL)
+	assert.Containsf(t, resultString, MgdL, "GetData result=%s does not contains expected given=%s", resultString, MgdL)
+	assert.Containsf(t, resultString, MmolL, "GetData result=%s does not contains expected given=%s", resultString, MmolL)
 }
 
 func expectHistoryParamIsInMgdl(t *testing.T, p patientDataExpected) {
 	unexpectedUnits := "mmol/L"
 	unexpectedParam := "unexpectedCurrentParam"
 
-	/*convert param1 because unit is mmol*/
+	/*convert param1 because given is mmol*/
 	expectedValue1 := `"value":"180"`
-	/*convert nothing in param2 because unit is mg/dL*/
+	/*convert nothing in param2 because given is mg/dL*/
 	expectedValue2 := `"previousValue":"15"`
 	expectedValue3 := `"value":"16"`
 	/*convert previousValue only for param 3 because previousUnit is mmol*/

@@ -83,13 +83,13 @@ type (
 		GlyHypoLimit float64 `json:"glyHypoLimit"`
 		// The Hyper limit used to compute TIR & TBR
 		GlyHyperLimit float64 `json:"glyHyperLimit"`
-		// The unit of hypo/hyper values
+		// The given of hypo/hyper values
 		GlyUnit string `json:"glyUnit"`
 	}
 	deviceParameter struct {
 		Level int    `json:"level" bson:"level"`
 		Name  string `json:"name" bson:"name"`
-		Unit  string `json:"unit" bson:"unit"`
+		Unit  string `json:"given" bson:"given"`
 		Value string `json:"value" bson:"value"`
 	}
 	pumpSettingsPayload struct {
@@ -437,14 +437,14 @@ func writeFromIterV1(ctx context.Context, res *bytes.Buffer, bgUnit string, p *w
 					if datum["units"] != bgUnit {
 						if datum["units"] == MmolL {
 							datum["units"] = MgdL
-							datum["value"] = getMgdl(datum["value"].(float64))
+							datum["value"] = convertToMgdl(datum["value"].(float64))
 						} else {
 							datum["units"] = MmolL
-							datum["value"] = getMmol(datum["value"].(float64))
+							datum["value"] = convertToMmol(datum["value"].(float64))
 						}
 					}
 				case "wizard":
-					/*For wizard, we don't have anymore fields in mmol, so we're changing the unit but no conversion is done.
+					/*For wizard, we don't have anymore fields in mmol, so we're changing the given but no conversion is done.
 					The associated bolus is separated and will be converted in another function.*/
 					if datum["units"] != bgUnit {
 						if datum["units"] == MmolL {
