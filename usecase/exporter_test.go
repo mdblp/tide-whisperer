@@ -51,12 +51,12 @@ func TestExporter_Export(t *testing.T) {
 	}{
 		{
 			name:  "should not call uploader when GetData is returning an error",
-			given: getDataMockReturningError(),
+			given: getDataUseCaseError(),
 			then:  assertUploadNotHaveBeenCalled,
 		},
 		{
 			name:  "should call uploader when GetData returns data without error",
-			given: getDataMockReturningSuccess(),
+			given: getDataUseCaseSuccess(),
 			then:  assertUploadHaveBeenCalled,
 		},
 	}
@@ -81,7 +81,7 @@ func assertUploadHaveBeenCalled(t *testing.T, uploader MockUploader) {
 	uploader.AssertExpectations(t)
 }
 
-func getDataMockReturningError() given {
+func getDataUseCaseError() given {
 	getDataErrUseCase := MockPatientDataUseCase{}
 	getDataErrUseCase.On("GetData", argsMatcher).Return(nil, &common.DetailedError{})
 	return given{
@@ -92,7 +92,7 @@ func getDataMockReturningError() given {
 	}
 }
 
-func getDataMockReturningSuccess() given {
+func getDataUseCaseSuccess() given {
 	getDataSuccessUseCase := MockPatientDataUseCase{}
 	getDataSuccessUseCase.On("GetData", argsMatcher).Return(&bytes.Buffer{}, nil)
 	uploadSuccess := MockUploader{}
