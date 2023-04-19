@@ -330,7 +330,8 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 		writeParams,
 		args.BgUnit,
 		args.FilteringParametersHistory,
-		dates,
+		params.startTime,
+		params.endTime,
 	)
 }
 

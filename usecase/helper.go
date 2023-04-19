@@ -22,9 +22,11 @@ import (
 
 type (
 	apiDataParams struct {
-		dates  common.Date
-		source map[string]bool
-		writer writeFromIter
+		dates     common.Date
+		source    map[string]bool
+		writer    writeFromIter
+		startTime time.Time
+		endTime   time.Time
 	}
 )
 
@@ -37,11 +39,11 @@ func (p *PatientData) getDataV1Params(userID string, traceID string, startDate s
 		"cbgBucket":   true,
 	}
 
+	var startTime, endTime time.Time
 	// Check startDate & endDate parameter
 	if startDate != "" || endDate != "" {
 		var logError *common.DetailedError
-		var startTime time.Time
-		var endTime time.Time
+
 		var timeRange int64 = 1 // endDate - startDate in seconds, initialized to 1 to avoid trigger an error, see below
 
 		if startDate != "" {
@@ -69,18 +71,24 @@ func (p *PatientData) getDataV1Params(userID string, traceID string, startDate s
 			return nil, logError
 		}
 	}
+
+	if endDate == "" {
+		endTime = time.Now()
+	}
+
 	params := apiDataParams{
 		dates: common.Date{
 			Start: startDate,
 			End:   endDate,
 		},
-		source: dataSource,
+		startTime: startTime,
+		endTime:   endTime,
+		source:    dataSource,
 		writer: writeFromIter{
 			uploadIDs: make([]string, 0, 16),
 		},
 	}
 	return &params, nil
-
 }
 
 func (p *PatientData) getLatestPumpSettings(ctx context.Context, traceID string, userID string, writer *writeFromIter, token string) (*schemaV2.SettingsResult, *common.DetailedError) {
@@ -169,7 +177,8 @@ func (p *PatientData) writeDataToBuffer(
 	writeParams *writeFromIter,
 	bgUnit string,
 	filteringParameterChanges bool,
-	dates *common.Date,
+	startTime time.Time,
+	endTime time.Time,
 ) (*bytes.Buffer, *common.DetailedError) {
 	buff := bytes.Buffer{}
 	var iterUploads mongo.StorageIterator
@@ -191,7 +200,7 @@ func (p *PatientData) writeDataToBuffer(
 
 	if includeParameterChanges && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writeDeviceParameterChanges(&buff, writeParams, filteringParameterChanges, bgUnit, dates)
+		err = writeDeviceParameterChanges(&buff, writeParams, filteringParameterChanges, bgUnit, startTime, endTime)
 		if err != nil {
 			return nil, newWriteError(err)
 		}
@@ -261,27 +270,11 @@ func (p *PatientData) writeDataToBuffer(
 	return &buff, nil
 }
 
-func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, bgUnit string, dates *common.Date) error {
+func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, bgUnit string, startTime time.Time, endTime time.Time) error {
 	settings := p.settings
-	var startDate, endDate time.Time
-	var err error
-	if filteringParameterChanges {
-		if dates.Start != "" {
-			if startDate, err = time.Parse(time.RFC3339Nano, dates.Start); err != nil {
-				return fmt.Errorf("cannot parse startDate=%s", dates.Start)
-			}
-		}
-		if dates.End != "" {
-			if endDate, err = time.Parse(time.RFC3339Nano, dates.End); err != nil {
-				return fmt.Errorf("cannot parse endDate=%s", dates.End)
-			}
-		} else {
-			endDate = time.Now()
-		}
-	}
 
 	for _, paramChange := range settings.HistoryParameters {
-		if filteringParameterChanges && (paramChange.Timestamp.Before(startDate) || paramChange.Timestamp.After(endDate)) {
+		if filteringParameterChanges && (paramChange.Timestamp.Before(startTime) || paramChange.Timestamp.After(endTime)) {
 			continue
 		}
 		datum := make(map[string]interface{})
