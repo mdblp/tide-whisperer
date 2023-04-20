@@ -63,15 +63,15 @@ func TestExporter_Export(t *testing.T) {
 	}{
 		{
 			name:  "should not call uploader when GetData failed",
-			given: buildEmptyGiven().withGetDataUseCaseError().withEmptyMockUploader(),
+			given: emptyGiven().withGetDataUseCaseError().withEmptyMockUploader(),
 		},
 		{
 			name:  "should call uploader when GetData returns valid JSON",
-			given: buildEmptyGiven().withGetDataUseCaseSuccessValidJSON().withSuccessUploader(),
+			given: emptyGiven().withGetDataUseCaseSuccessValidJSON().withSuccessUploader(),
 		},
 		{
 			name:  "should not call uploader when GetData returns invalid json and formatToCsv is true",
-			given: buildEmptyGiven().withFormatToCsvTrue().withGetDataUseCaseSuccessInvalidJSON().withEmptyMockUploader(),
+			given: emptyGiven().withFormatToCsvTrue().withGetDataUseCaseSuccessInvalidJSON().withEmptyMockUploader(),
 		},
 	}
 	for _, tt := range tests {
@@ -122,7 +122,7 @@ func (g *given) withFormatToCsvTrue() *given {
 	return g
 }
 
-func buildEmptyGiven() *given {
+func emptyGiven() *given {
 	return &given{
 		logger:      testLogger,
 		uploader:    &MockUploader{},
