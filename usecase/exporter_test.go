@@ -56,18 +56,16 @@ type given struct {
 
 func TestExporter_Export(t *testing.T) {
 	tests := []struct {
-		name     string
-		given    []func(given) given
-		expected func(*testing.T, *MockUploader)
+		name  string
+		given []func(given) given
+		/*No expect because there is no output for this function.
+		We're just checking mock have been called accordingly*/
 	}{
 		{
 			name: "should not call uploader when GetData failed",
 			given: []func(given) given{
 				getDataUseCaseError,
 				emptyMockUploader,
-			},
-			expected: func(*testing.T, *MockUploader) {
-				/*Nothing to assert, test will fail if something is called on an empty MockUploader*/
 			},
 		},
 		{
@@ -76,7 +74,6 @@ func TestExporter_Export(t *testing.T) {
 				getDataUseCaseSuccessValidJSON,
 				successUploader,
 			},
-			expected: assertUploaderHaveBeenCalled,
 		},
 		{
 			name: "should not call uploader when GetData returns invalid json and formatToCsv is true",
@@ -84,9 +81,6 @@ func TestExporter_Export(t *testing.T) {
 				formatToCsvTrue,
 				getDataUseCaseSuccessInvalidJSON,
 				emptyMockUploader,
-			},
-			expected: func(*testing.T, *MockUploader) {
-				/*Nothing to assert, test will fail if something is called on an empty MockUploader*/
 			},
 		},
 	}
@@ -102,13 +96,9 @@ func TestExporter_Export(t *testing.T) {
 				patientData: given.patientData,
 			}
 			e.Export(given.exportArgs)
-			tt.expected(t, given.uploader.(*MockUploader))
+			given.uploader.(*MockUploader).AssertExpectations(t)
 		})
 	}
-}
-
-func assertUploaderHaveBeenCalled(t *testing.T, uploader *MockUploader) {
-	uploader.AssertExpectations(t)
 }
 
 func getDataUseCaseError(g given) given {

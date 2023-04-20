@@ -2,7 +2,7 @@
 
 Data access API for tidepool
 
-## 1.2.0-rc17 - 2023-03-27
+## 1.2.0-rc18 - 2023-03-27
 ### Engineering
 - YLP-2163 Data export: create a new route on tide-whisperer to export data to a file
 
