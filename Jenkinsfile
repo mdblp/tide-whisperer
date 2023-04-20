@@ -72,7 +72,7 @@ pipeline {
             }
         }
         stage('Publish') {
-//             when { branch "main" }
+            when { branch "main" }
             steps {
                 withCredentials ([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
                     publish()
