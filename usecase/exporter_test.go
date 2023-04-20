@@ -57,87 +57,73 @@ type given struct {
 func TestExporter_Export(t *testing.T) {
 	tests := []struct {
 		name  string
-		given []func(given) given
+		given *given
 		/*No expect because there is no output for this function.
 		We're just checking mock have been called accordingly*/
 	}{
 		{
-			name: "should not call uploader when GetData failed",
-			given: []func(given) given{
-				getDataUseCaseError,
-				emptyMockUploader,
-			},
+			name:  "should not call uploader when GetData failed",
+			given: buildEmptyGiven().withGetDataUseCaseError().withEmptyMockUploader(),
 		},
 		{
-			name: "should call uploader when GetData returns valid JSON",
-			given: []func(given) given{
-				getDataUseCaseSuccessValidJSON,
-				successUploader,
-			},
+			name:  "should call uploader when GetData returns valid JSON",
+			given: buildEmptyGiven().withGetDataUseCaseSuccessValidJSON().withSuccessUploader(),
 		},
 		{
-			name: "should not call uploader when GetData returns invalid json and formatToCsv is true",
-			given: []func(given) given{
-				formatToCsvTrue,
-				getDataUseCaseSuccessInvalidJSON,
-				emptyMockUploader,
-			},
+			name:  "should not call uploader when GetData returns invalid json and formatToCsv is true",
+			given: buildEmptyGiven().withFormatToCsvTrue().withGetDataUseCaseSuccessInvalidJSON().withEmptyMockUploader(),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			given := buildEmptyGiven()
-			for _, f := range tt.given {
-				given = f(given)
-			}
 			e := Exporter{
-				logger:      given.logger,
-				uploader:    given.uploader,
-				patientData: given.patientData,
+				logger:      tt.given.logger,
+				uploader:    tt.given.uploader,
+				patientData: tt.given.patientData,
 			}
-			e.Export(given.exportArgs)
-			given.uploader.(*MockUploader).AssertExpectations(t)
+			e.Export(tt.given.exportArgs)
+			tt.given.uploader.(*MockUploader).AssertExpectations(t)
 		})
 	}
 }
 
-func getDataUseCaseError(g given) given {
+func (g *given) withGetDataUseCaseError() *given {
 	patientData := MockPatientDataUseCase{}
 	patientData.On("GetData", argsMatcher).Return(nil, &common.DetailedError{})
 	g.patientData = &patientData
 	return g
 }
-func getDataUseCaseSuccessValidJSON(g given) given {
+func (g *given) withGetDataUseCaseSuccessValidJSON() *given {
 	patientData := MockPatientDataUseCase{}
 	patientData.On("GetData", argsMatcher).Return(bytes.NewBufferString(`{"foo": "bar"}`), nil)
 	g.patientData = &patientData
 	return g
 }
-func getDataUseCaseSuccessInvalidJSON(g given) given {
+func (g *given) withGetDataUseCaseSuccessInvalidJSON() *given {
 	patientData := MockPatientDataUseCase{}
 	patientData.On("GetData", argsMatcher).Return(bytes.NewBufferString(`{"foo": invalid}`), nil)
 	g.patientData = &patientData
 	return g
 }
-func emptyMockUploader(g given) given {
+func (g *given) withEmptyMockUploader() *given {
 	uploader := MockUploader{}
 	g.uploader = &uploader
 	return g
 }
-func successUploader(g given) given {
+func (g *given) withSuccessUploader() *given {
 	uploadSuccess := MockUploader{}
 	uploadSuccess.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
 	g.uploader = &uploadSuccess
 	return g
 }
 
-func formatToCsvTrue(g given) given {
+func (g *given) withFormatToCsvTrue() *given {
 	g.exportArgs.FormatToCsv = true
 	return g
 }
 
-func buildEmptyGiven() given {
-	return given{
+func buildEmptyGiven() *given {
+	return &given{
 		logger:      testLogger,
 		uploader:    &MockUploader{},
 		patientData: &MockPatientDataUseCase{},
