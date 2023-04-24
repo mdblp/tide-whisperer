@@ -9,7 +9,7 @@ import (
 )
 
 type PatientDataUseCase interface {
-	GetData(args usecase.GetDataArgs) (*bytes.Buffer, *common.DetailedError)
+	GetData(ctx context.Context, args usecase.GetDataArgs) (*bytes.Buffer, *common.DetailedError)
 	GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error)
 }
 

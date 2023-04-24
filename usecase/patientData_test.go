@@ -18,6 +18,7 @@ import (
 )
 
 var (
+	testCtx        = common.TimeItContext(context.Background())
 	now            = time.Now().UTC()
 	oneYearAgo     = now.AddDate(-1, 0, 0)
 	twoYearsAgo    = now.AddDate(-2, 0, 0)
@@ -188,7 +189,7 @@ func TestPatientData_GetData(t *testing.T) {
 				logger:                given.logger,
 				readBasalBucket:       given.readBasalBucket,
 			}
-			res, err := p.GetData(given.getDataArgs)
+			res, err := p.GetData(testCtx, given.getDataArgs)
 			expected := patientDataExpected{
 				err:    err,
 				result: res,
@@ -518,7 +519,6 @@ func emptyPatientDataGiven(userid string) patientDataGiven {
 		logger:                &log.Logger{},
 		readBasalBucket:       false,
 		getDataArgs: GetDataArgs{
-			Ctx:                        common.TimeItContext(context.Background()),
 			UserID:                     userid,
 			TraceID:                    "trace1",
 			StartDate:                  "",

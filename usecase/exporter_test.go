@@ -83,7 +83,7 @@ func assertUploadHaveBeenCalled(t *testing.T, uploader MockUploader) {
 
 func getDataUseCaseError() given {
 	getDataErrUseCase := MockPatientDataUseCase{}
-	getDataErrUseCase.On("GetData", argsMatcher).Return(nil, &common.DetailedError{})
+	getDataErrUseCase.On("GetData", mock.Anything, argsMatcher).Return(nil, &common.DetailedError{})
 	return given{
 		logger:      testLogger,
 		uploader:    MockUploader{},
@@ -94,7 +94,7 @@ func getDataUseCaseError() given {
 
 func getDataUseCaseSuccess() given {
 	getDataSuccessUseCase := MockPatientDataUseCase{}
-	getDataSuccessUseCase.On("GetData", argsMatcher).Return(&bytes.Buffer{}, nil)
+	getDataSuccessUseCase.On("GetData", mock.Anything, argsMatcher).Return(&bytes.Buffer{}, nil)
 	uploadSuccess := MockUploader{}
 	uploadSuccess.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
 	return given{

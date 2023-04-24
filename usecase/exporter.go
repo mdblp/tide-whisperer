@@ -39,7 +39,6 @@ func (e Exporter) Export(args ExportArgs) {
 	backgroundCtx := common.TimeItContext(context.Background())
 	startExportTime := strings.ReplaceAll(time.Now().UTC().Round(time.Second).String(), " ", "_")
 	getDataArgs := GetDataArgs{
-		Ctx:                        backgroundCtx,
 		UserID:                     args.UserID,
 		TraceID:                    args.TraceID,
 		StartDate:                  args.StartDate,
@@ -50,7 +49,7 @@ func (e Exporter) Export(args ExportArgs) {
 		BgUnit:                     args.BgUnit,
 		FilteringParametersHistory: true,
 	}
-	buffer, err := e.patientData.GetData(getDataArgs)
+	buffer, err := e.patientData.GetData(backgroundCtx, getDataArgs)
 	if err != nil {
 		e.logger.Printf("get patient data failed: %v \n", err)
 		return

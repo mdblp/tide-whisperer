@@ -41,7 +41,6 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 		bgUnit = ""
 	}
 	getDataArgs := usecase.GetDataArgs{
-		Ctx:                        ctx,
 		UserID:                     userID,
 		TraceID:                    res.TraceID,
 		StartDate:                  startDate,
@@ -52,7 +51,7 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 		BgUnit:                     bgUnit,
 		FilteringParametersHistory: false,
 	}
-	buff, err := a.patientData.GetData(getDataArgs)
+	buff, err := a.patientData.GetData(ctx, getDataArgs)
 	if err != nil {
 		return res.WriteError(err)
 	}

@@ -26,13 +26,13 @@ func (_m *MockPatientDataUseCase) EXPECT() *MockPatientDataUseCase_Expecter {
 	return &MockPatientDataUseCase_Expecter{mock: &_m.Mock}
 }
 
-// GetData provides a mock function with given fields: args
-func (_m *MockPatientDataUseCase) GetData(args usecase.GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
-	ret := _m.Called(args)
+// GetData provides a mock function with given fields: ctx, args
+func (_m *MockPatientDataUseCase) GetData(ctx context.Context, args usecase.GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
+	ret := _m.Called(ctx, args)
 
 	var r0 *bytes.Buffer
-	if rf, ok := ret.Get(0).(func(usecase.GetDataArgs) *bytes.Buffer); ok {
-		r0 = rf(args)
+	if rf, ok := ret.Get(0).(func(context.Context, usecase.GetDataArgs) *bytes.Buffer); ok {
+		r0 = rf(ctx, args)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*bytes.Buffer)
@@ -40,8 +40,8 @@ func (_m *MockPatientDataUseCase) GetData(args usecase.GetDataArgs) (*bytes.Buff
 	}
 
 	var r1 *common.DetailedError
-	if rf, ok := ret.Get(1).(func(usecase.GetDataArgs) *common.DetailedError); ok {
-		r1 = rf(args)
+	if rf, ok := ret.Get(1).(func(context.Context, usecase.GetDataArgs) *common.DetailedError); ok {
+		r1 = rf(ctx, args)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(*common.DetailedError)
@@ -57,14 +57,15 @@ type MockPatientDataUseCase_GetData_Call struct {
 }
 
 // GetData is a helper method to define mock.On call
+//  - ctx context.Context
 //  - args usecase.GetDataArgs
-func (_e *MockPatientDataUseCase_Expecter) GetData(args interface{}) *MockPatientDataUseCase_GetData_Call {
-	return &MockPatientDataUseCase_GetData_Call{Call: _e.mock.On("GetData", args)}
+func (_e *MockPatientDataUseCase_Expecter) GetData(ctx interface{}, args interface{}) *MockPatientDataUseCase_GetData_Call {
+	return &MockPatientDataUseCase_GetData_Call{Call: _e.mock.On("GetData", ctx, args)}
 }
 
-func (_c *MockPatientDataUseCase_GetData_Call) Run(run func(args usecase.GetDataArgs)) *MockPatientDataUseCase_GetData_Call {
+func (_c *MockPatientDataUseCase_GetData_Call) Run(run func(ctx context.Context, args usecase.GetDataArgs)) *MockPatientDataUseCase_GetData_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(usecase.GetDataArgs))
+		run(args[0].(context.Context), args[1].(usecase.GetDataArgs))
 	})
 	return _c
 }

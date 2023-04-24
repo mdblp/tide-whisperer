@@ -300,7 +300,7 @@ func TestAPI_getDataV2_bgUnit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockPatientData := MockPatientDataUseCase{}
-			mockPatientData.On("GetData", mock.Anything).Return(new(bytes.Buffer), nil)
+			mockPatientData.On("GetData", mock.Anything, mock.Anything).Return(new(bytes.Buffer), nil)
 			api := &API{patientData: &mockPatientData}
 			/*Build the request with bgUnit query param*/
 			request, _ := http.NewRequest("GET", "/v1/dataV2/testBgUnit?bgUnit="+tt.givenBgUnitQueryParam, nil)
@@ -310,7 +310,7 @@ func TestAPI_getDataV2_bgUnit(t *testing.T) {
 			err := api.getDataV2(context.Background(), &httpResponseWriter)
 			/*Assert no error and mock is called with expectedBgUnitInUseCase*/
 			assert.NoError(t, err)
-			mockPatientData.AssertCalled(t, "GetData", mock.MatchedBy(func(args usecase.GetDataArgs) bool {
+			mockPatientData.AssertCalled(t, "GetData", mock.Anything, mock.MatchedBy(func(args usecase.GetDataArgs) bool {
 				return args.BgUnit == tt.expectedBgUnitInUseCase
 			}))
 		})

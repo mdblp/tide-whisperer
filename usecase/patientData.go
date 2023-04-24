@@ -83,13 +83,13 @@ type (
 		GlyHypoLimit float64 `json:"glyHypoLimit"`
 		// The Hyper limit used to compute TIR & TBR
 		GlyHyperLimit float64 `json:"glyHyperLimit"`
-		// The given of hypo/hyper values
+		// The unit of hypo/hyper values
 		GlyUnit string `json:"glyUnit"`
 	}
 	deviceParameter struct {
 		Level int    `json:"level" bson:"level"`
 		Name  string `json:"name" bson:"name"`
-		Unit  string `json:"given" bson:"given"`
+		Unit  string `json:"unit" bson:"unit"`
 		Value string `json:"value" bson:"value"`
 	}
 	pumpSettingsPayload struct {
@@ -213,7 +213,6 @@ func addContextToMessage(methodName string, userID string, traceID string, messa
 }
 
 type GetDataArgs struct {
-	Ctx              context.Context
 	UserID           string
 	TraceID          string
 	StartDate        string
@@ -230,7 +229,7 @@ type GetDataArgs struct {
 	BgUnit                     string
 }
 
-func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
+func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
 	params, err := p.getDataV1Params(args.UserID, args.TraceID, args.StartDate, args.EndDate, p.readBasalBucket)
 	if err != nil {
 		return nil, err
@@ -262,7 +261,7 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 	writeParams := &params.writer
 
 	if args.WithPumpSettings || args.WithParametersHistory {
-		pumpSettings, err = p.getLatestPumpSettings(args.Ctx, args.TraceID, args.UserID, writeParams, args.SessionToken)
+		pumpSettings, err = p.getLatestPumpSettings(ctx, args.TraceID, args.UserID, writeParams, args.SessionToken)
 		if err != nil {
 			return nil, err
 		}
@@ -273,14 +272,14 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 
 	// Parallel routines
 	wg.Add(groups)
-	go p.getDataFromStore(args.Ctx, &wg, args.TraceID, args.UserID, dates, exclusionList, channel)
+	go p.getDataFromStore(ctx, &wg, args.TraceID, args.UserID, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
-		go p.getCbgFromTideV2(args.Ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
+		go p.getCbgFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
-		go p.getBasalFromTideV2(args.Ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
-		go p.getLoopModeData(args.Ctx, &wg, args.TraceID, args.UserID, dates, channel)
+		go p.getBasalFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
+		go p.getLoopModeData(ctx, &wg, args.TraceID, args.UserID, dates, channel)
 	}
 
 	/*To stop the range loop reading channels once all data are read from it*/
@@ -316,10 +315,10 @@ func (p *PatientData) GetData(args GetDataArgs) (*bytes.Buffer, *common.Detailed
 		basals = basal.CleanUpBasals(basals, loopModes)
 	}
 
-	defer iterData.Close(args.Ctx)
+	defer iterData.Close(ctx)
 
 	return p.writeDataToBuffer(
-		args.Ctx,
+		ctx,
 		args.TraceID,
 		args.WithPumpSettings,
 		args.WithParametersHistory,
@@ -444,7 +443,7 @@ func writeFromIterV1(ctx context.Context, res *bytes.Buffer, bgUnit string, p *w
 						}
 					}
 				case "wizard":
-					/*For wizard, we don't have anymore fields in mmol, so we're changing the given but no conversion is done.
+					/*For wizard, we don't have anymore fields in mmol, so we're changing the unit but no conversion is done.
 					The associated bolus is separated and will be converted in another function.*/
 					if datum["units"] != bgUnit {
 						if datum["units"] == MmolL {

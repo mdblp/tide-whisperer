@@ -22,7 +22,7 @@ type DatabaseAdapter interface {
 }
 
 type PatientDataUseCase interface {
-	GetData(args GetDataArgs) (*bytes.Buffer, *common.DetailedError)
+	GetData(ctx context.Context, args GetDataArgs) (*bytes.Buffer, *common.DetailedError)
 }
 type Uploader interface {
 	Upload(ctx context.Context, filename string, buffer *bytes.Buffer) error
