@@ -1,90 +1,106 @@
 package usecase
 
 import (
+	"bytes"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
 	"github.com/tidepool-org/tide-whisperer/common"
-	"github.com/tidepool-org/tide-whisperer/usecase/mocks"
 )
 
+var (
+	userID                = "userid123"
+	traceID               = "traceid123"
+	startDate             = "2023-03-05T09:00:00Z"
+	endDate               = "2023-04-05T09:00:00Z"
+	withPumpSettings      = false
+	withParametersChanges = true
+	sessionToken          = "sessiontoken123"
+	testLogger            = log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
+	exportArgs            = ExportArgs{
+		UserID:                userID,
+		TraceID:               traceID,
+		StartDate:             startDate,
+		EndDate:               endDate,
+		WithPumpSettings:      withPumpSettings,
+		WithParametersChanges: withParametersChanges,
+		SessionToken:          sessionToken,
+		BgUnit:                MgdL,
+	}
+	argsMatcher = mock.MatchedBy(func(args GetDataArgs) bool {
+		return args.UserID == userID && args.TraceID == traceID && args.SessionToken == sessionToken &&
+			args.WithPumpSettings == withPumpSettings && args.WithParametersHistory == withParametersChanges &&
+			args.StartDate == startDate && args.EndDate == endDate && args.BgUnit == MgdL
+	})
+)
+
+type given struct {
+	logger      *log.Logger
+	uploader    MockUploader
+	patientData MockPatientDataUseCase
+	exportArgs  ExportArgs
+}
+
 func TestExporter_Export(t *testing.T) {
-	userID := "userid123"
-	traceID := "traceid123"
-	startDate := "2023-03-05T09:00:00Z"
-	endDate := "2023-04-05T09:00:00Z"
-	withPumpSettings := true
-	sessionToken := "sessiontoken123"
-	testLogger := log.New(os.Stdout, "api-test", log.LstdFlags|log.Lshortfile)
-	getDataErrUseCase := mocks.PatientDataUseCase{}
-	getDataErrUseCase.On("GetData", mock.Anything, userID, traceID, startDate, endDate, withPumpSettings, sessionToken, mock.Anything).Return(&common.DetailedError{})
-	getDataSuccessUseCase := mocks.PatientDataUseCase{}
-	getDataSuccessUseCase.On("GetData", mock.Anything, userID, traceID, startDate, endDate, withPumpSettings, sessionToken, mock.Anything).Return(nil)
-	uploadSuccess := mocks.Uploader{}
-	uploadSuccess.On("Upload", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	type fields struct {
-		logger      *log.Logger
-		uploader    mocks.Uploader
-		patientData mocks.PatientDataUseCase
-	}
-	type args struct {
-		userID           string
-		traceID          string
-		startDate        string
-		endDate          string
-		withPumpSettings bool
-		sessionToken     string
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name  string
+		given given
+		then  func(t *testing.T, uploader MockUploader)
 	}{
 		{
-			name: "should not call uploader when FetData failed",
-			fields: fields{
-				logger:      testLogger,
-				uploader:    mocks.Uploader{},
-				patientData: getDataErrUseCase,
-			},
-			args: args{
-				userID:           userID,
-				traceID:          traceID,
-				startDate:        startDate,
-				endDate:          endDate,
-				withPumpSettings: withPumpSettings,
-				sessionToken:     sessionToken,
-			},
+			name:  "should not call uploader when GetData is returning an error",
+			given: getDataUseCaseError(),
+			then:  assertUploadNotHaveBeenCalled,
 		},
 		{
-			name: "should not uploader when GetData succeeded",
-			fields: fields{
-				logger:      testLogger,
-				uploader:    uploadSuccess,
-				patientData: getDataSuccessUseCase,
-			},
-			args: args{
-				userID:           userID,
-				traceID:          traceID,
-				startDate:        startDate,
-				endDate:          endDate,
-				withPumpSettings: withPumpSettings,
-				sessionToken:     sessionToken,
-			},
+			name:  "should call uploader when GetData returns data without error",
+			given: getDataUseCaseSuccess(),
+			then:  assertUploadHaveBeenCalled,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := Exporter{
-				logger:      tt.fields.logger,
-				uploader:    &tt.fields.uploader,
-				patientData: &tt.fields.patientData,
+				logger:      tt.given.logger,
+				uploader:    &tt.given.uploader,
+				patientData: &tt.given.patientData,
 			}
-			e.Export(tt.args.userID, tt.args.traceID, tt.args.startDate, tt.args.endDate, tt.args.withPumpSettings, tt.args.sessionToken)
-			tt.fields.patientData.AssertExpectations(t)
-			tt.fields.uploader.AssertExpectations(t)
+			e.Export(tt.given.exportArgs)
+			tt.then(t, tt.given.uploader)
 		})
+	}
+}
+
+func assertUploadNotHaveBeenCalled(t *testing.T, uploader MockUploader) {
+	uploader.AssertExpectations(t)
+}
+
+func assertUploadHaveBeenCalled(t *testing.T, uploader MockUploader) {
+	uploader.AssertExpectations(t)
+}
+
+func getDataUseCaseError() given {
+	getDataErrUseCase := MockPatientDataUseCase{}
+	getDataErrUseCase.On("GetData", mock.Anything, argsMatcher).Return(nil, &common.DetailedError{})
+	return given{
+		logger:      testLogger,
+		uploader:    MockUploader{},
+		patientData: getDataErrUseCase,
+		exportArgs:  exportArgs,
+	}
+}
+
+func getDataUseCaseSuccess() given {
+	getDataSuccessUseCase := MockPatientDataUseCase{}
+	getDataSuccessUseCase.On("GetData", mock.Anything, argsMatcher).Return(&bytes.Buffer{}, nil)
+	uploadSuccess := MockUploader{}
+	uploadSuccess.On("Upload", mock.Anything, mock.AnythingOfType("string"), mock.AnythingOfType("*bytes.Buffer")).Return(nil)
+	return given{
+		logger:      testLogger,
+		uploader:    uploadSuccess,
+		patientData: getDataSuccessUseCase,
+		exportArgs:  exportArgs,
 	}
 }

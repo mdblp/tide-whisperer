@@ -1,13 +1,13 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/tidepool-org/tide-whisperer/common"
+	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
 // @Summary Get the data for a specific patient using new bucket api
@@ -23,11 +23,11 @@ import (
 // @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
 // @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
+// @Param bgUnit query string false "The blood glucose unit used for exported data, can be mmol/L or mg/dL. If nothing is specified, blood glucose data will be returned as it is in database."
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security Auth0
 // @Router /v1/dataV2/{userID} [get]
 func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) error {
-	var buffer bytes.Buffer
 	// Mongo iterators
 	userID := res.VARS["userID"]
 
@@ -36,11 +36,26 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	endDate := query.Get("endDate")
 	withPumpSettings := query.Get("withPumpSettings") == "true"
 	sessionToken := getSessionToken(res)
-	err := a.patientData.GetData(ctx, userID, res.TraceID, startDate, endDate, withPumpSettings, sessionToken, &buffer)
+	bgUnit := query.Get("bgUnit")
+	if bgUnit != usecase.MgdL && bgUnit != usecase.MmolL {
+		bgUnit = ""
+	}
+	getDataArgs := usecase.GetDataArgs{
+		UserID:                     userID,
+		TraceID:                    res.TraceID,
+		StartDate:                  startDate,
+		EndDate:                    endDate,
+		WithPumpSettings:           withPumpSettings,
+		WithParametersHistory:      withPumpSettings,
+		SessionToken:               sessionToken,
+		BgUnit:                     bgUnit,
+		FilteringParametersHistory: false,
+	}
+	buff, err := a.patientData.GetData(ctx, getDataArgs)
 	if err != nil {
 		return res.WriteError(err)
 	}
-	return res.Write(buffer.Bytes())
+	return res.Write(buff.Bytes())
 }
 
 // get session token (for history the header is found in the response and not in the request because of the v1 middelware)
@@ -74,8 +89,7 @@ func getSessionToken(res *common.HttpResponseWriter) string {
 // @Param startDate query string false "ISO Date time (RFC3339) for search lower limit" format(date-time)
 // @Param endDate query string false "ISO Date time (RFC3339) for search upper limit" format(date-time)
 // @Param withPumpSettings query string false "true to include the pump settings in the results" format(boolean)
-// @Param cbgBucket query string false "no parameter or not equal to true to get cbg from buckets" format(boolean)
-// @Param basalBucket query string false "true to get basals from buckets, if the parameter is not there or not equal to true the basals are from deviceData" format(boolean)
+// @Param bgUnit query string false "The blood glucose unit used for exported data, can be mmol/L or mg/dL. If nothing is specified, blood glucose data will be returned as it is in database."
 // @Param x-tidepool-trace-session header string false "Trace session uuid" format(uuid)
 // @Security Auth0
 // @Router /v1/data/{userID} [get]

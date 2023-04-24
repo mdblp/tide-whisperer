@@ -5,11 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/mdblp/go-common/clients/status"
+	appContext "github.com/mdblp/go-common/context"
 	orcaSchema "github.com/mdblp/orca/schema"
 	schemaV2 "github.com/mdblp/tide-whisperer-v2/v2/schema"
 	"github.com/tidepool-org/go-common/clients/mongo"
@@ -20,16 +23,15 @@ import (
 
 type (
 	apiDataParams struct {
-		dates               common.Date
-		user                string
-		traceID             string
-		includePumpSettings bool
-		source              map[string]bool
-		writer              writeFromIter
+		dates     common.Date
+		source    map[string]bool
+		writer    writeFromIter
+		startTime time.Time
+		endTime   time.Time
 	}
 )
 
-func (p *PatientData) getDataV1Params(userID string, traceID string, startDate string, endDate string, withPumpSettings bool, readBasalBucket bool) (*apiDataParams, *common.DetailedError) {
+func (p *PatientData) getDataV1Params(userID string, traceID string, startDate string, endDate string, readBasalBucket bool) (*apiDataParams, *common.DetailedError) {
 	var err error
 
 	dataSource := map[string]bool{
@@ -38,11 +40,11 @@ func (p *PatientData) getDataV1Params(userID string, traceID string, startDate s
 		"cbgBucket":   true,
 	}
 
+	var startTime, endTime time.Time
 	// Check startDate & endDate parameter
 	if startDate != "" || endDate != "" {
 		var logError *common.DetailedError
-		var startTime time.Time
-		var endTime time.Time
+
 		var timeRange int64 = 1 // endDate - startDate in seconds, initialized to 1 to avoid trigger an error, see below
 
 		if startDate != "" {
@@ -70,21 +72,24 @@ func (p *PatientData) getDataV1Params(userID string, traceID string, startDate s
 			return nil, logError
 		}
 	}
+
+	if endDate == "" {
+		endTime = time.Now()
+	}
+
 	params := apiDataParams{
 		dates: common.Date{
 			Start: startDate,
 			End:   endDate,
 		},
-		user:                userID,
-		traceID:             traceID,
-		includePumpSettings: withPumpSettings,
-		source:              dataSource,
+		startTime: startTime,
+		endTime:   endTime,
+		source:    dataSource,
 		writer: writeFromIter{
 			uploadIDs: make([]string, 0, 16),
 		},
 	}
 	return &params, nil
-
 }
 
 func (p *PatientData) getLatestPumpSettings(ctx context.Context, traceID string, userID string, writer *writeFromIter, token string) (*schemaV2.SettingsResult, *common.DetailedError) {
@@ -163,50 +168,59 @@ func newWriteError(err error) *common.DetailedError {
 }
 func (p *PatientData) writeDataToBuffer(
 	ctx context.Context,
-	buff *bytes.Buffer,
 	traceID string,
 	includePumpSettings bool,
+	includeParameterChanges bool,
 	pumpSettings *schemaV2.SettingsResult,
 	iterData mongo.StorageIterator,
 	Cbgs []schemaV2.CbgBucket,
 	Basals []schemaV2.BasalBucket,
 	writeParams *writeFromIter,
-) *common.DetailedError {
+	bgUnit string,
+	filteringParameterChanges bool,
+	startTime time.Time,
+	endTime time.Time,
+) (*bytes.Buffer, *common.DetailedError) {
+	buff := bytes.Buffer{}
 	var iterUploads mongo.StorageIterator
 	common.TimeIt(ctx, "writeData")
 	defer common.TimeEnd(ctx, "writeData")
 	// We return a JSON array, first character is: '['
 	_, err := buff.WriteString("[\n")
 	if err != nil {
-		return newWriteError(err)
+		return nil, newWriteError(err)
 	}
 
 	if includePumpSettings && pumpSettings != nil {
 		writeParams.settings = pumpSettings
-		err = writePumpSettings(buff, writeParams)
+		err = writePumpSettings(ctx, &buff, writeParams, bgUnit)
 		if err != nil {
-			return newWriteError(err)
+			return nil, newWriteError(err)
 		}
-		err = writeDeviceParameterChanges(buff, writeParams)
+	}
+
+	if includeParameterChanges && pumpSettings != nil {
+		writeParams.settings = pumpSettings
+		err = writeDeviceParameterChanges(ctx, &buff, writeParams, filteringParameterChanges, bgUnit, startTime, endTime)
 		if err != nil {
-			return newWriteError(err)
+			return nil, newWriteError(err)
 		}
 	}
 
 	common.TimeIt(ctx, "writeDataMain")
 	writeParams.iter = iterData
-	err = writeFromIterV1(ctx, buff, writeParams)
+	err = writeFromIterV1(ctx, &buff, bgUnit, writeParams)
 	if err != nil {
-		return newWriteError(err)
+		return nil, newWriteError(err)
 	}
 	common.TimeEnd(ctx, "writeDataMain")
 
 	if len(Cbgs) > 0 {
 		common.TimeIt(ctx, "WriteCbgs")
 		writeParams.cbgs = Cbgs
-		err = writeCbgs(ctx, buff, writeParams)
+		err = writeCbgs(ctx, bgUnit, &buff, writeParams)
 		if err != nil {
-			return newWriteError(err)
+			return nil, newWriteError(err)
 		}
 		common.TimeEnd(ctx, "WriteCbgs")
 	}
@@ -214,9 +228,9 @@ func (p *PatientData) writeDataToBuffer(
 	if len(Basals) > 0 {
 		common.TimeIt(ctx, "writeBasals")
 		writeParams.basals = Basals
-		err = writeBasals(ctx, buff, writeParams)
+		err = writeBasals(ctx, &buff, writeParams)
 		if err != nil {
-			return newWriteError(err)
+			return nil, newWriteError(err)
 		}
 		common.TimeEnd(ctx, "writeBasals")
 	}
@@ -232,16 +246,16 @@ func (p *PatientData) writeDataToBuffer(
 		} else {
 			defer iterUploads.Close(ctx)
 			writeParams.iter = iterUploads
-			err = writeFromIterV1(ctx, buff, writeParams)
+			err = writeFromIterV1(ctx, &buff, bgUnit, writeParams)
 			if err != nil {
 				common.TimeEnd(ctx, "getUploads")
-				return newWriteError(err)
+				return nil, newWriteError(err)
 			}
 		}
 		common.TimeEnd(ctx, "getUploads")
 	}
 
-	// Silently failed theses error to the client, but record them to the log
+	// Silently failed those error to the client, but record them to the log
 	if writeParams.decode.firstError != nil {
 		p.logger.Printf("{%s} - {nErrors:%d,MongoDecode:\"%s\"}", traceID, writeParams.decode.numErrors, writeParams.decode.firstError)
 	}
@@ -252,14 +266,23 @@ func (p *PatientData) writeDataToBuffer(
 	// Last JSON array character:
 	_, err = buff.WriteString("]\n")
 	if err != nil {
-		return newWriteError(err)
+		return nil, newWriteError(err)
 	}
-	return nil
+	return &buff, nil
 }
 
-func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
+func isConvertibleUnit(unit string) bool {
+	return unit == MgdL || unit == MmolL
+}
+
+func writeDeviceParameterChanges(ctx context.Context, res *bytes.Buffer, p *writeFromIter, filteringParameterChanges bool, bgUnit string, startTime time.Time, endTime time.Time) error {
+	logger := appContext.GetLogger(ctx)
 	settings := p.settings
+
 	for _, paramChange := range settings.HistoryParameters {
+		if filteringParameterChanges && (paramChange.Timestamp.Before(startTime) || paramChange.Timestamp.After(endTime)) {
+			continue
+		}
 		datum := make(map[string]interface{})
 		datum["id"] = uuid.New().String()
 		datum["type"] = "deviceEvent"
@@ -274,8 +297,40 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
 		datum["units"] = paramChange.Unit
 		datum["value"] = paramChange.Value
 		datum["level"] = paramChange.Level
+
 		if paramChange.PreviousValue != "" {
 			datum["previousValue"] = paramChange.PreviousValue
+		}
+
+		/*Handle conversion if bgUnit is not empty*/
+		if bgUnit != "" {
+			if datum["units"] != bgUnit && isConvertibleUnit(datum["units"].(string)) {
+				val, err := convertToFloat64(datum["value"], datum["name"])
+				if err != nil {
+					logger.Errorf("cannot convert device parameter change with name=%s having value=%s \n error=%v \n Continuing with original unit and value.", datum["name"], datum["value"], err)
+				} else {
+					if datum["units"] == MgdL {
+						datum["units"] = MmolL
+						datum["value"] = fmt.Sprintf("%g", convertToMmol(val))
+					} else {
+						datum["units"] = MgdL
+						datum["value"] = fmt.Sprintf("%g", convertToMgdl(val))
+					}
+				}
+
+			}
+
+			if paramChange.PreviousUnit != bgUnit && paramChange.PreviousValue != "" && isConvertibleUnit(paramChange.PreviousUnit) {
+				val, err := convertToFloat64(datum["previousValue"], datum["name"])
+				if err != nil {
+					logger.Errorf("cannot convert device parameter change with name=%s having previousValue=%s \n error=%v \n Continuing with original previousUnit and previousValue.", datum["name"], datum["previousValue"], err)
+				}
+				if paramChange.PreviousUnit == MgdL {
+					datum["previousValue"] = fmt.Sprintf("%g", convertToMmol(val))
+				} else {
+					datum["previousValue"] = fmt.Sprintf("%g", convertToMgdl(val))
+				}
+			}
 		}
 
 		jsonDatum, err := json.Marshal(datum)
@@ -301,7 +356,16 @@ func writeDeviceParameterChanges(res *bytes.Buffer, p *writeFromIter) error {
 	return nil
 }
 
-func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
+func convertToFloat64(value interface{}, name interface{}) (float64, error) {
+	val, err := strconv.ParseFloat(value.(string), 64)
+	if err != nil {
+		return 0, fmt.Errorf("conversion failed because previousValue=%s for param %s is not a number", value.(string), name.(string))
+	}
+	return val, nil
+}
+
+func writePumpSettings(ctx context.Context, res *bytes.Buffer, p *writeFromIter, bgUnit string) error {
+	logger := appContext.GetLogger(ctx)
 	settings := p.settings
 	datum := make(map[string]interface{})
 	datum["id"] = uuid.New().String()
@@ -312,6 +376,58 @@ func writePumpSettings(res *bytes.Buffer, p *writeFromIter) error {
 	/*TODO fetch from somewhere*/
 	datum["activeSchedule"] = "Normal"
 	datum["deviceId"] = settings.CurrentSettings.Device.DeviceID
+
+	/* Perform conversion */
+	if bgUnit != "" {
+		for _, hp := range settings.HistoryParameters {
+			if hp.Unit != bgUnit && isConvertibleUnit(hp.Unit) {
+				val, err := convertToFloat64(datum["value"], datum["name"])
+				if err != nil {
+					logger.Errorf("cannot convert param=%s having value=%s \n error=%v \n Continuing with original unit and value.", datum["name"], datum["value"], err)
+				} else {
+					if hp.Unit == MgdL {
+						hp.Unit = MmolL
+						hp.Value = fmt.Sprintf("%g", convertToMmol(val))
+					} else {
+						hp.Unit = MgdL
+						hp.Value = fmt.Sprintf("%g", convertToMgdl(val))
+					}
+				}
+			}
+
+			if hp.PreviousUnit != bgUnit && isConvertibleUnit(hp.PreviousUnit) {
+				val, err := convertToFloat64(datum["previousValue"], datum["name"])
+				if err != nil {
+					logger.Errorf("cannot convert historyParam with name=%s having previousValue=%s \n error=%v \n Continuing with original previousUnit and previousValue.", datum["name"], datum["previousValue"], err)
+				} else {
+					if hp.PreviousUnit == MgdL {
+						hp.PreviousUnit = MmolL
+						hp.PreviousValue = fmt.Sprintf("%g", convertToMmol(val))
+					} else {
+						hp.PreviousUnit = MgdL
+						hp.PreviousValue = fmt.Sprintf("%g", convertToMgdl(val))
+					}
+				}
+			}
+		}
+		for _, p := range settings.CurrentSettings.Parameters {
+			if p.Unit != bgUnit && isConvertibleUnit(p.Unit) {
+				val, err := convertToFloat64(datum["value"], datum["name"])
+				if err != nil {
+					logger.Errorf("cannot convert current parameter with name=%s having value=%s \n error=%v \n Continuing with original unit and value.", datum["name"], datum["value"], err)
+				} else {
+					if p.Unit == MgdL {
+						p.Unit = MmolL
+						p.Value = fmt.Sprintf("%g", convertToMmol(val))
+					} else {
+						p.Unit = MgdL
+						p.Value = fmt.Sprintf("%g", convertToMgdl(val))
+					}
+				}
+			}
+		}
+	}
+
 	groupedHistoryParameters := groupByChangeDate(settings.HistoryParameters)
 	payload := map[string]interface{}{
 		"basalsecurityprofile": p.basalSecurityProfile,
@@ -374,8 +490,18 @@ func groupByChangeDate(parameters []orcaSchema.HistoryParameter) []GroupedHistor
 	return finalArray
 }
 
+func convertToMgdl(value float64) float64 {
+	return math.Round(value * MmolLToMgdLConversionFactor)
+}
+
+func convertToMmol(value float64) float64 {
+	roundedValue := math.Round(value / MmolLToMgdLConversionFactor * MmolLToMgdLPrecisionFactor)
+	floatValue := roundedValue / MmolLToMgdLPrecisionFactor
+	return floatValue
+}
+
 // Mapping V2 Bucket schema to expected V1 schema + write to output
-func writeCbgs(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
+func writeCbgs(ctx context.Context, bgUnit string, res *bytes.Buffer, p *writeFromIter) error {
 	var err error
 	for _, bucket := range p.cbgs {
 		for i, sample := range bucket.Samples {
@@ -387,6 +513,15 @@ func writeCbgs(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
 			datum["timezone"] = sample.Timezone
 			datum["units"] = sample.Units
 			datum["value"] = sample.Value
+			if bgUnit != "" && datum["units"] != bgUnit {
+				if datum["units"] == MmolL {
+					datum["units"] = MgdL
+					datum["value"] = convertToMgdl(sample.Value)
+				} else {
+					datum["units"] = MmolL
+					datum["value"] = convertToMmol(sample.Value)
+				}
+			}
 			jsonDatum, err := json.Marshal(datum)
 			if err != nil {
 				if p.jsonError.firstError == nil {

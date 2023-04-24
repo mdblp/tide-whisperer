@@ -73,28 +73,19 @@ var (
 )
 
 func Test_groupByChangeDate(t *testing.T) {
-	type args struct {
-		parameters []orcaSchema.HistoryParameter
-	}
 	tests := []struct {
-		name string
-		args args
-		want []GroupedHistoryParameters
+		name  string
+		given []orcaSchema.HistoryParameter
+		want  []GroupedHistoryParameters
 	}{
 		{
-			name: "should return empty array when empty array input",
-			args: args{
-				[]orcaSchema.HistoryParameter{},
-			},
-			want: []GroupedHistoryParameters{},
+			name:  "should return empty array when empty array input",
+			given: []orcaSchema.HistoryParameter{},
+			want:  []GroupedHistoryParameters{},
 		},
 		{
-			name: "should return one group when one param input",
-			args: args{
-				[]orcaSchema.HistoryParameter{
-					histoParam1,
-				},
-			},
+			name:  "should return one group when one param input",
+			given: []orcaSchema.HistoryParameter{histoParam1},
 			want: []GroupedHistoryParameters{
 				{
 					ChangeDate: effDate2,
@@ -104,11 +95,9 @@ func Test_groupByChangeDate(t *testing.T) {
 		},
 		{
 			name: "should return one group when two param with same timestamp day input",
-			args: args{
-				[]orcaSchema.HistoryParameter{
-					histoParam1,
-					histoParam2,
-				},
+			given: []orcaSchema.HistoryParameter{
+				histoParam1,
+				histoParam2,
 			},
 			want: []GroupedHistoryParameters{
 				{
@@ -119,12 +108,10 @@ func Test_groupByChangeDate(t *testing.T) {
 		},
 		{
 			name: "should return two group when two param with same timestamp day and third with different day input",
-			args: args{
-				[]orcaSchema.HistoryParameter{
-					histoParam1,
-					histoParam2,
-					histoParam3,
-				},
+			given: []orcaSchema.HistoryParameter{
+				histoParam1,
+				histoParam2,
+				histoParam3,
 			},
 			want: []GroupedHistoryParameters{
 				{
@@ -140,7 +127,7 @@ func Test_groupByChangeDate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := groupByChangeDate(tt.args.parameters)
+			got := groupByChangeDate(tt.given)
 			sort.Slice(tt.want, func(i, j int) bool { return tt.want[i].ChangeDate.After(tt.want[j].ChangeDate) })
 			sort.Slice(got, func(i, j int) bool { return got[i].ChangeDate.After(got[j].ChangeDate) })
 			if !reflect.DeepEqual(got, tt.want) {
@@ -152,6 +139,7 @@ func Test_groupByChangeDate(t *testing.T) {
 
 /*When no settings are found, we should not raise an error in getLatestPumpSettings*/
 func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
+	/*Given*/
 	token := "TestAPI_getLatestPumpSettings_token"
 	userId := "TestAPI_getLatestPumpSettings_userId"
 	ctx := context.Background()
@@ -164,9 +152,72 @@ func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
 	mockRepository := infrastructure.NewMockPatientDataRepository()
 	mockTideV2 := twV2Client.NewMock()
 	usecase := NewPatientDataUseCase(testLogger, mockTideV2, mockRepository, true)
-
 	mockTideV2.On("GetSettings", timeContext, userId, token).Return(nil, &clientError)
+
+	/*When*/
 	res, err := usecase.getLatestPumpSettings(timeContext, "traceId", userId, &writer, token)
+
+	/*Then*/
 	assert.Nil(t, err)
 	assert.Nil(t, res)
+}
+
+func Test_convertToMgdl(t *testing.T) {
+	tests := []struct {
+		name  string
+		given float64
+		want  float64
+	}{
+		{"should handle positive value", 10, 180},
+		{"should handle 0 value mmol", 0, 0},
+		{"should handle positive value with decimal", 2.5, 45},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := convertToMgdl(tt.given)
+			assert.Equalf(t, tt.want, got, "convertToMgdl(%v)", tt.given)
+		})
+	}
+}
+
+func TestIsConvertibleUnit(t *testing.T) {
+	tests := []struct {
+		name     string
+		given    string
+		expected bool
+	}{
+		{"Valid Unit - mg/dL", MgdL, true},
+		{"Valid Unit - mmol/L", MmolL, true},
+		{"Invalid Unit - g/L", "g/L", false},
+		{"Empty Unit", "", false},
+		{"Random String", "random", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isConvertibleUnit(tt.given)
+			if result != tt.expected {
+				t.Errorf("isConvertibleUnit(%q) = %v, expected %v", tt.given, result, tt.expected)
+			}
+		})
+	}
+}
+
+func Test_convertToMmol(t *testing.T) {
+	tests := []struct {
+		name  string
+		given float64
+		want  float64
+	}{
+		{"should handle 0 value", 0, 0},
+		{"should handle positive value", 180, 10},
+		{"should handle positive value with decimal", 45.1, 2.5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := convertToMmol(tt.given)
+			assert.Equalf(t, tt.want, got, "convertToMmol(%v)", tt.given)
+		})
+	}
 }

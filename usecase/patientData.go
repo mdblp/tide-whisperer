@@ -23,6 +23,14 @@ import (
 	"github.com/tidepool-org/tide-whisperer/usecase/basal"
 )
 
+const (
+	MmolL = "mmol/L"
+	MgdL  = "mg/dL"
+
+	MmolLToMgdLConversionFactor float64 = 18.01577
+	MmolLToMgdLPrecisionFactor  float64 = 10.0
+)
+
 var (
 	errorRunningQuery      = common.DetailedError{Status: http.StatusInternalServerError, Code: "data_store_error", Message: "internal server error"}
 	errorTideV2Http        = common.DetailedError{Status: http.StatusInternalServerError, Code: "tidev2_error", Message: "internal server error"}
@@ -204,10 +212,27 @@ func addContextToMessage(methodName string, userID string, traceID string, messa
 	return fmt.Sprintf("%s failed: user=[%s], traceID=[%s] : %v", methodName, userID, traceID, message)
 }
 
-func (p *PatientData) GetData(ctx context.Context, userID string, traceID string, startDate string, endDate string, withPumpSettings bool, sessionToken string, buff *bytes.Buffer) *common.DetailedError {
-	params, err := p.getDataV1Params(userID, traceID, startDate, endDate, withPumpSettings, p.readBasalBucket)
+type GetDataArgs struct {
+	UserID           string
+	TraceID          string
+	StartDate        string
+	EndDate          string
+	WithPumpSettings bool
+	SessionToken     string
+	/*Added args for export*/
+	/*TODO split getData into two functions : getData and writeData
+	by doing this export could use getData and transform data as needed
+	(and no need to pass params to the actual getData)
+	*/
+	WithParametersHistory      bool
+	FilteringParametersHistory bool
+	BgUnit                     string
+}
+
+func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
+	params, err := p.getDataV1Params(args.UserID, args.TraceID, args.StartDate, args.EndDate, p.readBasalBucket)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var pumpSettings *schemaV2.SettingsResult
 
@@ -235,10 +260,10 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 
 	writeParams := &params.writer
 
-	if params.includePumpSettings {
-		pumpSettings, err = p.getLatestPumpSettings(ctx, traceID, userID, writeParams, sessionToken)
+	if args.WithPumpSettings || args.WithParametersHistory {
+		pumpSettings, err = p.getLatestPumpSettings(ctx, args.TraceID, args.UserID, writeParams, args.SessionToken)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -247,14 +272,14 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 
 	// Parallel routines
 	wg.Add(groups)
-	go p.getDataFromStore(ctx, &wg, traceID, params.user, dates, exclusionList, channel)
+	go p.getDataFromStore(ctx, &wg, args.TraceID, args.UserID, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
-		go p.getCbgFromTideV2(ctx, &wg, traceID, params.user, sessionToken, dates, channel)
+		go p.getCbgFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
-		go p.getBasalFromTideV2(ctx, &wg, traceID, params.user, sessionToken, dates, channel)
-		go p.getLoopModeData(ctx, &wg, traceID, params.user, dates, channel)
+		go p.getBasalFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
+		go p.getLoopModeData(ctx, &wg, args.TraceID, args.UserID, dates, channel)
 	}
 
 	/*To stop the range loop reading channels once all data are read from it*/
@@ -273,7 +298,7 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 	for chanData := range channel {
 		switch d := chanData.(type) {
 		case *common.DetailedError:
-			return d
+			return nil, d
 		case goComMgo.StorageIterator:
 			iterData = d
 		case []schemaV2.CbgBucket:
@@ -294,14 +319,18 @@ func (p *PatientData) GetData(ctx context.Context, userID string, traceID string
 
 	return p.writeDataToBuffer(
 		ctx,
-		buff,
-		traceID,
-		params.includePumpSettings,
+		args.TraceID,
+		args.WithPumpSettings,
+		args.WithParametersHistory,
 		pumpSettings,
 		iterData,
 		cbgs,
 		basals,
 		writeParams,
+		args.BgUnit,
+		args.FilteringParametersHistory,
+		params.startTime,
+		params.endTime,
 	)
 }
 
@@ -324,7 +353,7 @@ func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, 
 }
 
 // writeFromIterV1 Common code to write
-func writeFromIterV1(ctx context.Context, res *bytes.Buffer, p *writeFromIter) error {
+func writeFromIterV1(ctx context.Context, res *bytes.Buffer, bgUnit string, p *writeFromIter) error {
 	var err error
 
 	iter := p.iter
@@ -398,6 +427,32 @@ func writeFromIterV1(ctx context.Context, res *bytes.Buffer, p *writeFromIter) e
 				}
 
 				datum["payload"] = payload
+			}
+
+			/*perform mmol -> mgdl conversion if needed*/
+			if bgUnit != "" {
+				switch datum["type"] {
+				case "smbg":
+					if datum["units"] != bgUnit && isConvertibleUnit(datum["units"].(string)) {
+						if datum["units"] == MmolL {
+							datum["units"] = MgdL
+							datum["value"] = convertToMgdl(datum["value"].(float64))
+						} else {
+							datum["units"] = MmolL
+							datum["value"] = convertToMmol(datum["value"].(float64))
+						}
+					}
+				case "wizard":
+					/*For wizard, we don't have anymore fields in mmol, so we're changing the unit but no conversion is done.
+					The associated bolus is separated and will be converted in another function.*/
+					if datum["units"] != bgUnit {
+						if datum["units"] == MmolL {
+							datum["units"] = MgdL
+						} else {
+							datum["units"] = MmolL
+						}
+					}
+				}
 			}
 
 			// Create the JSON string for this datum
