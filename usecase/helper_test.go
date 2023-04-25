@@ -143,7 +143,7 @@ func TestAPI_getLatestPumpSettings_handleNotFound(t *testing.T) {
 	token := "TestAPI_getLatestPumpSettings_token"
 	userId := "TestAPI_getLatestPumpSettings_userId"
 	ctx := context.Background()
-	testLogger := log.New(os.Stdout, "test", log.LstdFlags|log.Lshortfile)
+	testLogger := log.New(os.Stdout, "realisticJsonInput", log.LstdFlags|log.Lshortfile)
 	timeContext := common.TimeItContext(ctx)
 	clientError := status.StatusError{
 		Status: status.NewStatus(http.StatusNotFound, "GetSettings: no settings found"),
