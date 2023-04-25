@@ -141,25 +141,21 @@ func TestJsonToCsv(t *testing.T) {
 }
 
 func readConverterTestJsonFile() (string, error) {
-	jsonFile, err := os.Open("./converter_test.json")
+	jsonFile, err := openFile("./converter_test.json")
 	if err != nil {
-		fmt.Errorf("cannot open JSON converter test file: %v", err)
 		return "", err
 	}
 	defer jsonFile.Close()
-
 	jsonBytes, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		fmt.Errorf("cannot read JSON converter test file: %v", err)
-		return "", err
+		return "", fmt.Errorf("cannot read JSON converter test file: %v", err)
 	}
 	return string(jsonBytes), nil
 }
 
 func extractCsvFile() ([]string, [][]string, error) {
-	csvFile, err := os.Open("./converter_test.csv")
+	csvFile, err := openFile("./converter_test.csv")
 	if err != nil {
-		fmt.Errorf("cannot open CSV converter test file: %v", err)
 		return nil, nil, err
 	}
 	defer csvFile.Close()
@@ -167,9 +163,15 @@ func extractCsvFile() ([]string, [][]string, error) {
 	csvReader := csv.NewReader(csvFile)
 	records, err := csvReader.ReadAll()
 	if err != nil {
-		fmt.Errorf("cannot read CSV converter test file: %v", err)
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("cannot read CSV converter test file: %v", err)
 	}
-
 	return records[0], records[1:], nil
+}
+
+func openFile(name string) (*os.File, error) {
+	file, err := os.Open(name)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open CSV converter test file: %v", err)
+	}
+	return file, err
 }
