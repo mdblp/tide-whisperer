@@ -94,13 +94,13 @@ func TestExporter_Export(t *testing.T) {
 
 func (g *given) withGetDataUseCaseError() *given {
 	patientData := MockPatientDataUseCase{}
-	patientData.On("GetData", argsMatcher).Return(nil, &common.DetailedError{})
+	patientData.On("GetData", mock.Anything, argsMatcher).Return(nil, &common.DetailedError{})
 	g.patientData = &patientData
 	return g
 }
 func (g *given) withGetDataUseCaseSuccessValidJSON() *given {
 	patientData := MockPatientDataUseCase{}
-	patientData.On("GetData", argsMatcher).Return(bytes.NewBufferString(`{"foo": "bar"}`), nil)
+	patientData.On("GetData", mock.Anything, argsMatcher).Return(bytes.NewBufferString(`{"foo": "bar"}`), nil)
 	g.patientData = &patientData
 	return g
 }

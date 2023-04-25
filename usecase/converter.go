@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 )
@@ -97,11 +96,12 @@ func getValue(jsonObject map[string]interface{}, parts []string) (interface{}, e
 	if len(parts) == 1 {
 		/*This is thrown in the case where we're looking for duration but the current object
 		is having a duration field which is an object with for example unit and value*/
-		if reflect.TypeOf(value).Kind() == reflect.Map {
+		switch value.(type) {
+		case map[string]interface{}:
 			return "", nil // Return an empty string for missing keys
+		default:
+			return value, nil
 		}
-		return value, nil
-
 	}
 	subObject, ok := value.(map[string]interface{})
 	if !ok {
