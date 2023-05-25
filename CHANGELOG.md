@@ -2,9 +2,12 @@
 
 Data access API for tidepool
 
-## 1.2.0-rc20 - 2023-04-25
+## 1.2.0-rc21 - 2023-05-25
+### Engineering
+- YLP-2407 Group parameter changes by time
 ### Added
 - YLP-2076 Export account data on demand
+
 
 ## 1.1.4 - 2023-03-24
 ### Engineering
