@@ -20,8 +20,7 @@ import (
 
 var (
 	effDate1, _ = time.Parse(time.RFC3339Nano, "2021-09-01T00:00:00.000Z")
-	effDate2, _ = time.Parse(time.RFC3339Nano, "2021-09-01T00:00:00.000Z")
-	effDate3, _ = time.Parse(time.RFC3339Nano, "2021-09-01T01:00:00.000Z")
+	effDate2, _ = time.Parse(time.RFC3339Nano, "2021-09-01T01:00:00.000Z")
 	param1      = orcaSchema.CurrentParameter{
 		Name:          "name1",
 		Value:         "value1",
@@ -34,21 +33,21 @@ var (
 		Value:         "value2",
 		Unit:          "unit2",
 		Level:         2,
-		EffectiveDate: &effDate2,
+		EffectiveDate: &effDate1,
 	}
 	param3 = orcaSchema.CurrentParameter{
 		Name:          "name3",
 		Value:         "value3",
 		Unit:          "unit3",
 		Level:         1,
-		EffectiveDate: &effDate3,
+		EffectiveDate: &effDate2,
 	}
 	histoParam1 = orcaSchema.HistoryParameter{
 		CurrentParameter: param1,
 		ChangeType:       "added",
 		PreviousValue:    "",
 		PreviousUnit:     "",
-		Timestamp:        effDate2,
+		Timestamp:        effDate1,
 		Timezone:         "UTC",
 		TimezoneOffset:   0,
 	}
@@ -57,7 +56,7 @@ var (
 		ChangeType:       "added",
 		PreviousValue:    "",
 		PreviousUnit:     "",
-		Timestamp:        effDate2,
+		Timestamp:        effDate1,
 		Timezone:         "UTC",
 		TimezoneOffset:   0,
 	}
@@ -66,7 +65,7 @@ var (
 		ChangeType:       "added",
 		PreviousValue:    "",
 		PreviousUnit:     "",
-		Timestamp:        effDate3,
+		Timestamp:        effDate2,
 		Timezone:         "UTC",
 		TimezoneOffset:   0,
 	}
@@ -119,7 +118,7 @@ func Test_groupByChangeDate(t *testing.T) {
 					Parameters: []orcaSchema.HistoryParameter{histoParam1, histoParam2},
 				},
 				{
-					ChangeDate: effDate3,
+					ChangeDate: effDate2,
 					Parameters: []orcaSchema.HistoryParameter{histoParam3},
 				},
 			},
