@@ -20,8 +20,8 @@ import (
 
 var (
 	effDate1, _ = time.Parse(time.RFC3339Nano, "2021-09-01T00:00:00.000Z")
-	effDate2, _ = time.Parse(time.RFC3339Nano, "2021-09-01T00:00:01.000Z")
-	effDate3, _ = time.Parse(time.RFC3339Nano, "2021-09-02T00:00:00.000Z")
+	effDate2, _ = time.Parse(time.RFC3339Nano, "2021-09-01T00:00:00.000Z")
+	effDate3, _ = time.Parse(time.RFC3339Nano, "2021-09-01T01:00:00.000Z")
 	param1      = orcaSchema.CurrentParameter{
 		Name:          "name1",
 		Value:         "value1",
@@ -94,7 +94,7 @@ func Test_groupByChangeDate(t *testing.T) {
 			},
 		},
 		{
-			name: "should return one group when two param with same timestamp day input",
+			name: "should return one group when two param with same timestamp input",
 			given: []orcaSchema.HistoryParameter{
 				histoParam1,
 				histoParam2,
@@ -107,7 +107,7 @@ func Test_groupByChangeDate(t *testing.T) {
 			},
 		},
 		{
-			name: "should return two group when two param with same timestamp day and third with different day input",
+			name: "should return two group when two param with same timestamp and third with different timestamp but same day",
 			given: []orcaSchema.HistoryParameter{
 				histoParam1,
 				histoParam2,
