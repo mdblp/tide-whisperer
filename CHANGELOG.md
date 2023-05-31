@@ -2,9 +2,10 @@
 
 Data access API for tidepool
 
-## 1.2.0-rc21 - 2023-05-25
+## 1.2.0 - 2023-05-30
 ### Engineering
 - YLP-2407 Group parameter changes by time
+- YLP-2414 Remove HttpResponseWriter StringBuilder to avoid low performances during write
 ### Added
 - YLP-2076 Export account data on demand
 

@@ -1,10 +1,10 @@
 package common
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/url"
-	"strings"
 )
 
 /*TODO : remove from common once it will not be used by api and usecase*/
@@ -22,7 +22,7 @@ type (
 		VARS        map[string]string
 		TraceID     string
 		Header      http.Header
-		WriteBuffer strings.Builder
+		WriteBuffer bytes.Buffer
 		StatusCode  int
 		Err         *DetailedError
 		Size        int

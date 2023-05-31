@@ -55,7 +55,8 @@ func (a *API) getDataV2(ctx context.Context, res *common.HttpResponseWriter) err
 	if err != nil {
 		return res.WriteError(err)
 	}
-	return res.Write(buff.Bytes())
+	res.WriteBuffer = *buff
+	return nil
 }
 
 // get session token (for history the header is found in the response and not in the request because of the v1 middelware)
