@@ -96,7 +96,7 @@ func (a *API) middleware(fn HandlerLoggerFunc, checkPermissions bool, params ...
 		// We will send a JSON, so advertise it for all of our requests
 		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(res.StatusCode)
-		_, err = w.Write([]byte(res.WriteBuffer.String()))
+		_, err = w.Write(res.WriteBuffer.Bytes())
 		if err != nil {
 			logErrors = append(logErrors, fmt.Sprintf("eww:\"%s\"", err))
 		}
