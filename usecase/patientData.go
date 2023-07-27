@@ -204,10 +204,12 @@ func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, us
 	return p.patientDataRepository.GetDataRangeLegacy(ctx, traceID, userID)
 }
 
-/*Temporary hack until we remove DetailedError
+/*
+Temporary hack until we remove DetailedError
 TODO : refactor DetailedError to stop using it and use go-common v2 errors
 By doing this we will use the error interface and we will be able to wrap errors with additional
-context using fmt.Errorf("context: %w", err) */
+context using fmt.Errorf("context: %w", err)
+*/
 func addContextToMessage(methodName string, userID string, traceID string, message string) string {
 	return fmt.Sprintf("%s failed: user=[%s], traceID=[%s] : %v", methodName, userID, traceID, message)
 }
@@ -241,6 +243,7 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 	var exclusions = map[string]string{
 		"cbgBucket":   "cbg",
 		"basalBucket": "basal",
+		"parameters":  "deviceParameter",
 	}
 	var exclusionList []string
 	groups := 0

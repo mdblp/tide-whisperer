@@ -38,6 +38,7 @@ func (p *PatientData) getDataV1Params(userID string, traceID string, startDate s
 		"patientData": true,
 		"basalBucket": readBasalBucket,
 		"cbgBucket":   true,
+		"parameters":  true,
 	}
 
 	var startTime, endTime time.Time
