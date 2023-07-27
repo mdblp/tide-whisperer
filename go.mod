@@ -1,6 +1,6 @@
 module github.com/tidepool-org/tide-whisperer
 
-go 1.17
+go 1.20
 
 // Commit id relative to go-common@dblp.0.9.0
 replace github.com/tidepool-org/go-common => github.com/mdblp/go-common v0.7.2-0.20210611071916-2fe8363c8b02
