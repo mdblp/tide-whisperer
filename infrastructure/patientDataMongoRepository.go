@@ -439,15 +439,16 @@ func (p *PatientDataMongoRepository) GetUploadData(ctx context.Context, traceID 
 func buildFilter(userID string, excludeTypes []string) bson.M {
 	if InArray("deviceParameter", excludeTypes) {
 		// parameters type is defined by two dimensions a type deviceEvent and a subtype deviceParameter
+		excludedSubType := []string{"deviceParameter"}
 		return bson.M{
 			"_userId": userID,
 			"type":    bson.M{"$nin": excludeTypes},
-			"subType": bson.M{"$nin": "deviceParameter"},
+			"subType": bson.M{"$nin": excludedSubType},
 		}
 	} else {
 		return bson.M{
 			"_userId": userID,
-			"type":    bson.M{"$not": bson.M{"$in": excludeTypes}},
+			"type":    bson.M{"$nin": excludeTypes},
 		}
 	}
 }

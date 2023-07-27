@@ -238,24 +238,16 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 	}
 	var pumpSettings *schemaV2.SettingsResult
 
-	var wg sync.WaitGroup
-
 	var exclusions = map[string]string{
 		"cbgBucket":   "cbg",
 		"basalBucket": "basal",
 		"parameters":  "deviceParameter",
 	}
 	var exclusionList []string
-	groups := 0
 	for key, value := range params.source {
 		if value {
-			groups++
 			if _, ok := exclusions[key]; ok {
 				exclusionList = append(exclusionList, exclusions[key])
-			}
-			if key == "basalBucket" {
-				// Adding one group to retrieve loopModes
-				groups++
 			}
 		}
 	}
@@ -272,7 +264,7 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 
 	// Fetch data from patientData and V2 API (for cbg)
 	channel := make(chan interface{})
-
+	var wg sync.WaitGroup
 	// Parallel routines
 	wg.Add(1)
 	go p.getDataFromStore(ctx, &wg, args.TraceID, args.UserID, dates, exclusionList, channel)
