@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## 1.2.1 - 2023-07-27
+### Fixed
+YLP-2547 the parameters tooltip contains duplicated entry in the daily view
+
 ## 1.2.0 - 2023-05-30
 ### Engineering
 - YLP-2407 Group parameter changes by time
@@ -15,15 +19,15 @@ Data access API for tidepool
 - YLP-2257 Refactoring as clean architecture first version
 
 ## 1.1.3 - 2023-03-22
-### Fix
+### Fixed
 - YLP-2171 Review Processing of Time in Loop Mode
 
 ## 1.1.2 - 2022-11-16
-### Fix
+### Fixed
 - YLP-1912 : Group parameter changes by day and not exact timestamp
 
 ## 1.1.1 - 2022-11-14
-### Fix
+### Fixed
 - YLP-1909: Group param changes by time
 
 ## 1.1.0 - 2022-11-07
