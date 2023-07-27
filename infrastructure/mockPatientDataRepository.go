@@ -42,7 +42,7 @@ func (c *MockPatientDataRepository) GetDataRangeLegacy(ctx context.Context, trac
 	return nil, fmt.Errorf("{%s} - [%s] - No data", traceID, userID)
 }
 
-// GetDataV1 v1 api mock call to fetch diabetes data
+// GetDataInDeviceData GetDataV1 v1 api mock call to fetch diabetes data
 func (c *MockPatientDataRepository) GetDataInDeviceData(ctx context.Context, traceID string, userID string, dates *common.Date, excludedType []string) (goComMgo.StorageIterator, error) {
 	if c.DataV1 != nil {
 		return &MockDbAdapterIterator{
@@ -61,7 +61,7 @@ func (c *MockPatientDataRepository) GetLatestBasalSecurityProfile(ctx context.Co
 	return nil, nil
 }
 
-// GetUploadDataV1 Fetch upload data from theirs upload ids, using the $in query parameter
+// GetUploadData GetUploadDataV1 Fetch upload data from theirs upload ids, using the $in query parameter
 func (c *MockPatientDataRepository) GetUploadData(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error) {
 	if c.DataIDV1 != nil {
 		return &MockDbAdapterIterator{

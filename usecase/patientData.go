@@ -274,13 +274,15 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 	channel := make(chan interface{})
 
 	// Parallel routines
-	wg.Add(groups)
+	wg.Add(1)
 	go p.getDataFromStore(ctx, &wg, args.TraceID, args.UserID, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
+		wg.Add(1)
 		go p.getCbgFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
+		wg.Add(2)
 		go p.getBasalFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
 		go p.getLoopModeData(ctx, &wg, args.TraceID, args.UserID, dates, channel)
 	}
