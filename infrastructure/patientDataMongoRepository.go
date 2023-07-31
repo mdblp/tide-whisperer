@@ -236,7 +236,7 @@ func (p *PatientDataMongoRepository) GetDataRangeLegacy(ctx context.Context, tra
 	return dateRange, nil
 }
 
-// GetDataV1 v1 api call to fetch diabetes data, excludes "upload" and "pumpSettings"
+// GetDataInDeviceData GetDataV1 v1 api call to fetch diabetes data, excludes "upload" and "pumpSettings"
 // and potentially other types
 func (p *PatientDataMongoRepository) GetDataInDeviceData(ctx context.Context, traceID string, userID string, dates *common.Date, excludeTypes []string) (goComMgo.StorageIterator, error) {
 	if !InArray("upload", excludeTypes) {
@@ -245,10 +245,8 @@ func (p *PatientDataMongoRepository) GetDataInDeviceData(ctx context.Context, tr
 	if !InArray("pumpSettings", excludeTypes) {
 		excludeTypes = append(excludeTypes, "pumpSettings")
 	}
-	query := bson.M{
-		"_userId": userID,
-		"type":    bson.M{"$not": bson.M{"$in": excludeTypes}},
-	}
+
+	query := buildFilter(userID, excludeTypes)
 
 	if dates.Start != "" && dates.End != "" {
 		query["time"] = bson.M{"$gte": dates.Start, "$lt": dates.End}
@@ -436,4 +434,21 @@ func (p *PatientDataMongoRepository) GetUploadData(ctx context.Context, traceID 
 	opts.SetProjection(unwantedFields)
 	opts.SetComment(traceID)
 	return dataCollection(p).Find(ctx, query, opts)
+}
+
+func buildFilter(userID string, excludeTypes []string) bson.M {
+	if InArray("deviceParameter", excludeTypes) {
+		// parameters type is defined by two dimensions a type deviceEvent and a subtype deviceParameter
+		excludedSubType := []string{"deviceParameter"}
+		return bson.M{
+			"_userId": userID,
+			"type":    bson.M{"$nin": excludeTypes},
+			"subType": bson.M{"$nin": excludedSubType},
+		}
+	} else {
+		return bson.M{
+			"_userId": userID,
+			"type":    bson.M{"$nin": excludeTypes},
+		}
+	}
 }

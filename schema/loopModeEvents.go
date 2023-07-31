@@ -6,7 +6,7 @@ import (
 
 type (
 	LoopModeEvent struct {
-		TimeRange 			`bson:"inline"`
+		TimeRange    `bson:"inline"`
 		DeliveryType string
 	}
 )
@@ -15,7 +15,7 @@ func NewLoopModeEvent(start time.Time, end *time.Time, deliveryType string) Loop
 	return LoopModeEvent{
 		TimeRange: TimeRange{
 			Start: start,
-			End: end,
+			End:   end,
 		},
 		DeliveryType: deliveryType,
 	}
@@ -23,7 +23,7 @@ func NewLoopModeEvent(start time.Time, end *time.Time, deliveryType string) Loop
 
 func filterLoopModes(loopModes []LoopModeEvent) []LoopModeEvent {
 	// The terminal sends not updated loopModes without duration
-	// We may have loopMode objects without duration but only one 
+	// We may have loopMode objects without duration but only one
 	// i.e. the last one meaning that the terminal is currently in loopMode ON
 	var filteredLoopModes []LoopModeEvent
 	lastIndex := len(loopModes) - 1
@@ -47,10 +47,10 @@ func FillLoopModeEvents(loopModes []LoopModeEvent) []LoopModeEvent {
 
 	for i := range filteredLoopModes {
 		if i != lastIndex {
-			next := filteredLoopModes[i + 1]
+			next := filteredLoopModes[i+1]
 			unionRanges := currentLoopMode.TimeRange.Union(next.TimeRange, true)
 			lastUnionIndex := len(unionRanges) - 1
-			for j, tRange :=  range unionRanges {
+			for j, tRange := range unionRanges {
 				deliveryType := "automated"
 				if tRange.Fill {
 					deliveryType = "scheduled"
@@ -69,15 +69,15 @@ func FillLoopModeEvents(loopModes []LoopModeEvent) []LoopModeEvent {
 	return filledLoopModes
 }
 
-func GetLoopModeEventsBetween(start time.Time, end * time.Time, loopModes []LoopModeEvent) []LoopModeEvent {
+func GetLoopModeEventsBetween(start time.Time, end *time.Time, loopModes []LoopModeEvent) []LoopModeEvent {
 	var matchedLoopModes []LoopModeEvent
-	myLoopMode  := NewLoopModeEvent(start, end, "")
+	myLoopMode := NewLoopModeEvent(start, end, "")
 	for _, loopMode := range loopModes {
-		if loopMode.TimeRange.OverLaps(myLoopMode.TimeRange) {	
-			matchingLoopMode :=  LoopModeEvent{
+		if loopMode.TimeRange.OverLaps(myLoopMode.TimeRange) {
+			matchingLoopMode := LoopModeEvent{
 				TimeRange{
 					Start: loopMode.Start,
-					End: loopMode.End,
+					End:   loopMode.End,
 				},
 				loopMode.DeliveryType,
 			}

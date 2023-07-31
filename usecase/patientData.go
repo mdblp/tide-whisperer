@@ -204,10 +204,12 @@ func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, us
 	return p.patientDataRepository.GetDataRangeLegacy(ctx, traceID, userID)
 }
 
-/*Temporary hack until we remove DetailedError
+/*
+Temporary hack until we remove DetailedError
 TODO : refactor DetailedError to stop using it and use go-common v2 errors
 By doing this we will use the error interface and we will be able to wrap errors with additional
-context using fmt.Errorf("context: %w", err) */
+context using fmt.Errorf("context: %w", err)
+*/
 func addContextToMessage(methodName string, userID string, traceID string, message string) string {
 	return fmt.Sprintf("%s failed: user=[%s], traceID=[%s] : %v", methodName, userID, traceID, message)
 }
@@ -236,23 +238,16 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 	}
 	var pumpSettings *schemaV2.SettingsResult
 
-	var wg sync.WaitGroup
-
 	var exclusions = map[string]string{
 		"cbgBucket":   "cbg",
 		"basalBucket": "basal",
+		"parameters":  "deviceParameter",
 	}
 	var exclusionList []string
-	groups := 0
 	for key, value := range params.source {
 		if value {
-			groups++
 			if _, ok := exclusions[key]; ok {
 				exclusionList = append(exclusionList, exclusions[key])
-			}
-			if key == "basalBucket" {
-				// Adding one group to retrieve loopModes
-				groups++
 			}
 		}
 	}
@@ -269,15 +264,17 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 
 	// Fetch data from patientData and V2 API (for cbg)
 	channel := make(chan interface{})
-
+	var wg sync.WaitGroup
 	// Parallel routines
-	wg.Add(groups)
+	wg.Add(1)
 	go p.getDataFromStore(ctx, &wg, args.TraceID, args.UserID, dates, exclusionList, channel)
 
 	if params.source["cbgBucket"] {
+		wg.Add(1)
 		go p.getCbgFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
+		wg.Add(2)
 		go p.getBasalFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
 		go p.getLoopModeData(ctx, &wg, args.TraceID, args.UserID, dates, channel)
 	}
