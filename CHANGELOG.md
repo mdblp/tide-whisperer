@@ -2,9 +2,13 @@
 
 Data access API for tidepool
 
+## 1.2.3 - 2023-07-27
+### Engineering
+- YLP-2569 add simple instrumentation probe
+
 ## 1.2.1 - 2023-07-27
 ### Fixed
-YLP-2547 the parameters tooltip contains duplicated entry in the daily view
+- YLP-2547 the parameters tooltip contains duplicated entry in the daily view
 
 ## 1.2.0 - 2023-05-30
 ### Engineering
