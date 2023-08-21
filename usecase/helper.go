@@ -184,8 +184,8 @@ func (p *PatientData) writeDataToBuffer(
 ) (*bytes.Buffer, *common.DetailedError) {
 	buff := bytes.Buffer{}
 	var iterUploads mongo.StorageIterator
-	common.TimeIt(ctx, "writeData")
-	defer common.TimeEnd(ctx, "writeData")
+	common.TimeIt(ctx, "writeDataToBuffer")
+	defer common.TimeEnd(ctx, "writeDataToBuffer")
 	// We return a JSON array, first character is: '['
 	_, err := buff.WriteString("[\n")
 	if err != nil {
@@ -194,36 +194,45 @@ func (p *PatientData) writeDataToBuffer(
 
 	if includePumpSettings && pumpSettings != nil {
 		writeParams.settings = pumpSettings
+		common.TimeIt(ctx, "writePumpSettings")
 		err = writePumpSettings(ctx, &buff, writeParams, bgUnit)
 		if err != nil {
+			common.TimeEnd(ctx, "writePumpSettings")
 			return nil, newWriteError(err)
 		}
+		common.TimeEnd(ctx, "writePumpSettings")
 	}
 
 	if includeParameterChanges && pumpSettings != nil {
 		writeParams.settings = pumpSettings
+		common.TimeIt(ctx, "writeDeviceParameterChanges")
 		err = writeDeviceParameterChanges(ctx, &buff, writeParams, filteringParameterChanges, bgUnit, startTime, endTime)
 		if err != nil {
+			common.TimeEnd(ctx, "writeDeviceParameterChanges")
 			return nil, newWriteError(err)
 		}
+		common.TimeEnd(ctx, "writeDeviceParameterChanges")
+
 	}
 
-	common.TimeIt(ctx, "writeDataMain")
+	common.TimeIt(ctx, "writeFromIterV1")
 	writeParams.iter = iterData
 	err = writeFromIterV1(ctx, &buff, bgUnit, writeParams)
 	if err != nil {
+		common.TimeEnd(ctx, "writeFromIterV1")
 		return nil, newWriteError(err)
 	}
-	common.TimeEnd(ctx, "writeDataMain")
+	common.TimeEnd(ctx, "writeFromIterV1")
 
 	if len(Cbgs) > 0 {
-		common.TimeIt(ctx, "WriteCbgs")
+		common.TimeIt(ctx, "writeCbgs")
 		writeParams.cbgs = Cbgs
 		err = writeCbgs(ctx, bgUnit, &buff, writeParams)
 		if err != nil {
+			common.TimeEnd(ctx, "writeCbgs")
 			return nil, newWriteError(err)
 		}
-		common.TimeEnd(ctx, "WriteCbgs")
+		common.TimeEnd(ctx, "writeCbgs")
 	}
 
 	if len(Basals) > 0 {
@@ -231,6 +240,7 @@ func (p *PatientData) writeDataToBuffer(
 		writeParams.basals = Basals
 		err = writeBasals(ctx, &buff, writeParams)
 		if err != nil {
+			common.TimeEnd(ctx, "writeBasals")
 			return nil, newWriteError(err)
 		}
 		common.TimeEnd(ctx, "writeBasals")
