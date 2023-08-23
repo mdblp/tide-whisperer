@@ -146,8 +146,6 @@ func NewPatientDataUseCase(logger *log.Logger, tideV2Client tideV2Client.ClientI
 func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
-	common.TimeIt(ctx, "getCbgFromTideV2")
-	defer common.TimeEnd(ctx, "getCbgFromTideV2")
 	data, err := p.tideV2Client.GetCbgV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
 	if err != nil {
 		channel <- &common.DetailedError{
@@ -166,8 +164,6 @@ func (p *PatientData) getCbgFromTideV2(ctx context.Context, wg *sync.WaitGroup, 
 func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, sessionToken string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
-	common.TimeIt(ctx, "getBasalFromTideV2")
-	defer common.TimeEnd(ctx, "getBasalFromTideV2")
 	data, err := p.tideV2Client.GetBasalV2WithContext(ctx, userID, sessionToken, dates.Start, dates.End)
 	if err != nil {
 		channel <- &common.DetailedError{
@@ -186,8 +182,6 @@ func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup
 func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
-	common.TimeIt(ctx, "getLoopModeData")
-	defer common.TimeEnd(ctx, "getLoopModeData")
 	loopModes, err := p.patientDataRepository.GetLoopMode(ctx, traceID, userID, dates)
 	if err != nil {
 		channel <- &common.DetailedError{
@@ -350,8 +344,6 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 func (p *PatientData) getDataFromStore(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, excludes []string, channel chan interface{}) {
 	defer wg.Done()
 	start := time.Now()
-	common.TimeIt(ctx, "getDataFromStore")
-	defer common.TimeEnd(ctx, "getDataFromStore")
 	data, err := p.patientDataRepository.GetDataInDeviceData(ctx, traceID, userID, dates, excludes)
 	if err != nil {
 		channel <- &common.DetailedError{
