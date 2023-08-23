@@ -285,8 +285,6 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 	/*This is due to the fact that writing into a channel will terminate once a read is done
 	with unbuffered channels.*/
 	go func() {
-		common.TimeIt(ctx, "wgWait")
-		defer common.TimeEnd(ctx, "wgWait")
 		wg.Wait()
 		close(channel)
 	}()
