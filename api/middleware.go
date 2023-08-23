@@ -79,9 +79,11 @@ func (a *API) middleware(fn HandlerLoggerFunc, checkPermissions bool, params ...
 			}
 		}
 
+		common.TimeIt(ctx, "checkPermissions")
 		if checkPermissions && !a.isAuthorized(r, userIDs) {
 			err = res.WriteError(&errorNoViewPermission)
 		}
+		common.TimeEnd(ctx, "checkPermissions")
 
 		// Mainteners: No read from the request below this point!
 
