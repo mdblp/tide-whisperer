@@ -79,9 +79,11 @@ func (a *API) middleware(fn HandlerLoggerFunc, checkPermissions bool, params ...
 			}
 		}
 
+		common.TimeIt(ctx, "checkPermissions")
 		if checkPermissions && !a.isAuthorized(r, userIDs) {
 			err = res.WriteError(&errorNoViewPermission)
 		}
+		common.TimeEnd(ctx, "checkPermissions")
 
 		// Mainteners: No read from the request below this point!
 
@@ -94,12 +96,14 @@ func (a *API) middleware(fn HandlerLoggerFunc, checkPermissions bool, params ...
 		}
 
 		// We will send a JSON, so advertise it for all of our requests
+		common.TimeIt(ctx, "writeJSONResults")
 		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(res.StatusCode)
 		_, err = w.Write(res.WriteBuffer.Bytes())
 		if err != nil {
 			logErrors = append(logErrors, fmt.Sprintf("eww:\"%s\"", err))
 		}
+		common.TimeEnd(ctx, "writeJSONResults")
 
 		// Log errors management
 		if res.Err != nil {

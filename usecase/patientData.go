@@ -232,6 +232,8 @@ type GetDataArgs struct {
 }
 
 func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buffer, *common.DetailedError) {
+	common.TimeIt(ctx, "getData")
+	defer common.TimeEnd(ctx, "getData")
 	params, err := p.getDataV1Params(args.UserID, args.TraceID, args.StartDate, args.EndDate, p.readBasalBucket)
 	if err != nil {
 		return nil, err
@@ -292,6 +294,7 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 	var basals []schemaV2.BasalBucket
 	var loopModes []schema.LoopModeEvent
 
+	common.TimeIt(ctx, "channelReadLoop")
 	for chanData := range channel {
 		switch d := chanData.(type) {
 		case *common.DetailedError:
@@ -306,10 +309,15 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 			loopModes = d
 		}
 	}
+	common.TimeEnd(ctx, "channelReadLoop")
 
 	if len(loopModes) > 0 {
+		common.TimeIt(ctx, "FillLoopModeEvents")
 		loopModes = schema.FillLoopModeEvents(loopModes)
+		common.TimeEnd(ctx, "FillLoopModeEvents")
+		common.TimeIt(ctx, "CleanUpBasals")
 		basals = basal.CleanUpBasals(basals, loopModes)
+		common.TimeEnd(ctx, "CleanUpBasals")
 	}
 
 	defer iterData.Close(ctx)
