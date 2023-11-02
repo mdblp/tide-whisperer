@@ -3,7 +3,7 @@
 Data access API for tidepool
 
 
-## 1.2.4 - 2023-07-27
+## 1.2.4 - 2023-11-02
 ### Engineering
 - YLP-2474 processing of Time in Loop Mode in tide-v2
 
