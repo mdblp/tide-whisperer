@@ -16,7 +16,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/tidepool-org/tide-whisperer/common"
-	schemaV1 "github.com/tidepool-org/tide-whisperer/schema"
 	"github.com/tidepool-org/tide-whisperer/usecase"
 )
 
@@ -96,7 +95,6 @@ func TestAPI_GetDataV2(t *testing.T) {
 	patientDataRepository.DataIDV1 = []string{
 		"{\"id\":\"00\",\"uploadId\":\"00\",\"time\":\"2021-01-10T00:00:00.000Z\",\"type\":\"upload\"}",
 	}
-	patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{}
 
 	creationTime1, _ := time.Parse(time.RFC3339, "2021-01-01T08:00:00Z")
 	day1, _ := time.Parse(dayTimeFormat, "2021-01-01")
@@ -189,7 +187,6 @@ func TestAPI_GetDataV2(t *testing.T) {
 		patientDataRepository.DataIDV1 = nil
 		mockTideV2.MockedCbg = []schema.CbgBucket{}
 		mockTideV2.MockedBasal = []schema.BasalBucket{}
-		patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{}
 	})
 
 	resetOPAMockRouteV1(true, "/v1/dataV2", userID)
@@ -229,18 +226,14 @@ func TestAPI_GetDataV2(t *testing.T) {
 		t.Fatalf("Cbg bucket only: %v", err.Error())
 	}
 
-	// testing with basal buckets + loopMode objects
-	patientDataRepository.LoopModeEvents = []schemaV1.LoopModeEvent{
-		schemaV1.NewLoopModeEvent(day1, &day2, "automated"),
-	}
 	patientDataUseCase = usecase.NewPatientDataUseCase(logger, mockTideV2, patientDataRepository, true)
 	api = InitAPI(ExportController{}, patientDataUseCase, dbAdapter, mockAuth, mockPerms, schemaVersions, logger, mockTideV2)
-	expectedBasalBucketWithLoopModes := `{"deliveryType":"automated","duration":1000,"id":"basal_bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"UTC","type":"basal"}`
+	expectedBasalBucket := `{"deliveryType":"automated","duration":1000,"id":"basal_bucket1_0","rate":1,"time":"2021-01-01T00:05:00Z","timezone":"Paris","type":"basal"}`
 	expectedBody = "[" + strings.Join(
 		[]string{
 			expectedDataV1,
 			expectedCbgBucket,
-			expectedBasalBucketWithLoopModes,
+			expectedBasalBucket,
 			expectedDataIdV1,
 		}, ",") + "]"
 	err = assertRequest(apiParms, urlParams, http.StatusOK, expectedBody)

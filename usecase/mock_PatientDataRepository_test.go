@@ -173,55 +173,6 @@ func (_c *MockPatientDataRepository_GetLatestBasalSecurityProfile_Call) Return(_
 	return _c
 }
 
-// GetLoopMode provides a mock function with given fields: ctx, traceID, userID, dates
-func (_m *MockPatientDataRepository) GetLoopMode(ctx context.Context, traceID string, userID string, dates *common.Date) ([]schema.LoopModeEvent, error) {
-	ret := _m.Called(ctx, traceID, userID, dates)
-
-	var r0 []schema.LoopModeEvent
-	if rf, ok := ret.Get(0).(func(context.Context, string, string, *common.Date) []schema.LoopModeEvent); ok {
-		r0 = rf(ctx, traceID, userID, dates)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]schema.LoopModeEvent)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string, string, *common.Date) error); ok {
-		r1 = rf(ctx, traceID, userID, dates)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// MockPatientDataRepository_GetLoopMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLoopMode'
-type MockPatientDataRepository_GetLoopMode_Call struct {
-	*mock.Call
-}
-
-// GetLoopMode is a helper method to define mock.On call
-//  - ctx context.Context
-//  - traceID string
-//  - userID string
-//  - dates *common.Date
-func (_e *MockPatientDataRepository_Expecter) GetLoopMode(ctx interface{}, traceID interface{}, userID interface{}, dates interface{}) *MockPatientDataRepository_GetLoopMode_Call {
-	return &MockPatientDataRepository_GetLoopMode_Call{Call: _e.mock.On("GetLoopMode", ctx, traceID, userID, dates)}
-}
-
-func (_c *MockPatientDataRepository_GetLoopMode_Call) Run(run func(ctx context.Context, traceID string, userID string, dates *common.Date)) *MockPatientDataRepository_GetLoopMode_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(string), args[3].(*common.Date))
-	})
-	return _c
-}
-
-func (_c *MockPatientDataRepository_GetLoopMode_Call) Return(_a0 []schema.LoopModeEvent, _a1 error) *MockPatientDataRepository_GetLoopMode_Call {
-	_c.Call.Return(_a0, _a1)
-	return _c
-}
-
 // GetUploadData provides a mock function with given fields: ctx, traceID, uploadIds
 func (_m *MockPatientDataRepository) GetUploadData(ctx context.Context, traceID string, uploadIds []string) (mongo.StorageIterator, error) {
 	ret := _m.Called(ctx, traceID, uploadIds)
