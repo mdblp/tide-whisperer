@@ -14,7 +14,6 @@ type PatientDataRepository interface {
 	GetDataInDeviceData(ctx context.Context, traceID string, userID string, dates *common.Date, excludeTypes []string) (goComMgo.StorageIterator, error)
 	GetLatestBasalSecurityProfile(ctx context.Context, traceID string, userID string) (*schema.DbProfile, error)
 	GetUploadData(ctx context.Context, traceID string, uploadIds []string) (goComMgo.StorageIterator, error)
-	GetLoopMode(ctx context.Context, traceID string, userID string, dates *common.Date) ([]schema.LoopModeEvent, error)
 }
 
 type DatabaseAdapter interface {

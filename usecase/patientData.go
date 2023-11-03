@@ -19,8 +19,6 @@ import (
 	"github.com/tidepool-org/go-common/clients/mongo"
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
 	"github.com/tidepool-org/tide-whisperer/common"
-	"github.com/tidepool-org/tide-whisperer/schema"
-	"github.com/tidepool-org/tide-whisperer/usecase/basal"
 )
 
 const (
@@ -179,24 +177,6 @@ func (p *PatientData) getBasalFromTideV2(ctx context.Context, wg *sync.WaitGroup
 	dataFromTideV2Timer.Observe(float64(elapsedTime))
 }
 
-func (p *PatientData) getLoopModeData(ctx context.Context, wg *sync.WaitGroup, traceID string, userID string, dates *common.Date, channel chan interface{}) {
-	defer wg.Done()
-	start := time.Now()
-	loopModes, err := p.patientDataRepository.GetLoopMode(ctx, traceID, userID, dates)
-	if err != nil {
-		channel <- &common.DetailedError{
-			Status:          errorRunningQuery.Status,
-			Code:            errorRunningQuery.Code,
-			Message:         errorRunningQuery.Message,
-			InternalMessage: addContextToMessage("getBasalFromTideV2", userID, traceID, err.Error()),
-		}
-	} else {
-		channel <- loopModes
-	}
-	elapsedTime := time.Since(start).Milliseconds()
-	dataFromStoreTimer.Observe(float64(elapsedTime))
-}
-
 func (p *PatientData) GetDataRangeLegacy(ctx context.Context, traceID string, userID string) (*common.Date, error) {
 	if userID == "" {
 		return nil, errors.New("user id is missing")
@@ -276,9 +256,8 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 		go p.getCbgFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
 	}
 	if params.source["basalBucket"] {
-		wg.Add(2)
+		wg.Add(1)
 		go p.getBasalFromTideV2(ctx, &wg, args.TraceID, args.UserID, args.SessionToken, dates, channel)
-		go p.getLoopModeData(ctx, &wg, args.TraceID, args.UserID, dates, channel)
 	}
 
 	/*To stop the range loop reading channels once all data are read from it*/
@@ -292,7 +271,6 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 	var iterData goComMgo.StorageIterator
 	var cbgs []schemaV2.CbgBucket
 	var basals []schemaV2.BasalBucket
-	var loopModes []schema.LoopModeEvent
 
 	common.TimeIt(ctx, "channelReadLoop")
 	for chanData := range channel {
@@ -305,20 +283,9 @@ func (p *PatientData) GetData(ctx context.Context, args GetDataArgs) (*bytes.Buf
 			cbgs = d
 		case []schemaV2.BasalBucket:
 			basals = d
-		case []schema.LoopModeEvent:
-			loopModes = d
 		}
 	}
 	common.TimeEnd(ctx, "channelReadLoop")
-
-	if len(loopModes) > 0 {
-		common.TimeIt(ctx, "FillLoopModeEvents")
-		loopModes = schema.FillLoopModeEvents(loopModes)
-		common.TimeEnd(ctx, "FillLoopModeEvents")
-		common.TimeIt(ctx, "CleanUpBasals")
-		basals = basal.CleanUpBasals(basals, loopModes)
-		common.TimeEnd(ctx, "CleanUpBasals")
-	}
 
 	defer iterData.Close(ctx)
 

@@ -17,12 +17,11 @@ type MockPatientDataRepository struct {
 	ParametersHistory    bson.M
 	BasalSecurityProfile *schema.DbProfile
 
-	DataRangeV1    []string
-	DataV1         []string
-	DataIDV1       []string
-	DataBGV1       []string
-	DataPSV1       *string
-	LoopModeEvents []schema.LoopModeEvent
+	DataRangeV1 []string
+	DataV1      []string
+	DataIDV1    []string
+	DataBGV1    []string
+	DataPSV1    *string
 }
 
 func NewMockPatientDataRepository() *MockPatientDataRepository {
@@ -69,13 +68,6 @@ func (c *MockPatientDataRepository) GetUploadData(ctx context.Context, traceID s
 			maxIter: len(c.DataIDV1),
 			data:    c.DataIDV1,
 		}, nil
-	}
-	return nil, fmt.Errorf("{%s} - No data", traceID)
-}
-
-func (c *MockPatientDataRepository) GetLoopMode(ctx context.Context, traceID string, userID string, dates *common.Date) ([]schema.LoopModeEvent, error) {
-	if c.LoopModeEvents != nil {
-		return c.LoopModeEvents, nil
 	}
 	return nil, fmt.Errorf("{%s} - No data", traceID)
 }

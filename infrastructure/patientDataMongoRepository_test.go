@@ -11,12 +11,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/tidepool-org/tide-whisperer/common"
 	"go.mongodb.org/mongo-driver/bson"
 
 	goComMgo "github.com/tidepool-org/go-common/clients/mongo"
-	"github.com/tidepool-org/tide-whisperer/schema"
 )
 
 var testingConfig = &goComMgo.Config{
@@ -737,105 +735,6 @@ func TestStore_GetLatestBasalSecurityProfile(t *testing.T) {
 	}
 }
 
-func TestStore_GetLoopMode(t *testing.T) {
-	userID := "abcdef"
-	ddr := &common.Date{
-		Start: "2020-01-01T07:00:00Z",
-		End:   "2020-01-01T08:20:01Z",
-	}
-	store := before(t,
-		bson.M{
-			"time":    "2020-01-01T08:20:00Z",
-			"type":    "deviceEvent",
-			"subType": "loopMode",
-			"_userId": userID,
-		},
-		bson.M{
-			"time":    "2020-01-01T08:15:00Z",
-			"type":    "deviceEvent",
-			"subType": "loopMode",
-			"_userId": userID,
-			"duration": bson.M{
-				"value": 120000,
-				"units": "milliseconds",
-			},
-		},
-		bson.M{
-			"time":    "2020-01-01T08:10:00Z",
-			"type":    "deviceEvent",
-			"subType": "loopMode",
-			"_userId": userID,
-			"duration": bson.M{
-				"value": 120,
-				"units": "seconds",
-			},
-		},
-		bson.M{
-			"time":    "2020-01-01T08:05:00Z",
-			"type":    "deviceEvent",
-			"subType": "loopMode",
-			"_userId": userID,
-			"duration": bson.M{
-				"value": 2,
-				"units": "minutes",
-			},
-		},
-		bson.M{
-			"time":    "2020-01-01T06:05:00Z",
-			"type":    "deviceEvent",
-			"subType": "loopMode",
-			"_userId": userID,
-			"duration": bson.M{
-				"value": 1,
-				"units": "hours",
-			},
-		},
-		bson.M{
-			"time":    "2020-01-01T05:00:00Z",
-			"type":    "deviceEvent",
-			"subType": "loopMode",
-			"_userId": userID,
-			"duration": bson.M{
-				"value": 10,
-				"units": "minutes",
-			},
-		},
-	)
-	ctx := context.Background()
-	traceID := uuid.New().String()
-
-	data, err := store.GetLoopMode(ctx, traceID, userID, ddr)
-	if err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
-	if len(data) != 5 {
-		t.Fatalf("Expected 5 elements, got %v", len(data))
-	}
-
-	allStartDates := []time.Time{
-		time.Date(2020, 1, 1, 6, 5, 0, 0, time.UTC),
-		time.Date(2020, 1, 1, 8, 5, 0, 0, time.UTC),
-		time.Date(2020, 1, 1, 8, 10, 0, 0, time.UTC),
-		time.Date(2020, 1, 1, 8, 15, 0, 0, time.UTC),
-		time.Date(2020, 1, 1, 8, 20, 0, 0, time.UTC),
-	}
-
-	allEndDates := []*time.Time{
-		ptr(time.Date(2020, 1, 1, 7, 5, 0, 0, time.UTC)),
-		ptr(time.Date(2020, 1, 1, 8, 7, 0, 0, time.UTC)),
-		ptr(time.Date(2020, 1, 1, 8, 12, 0, 0, time.UTC)),
-		ptr(time.Date(2020, 1, 1, 8, 17, 0, 0, time.UTC)),
-		nil,
-	}
-
-	for i, loopMode := range data {
-		expected := schema.LoopModeEvent{
-			TimeRange: schema.TimeRange{Start: allStartDates[i], End: allEndDates[i]},
-		}
-		assert.Equal(t, expected, loopMode, "Unexpected DB result")
-	}
-
-}
 func ptr(t time.Time) *time.Time {
 	return &t
 }

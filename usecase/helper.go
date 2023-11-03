@@ -386,8 +386,9 @@ func writePumpSettings(ctx context.Context, res *bytes.Buffer, p *writeFromIter,
 	datum["timezone"] = settings.Timezone
 	/*TODO fetch from somewhere*/
 	datum["activeSchedule"] = "Normal"
-	datum["deviceId"] = settings.CurrentSettings.Device.DeviceID
-
+	if settings.Device != nil {
+		datum["deviceId"] = settings.CurrentSettings.Device.DeviceID
+	}
 	/* Perform conversion */
 	if bgUnit != "" {
 		for _, hp := range settings.HistoryParameters {
