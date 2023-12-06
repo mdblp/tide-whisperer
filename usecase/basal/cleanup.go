@@ -80,6 +80,7 @@ func CleanUpBasals(basals []schema.BasalBucket, loopModes []schemaV1.LoopModeEve
 		}
 		basalDay.Samples = cleanSamples
 		cleanBuckets = append(cleanBuckets, basalDay)
+		endBasalTime = time.Time{}
 	}
 	return cleanBuckets
 }
