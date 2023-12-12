@@ -49,8 +49,7 @@ var tideWhispererIndexes = map[string][]mongo.IndexModel{
 		{
 			Keys: bson.D{{Key: "_userId", Value: 1}, {Key: "type", Value: 1}, {Key: "time", Value: -1}},
 			Options: options.Index().
-				SetName(idxUserIDTypeTime).
-				SetWeights(bson.M{"_userId": 10, "type": 5, "time": 1}),
+				SetName(idxUserIDTypeTime),
 		},
 	},
 }
@@ -210,7 +209,6 @@ func (p *PatientDataMongoRepository) GetDataRangeLegacy(ctx context.Context, tra
 	}
 
 	opts := options.FindOne()
-	opts.SetHint(idxUserIDTypeTime)
 	opts.SetProjection(wantedRangeFields)
 	opts.SetComment(traceID)
 
@@ -258,7 +256,6 @@ func (p *PatientDataMongoRepository) GetDataInDeviceData(ctx context.Context, tr
 
 	opts := options.Find()
 	opts.SetProjection(unwantedFields)
-	opts.SetHint(idxUserIDTypeTime)
 	opts.SetComment(traceID)
 
 	return dataCollection(p).Find(ctx, query, opts)
