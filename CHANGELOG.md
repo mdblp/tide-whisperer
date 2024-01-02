@@ -2,6 +2,9 @@
 
 Data access API for tidepool
 
+## 1.2.5 - 2023-12-12
+### Engineering
+- YLP-2756 Fix tide-whisperer index creation for mongo 5
 
 ## 1.2.4 - 2023-11-02
 ### Engineering
