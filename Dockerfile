@@ -11,6 +11,7 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 COPY --chown=mdblp . .
 RUN git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/" && \
+    git config --global --add safe.directory /go/src/github.com/tidepool-org/tide-whisperer && \
     git config --global --add safe.directory /go/src/github.com/mdblp/tide-whisperer-v2 && \
     go env -w GOCACHE=/go-cache
 RUN --mount=type=cache,target=/go-cache \
