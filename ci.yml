@@ -1,6 +1,6 @@
 module: tide-whisperer
 type: golang
-goVersion: "1.20"
+goVersion: "1.23"
 runTests: false
 testCommand: go test -race -v
 docker: true
