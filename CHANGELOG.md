@@ -2,6 +2,10 @@
 
 Data access API for tidepool
 
+## 1.2.7 - 2025-04-15
+### Engineering
+- Fix CVE
+
 ## 1.2.6 - 2025-03-24
 ### Engineering
 - Update go to 1.23
