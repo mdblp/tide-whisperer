@@ -16,7 +16,6 @@ if [ -n "${APP_VERSION:-}" ]; then
 else 
     VERSION_BASE=$(git describe --abbrev=0 --tags 2> /dev/null || echo 'dblp.0.0.0')
 fi
-export CGO_ENABLED=0
 VERSION_SHORT_COMMIT=$(git rev-parse --short HEAD)
 VERSION_FULL_COMMIT=$(git rev-parse HEAD)
 
