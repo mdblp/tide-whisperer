@@ -20,13 +20,9 @@ RUN --mount=type=cache,target=/go-cache \
 CMD ["./dist/tide-whisperer"]
 
 # Production
-FROM --platform=$BUILDPLATFORM alpine:latest AS production
-WORKDIR /home/tidepool
-RUN apk --no-cache update && \
-    apk --no-cache upgrade && \
-    apk add --no-cache ca-certificates && \
-    adduser -D tidepool
-USER tidepool
-COPY --from=development --chown=tidepool /go/src/github.com/tidepool-org/tide-whisperer/dist/tide-whisperer .
-COPY --from=development /usr/share/zoneinfo /usr/share/zoneinfo
+FROM gcr.io/distroless/static:nonroot AS production
+WORKDIR /home/nonroot
+USER nonroot
+COPY --from=development --chown=nonroot /go/src/github.com/mdblp/tide-whisperer/dist/tide-whisperer .
+CMD ["./tide-whisperer"]
 CMD ["./tide-whisperer"]
