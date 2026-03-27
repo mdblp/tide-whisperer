@@ -7,10 +7,8 @@ TARGETPLATFORM=$1
 if ["$TARGETPLATFORM"="linux/arm64"]; then
     export GOOS=darwin
     export GOARCH=arm64
-    export CGO_ENABLED=0
-else
-    export CGO_ENABLED=1
 fi
+export CGO_ENABLED=0
 
 # generate version number
 if [ -n "${APP_VERSION:-}" ]; then
@@ -18,6 +16,7 @@ if [ -n "${APP_VERSION:-}" ]; then
 else 
     VERSION_BASE=$(git describe --abbrev=0 --tags 2> /dev/null || echo 'dblp.0.0.0')
 fi
+export CGO_ENABLED=0
 VERSION_SHORT_COMMIT=$(git rev-parse --short HEAD)
 VERSION_FULL_COMMIT=$(git rev-parse HEAD)
 

@@ -5,7 +5,7 @@ ARG GITHUB_TOKEN
 ENV GO111MODULE=on
 WORKDIR /go/src/github.com/tidepool-org/tide-whisperer
 RUN adduser -D mdblp && \
-    apk add --no-cache gcc musl-dev git tzdata && \
+    apk add --no-cache git tzdata && \
     chown -R mdblp /go/src/github.com/tidepool-org/tide-whisperer
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
