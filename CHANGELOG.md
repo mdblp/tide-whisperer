@@ -2,7 +2,7 @@
 
 Data access API for tidepool
 
-## 1.3.0-rc1 - 2026-03-30
+## 1.3.0 - 2026-03-30
 ### Changed
 - Update Go version to 1.26
 - Disable CGO in build process
