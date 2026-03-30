@@ -25,4 +25,3 @@ WORKDIR /home/nonroot
 USER nonroot
 COPY --from=development --chown=nonroot /go/src/github.com/mdblp/tide-whisperer/dist/tide-whisperer .
 CMD ["./tide-whisperer"]
-CMD ["./tide-whisperer"]
