@@ -21,7 +21,7 @@ CMD ["./dist/tide-whisperer"]
 
 # Production
 FROM gcr.io/distroless/static:nonroot AS production
-WORKDIR /home/nonroot
+WORKDIR /home/mdblp
 USER nonroot
 COPY --from=development --chown=nonroot /go/src/github.com/mdblp/tide-whisperer/dist/tide-whisperer .
 CMD ["./tide-whisperer"]
