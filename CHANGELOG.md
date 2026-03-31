@@ -2,6 +2,13 @@
 
 Data access API for tidepool
 
+## 1.3.0 - 2026-03-30
+### Changed
+- Update Go version to 1.26
+- Disable CGO in build process
+- Replace Alpine base image with distroless for production
+- Remove gcc and musl-dev dependencies
+
 ## 1.2.7 - 2025-04-15
 ### Engineering
 - Fix CVE

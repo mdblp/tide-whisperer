@@ -1,11 +1,11 @@
 # Development
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS development
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS development
 ARG GOPRIVATE
 ARG GITHUB_TOKEN
 ENV GO111MODULE=on
 WORKDIR /go/src/github.com/tidepool-org/tide-whisperer
 RUN adduser -D mdblp && \
-    apk add --no-cache gcc musl-dev git tzdata && \
+    apk add --no-cache git tzdata && \
     chown -R mdblp /go/src/github.com/tidepool-org/tide-whisperer
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
@@ -20,13 +20,8 @@ RUN --mount=type=cache,target=/go-cache \
 CMD ["./dist/tide-whisperer"]
 
 # Production
-FROM --platform=$BUILDPLATFORM alpine:latest AS production
-WORKDIR /home/tidepool
-RUN apk --no-cache update && \
-    apk --no-cache upgrade && \
-    apk add --no-cache ca-certificates && \
-    adduser -D tidepool
-USER tidepool
-COPY --from=development --chown=tidepool /go/src/github.com/tidepool-org/tide-whisperer/dist/tide-whisperer .
-COPY --from=development /usr/share/zoneinfo /usr/share/zoneinfo
+FROM gcr.io/distroless/static:nonroot AS production
+WORKDIR /home/mdblp
+USER nonroot
+COPY --from=development --chown=nonroot --chmod=755 /go/src/github.com/tidepool-org/tide-whisperer/dist/tide-whisperer .
 CMD ["./tide-whisperer"]
